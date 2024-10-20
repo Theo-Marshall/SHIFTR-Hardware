@@ -14,6 +14,7 @@
 #include <dircon.h>
 #include <ESPmDNS.h>
 #include <AsyncTCP.h>
+#include <DirConMessage.h>
 
 void initializeDirCon();
 void doDirConLoop();
@@ -45,6 +46,9 @@ int64_t currentCadence = 75;
 
 AsyncServer *dirConServer = new AsyncServer(DIRCON_TCP_PORT);
 AsyncClient *dirConClients[DIRCON_MAX_CLIENTS];
+DirConMessage dirConMessage[DIRCON_MAX_CLIENTS];
+uint8_t dirConLastSequenceNumber[DIRCON_MAX_CLIENTS];
+
 
 DNSServer dnsServer;
 WebServer webServer(WEB_SERVER_PORT);
@@ -55,6 +59,10 @@ NimBLEScan *bLEScanner;
 std::vector<NimBLEAdvertisedDevice> trainerDevices;
 size_t selectedTrainerDeviceIndex;
 NimBLEClient *bLEClient;
+NimBLERemoteService *bLECyclingPowerService;
+NimBLERemoteService *bLECyclingSpeedAndCadenceService;
+std::vector<NimBLERemoteCharacteristic*> *bLECyclingPowerServiceCharacteristics;
+std::vector<NimBLERemoteCharacteristic*> *bLECyclingSpeedAndCadenceServiceCharacteristics;
 
 /* Define a class to handle the callbacks when advertisements are received */
 class AdvertisedDeviceCallbacks : public NimBLEAdvertisedDeviceCallbacks
@@ -95,6 +103,42 @@ class ClientCallbacks : public NimBLEClientCallbacks
 void setup()
 {
   log_i("SHIFTR " VERSION " starting...");
+  /*
+  std::vector<uint8_t> messageData;
+  std::vector<uint8_t> dirConMessage;
+  
+  NimBLEUUID uuid1("1818");
+  NimBLEUUID uuid2("1816");
+
+  log_d("UUID 0 before: %s", uuid1.to128().toString().c_str());
+  log_d("UUID 1 before: %s", uuid2.to128().toString().c_str());
+
+  uint16_t length = 0;
+  uint8_t *uuidBytes1 = (uint8_t*)uuid1.to128().getNative();
+  uint8_t *uuidBytes2 = (uint8_t*)uuid2.to128().getNative();
+
+  dirConMessage.push_back(1);
+  dirConMessage.push_back(DIRCON_MSGID_DISCOVER_SERVICES);
+  dirConMessage.push_back(0);
+  dirConMessage.push_back(DIRCON_RESPCODE_SUCCESS_REQUEST);
+  length += 32;
+  dirConMessage.push_back((uint8_t)(length >> 8));
+  dirConMessage.push_back((uint8_t)(length));
+
+  for (uint8_t i = 16; i > 0; i--)
+  {
+    dirConMessage.push_back(uuidBytes1[i]);
+  }
+  for (uint8_t i = 16; i > 0; i--)
+  {
+    dirConMessage.push_back(uuidBytes2[i]);
+  }
+
+  DirConMessage message;
+  message.parse(dirConMessage.data(), dirConMessage.size(), 0);
+  log_d("UUID 0 after: %s", message.AdditionalUUIDs[0].toString().c_str());
+  log_d("UUID 1 after: %s", message.AdditionalUUIDs[1].toString().c_str());
+  */
   initializeEthernet();
   initializeWiFiManager();
   initializeBLE();
@@ -162,14 +206,107 @@ void doDirConLoop()
 
 void handleDirConData(void *arg, AsyncClient *client, void *data, size_t len)
 {
+  uint8_t clientIndex = 0xFF;
+  for (size_t index = 0; index < DIRCON_MAX_CLIENTS; index++)
+  {
+    if (dirConClients[index] != nullptr)
+    {
+      if (dirConClients[index] == client) 
+      {
+        clientIndex = index;
+        break;
+      } 
+    }
+  }
+
+  if (clientIndex == 0xFF) 
+  {
+    log_e("Unable to identify client index, skipping handling of data");
+    return;
+  } 
+
   uint8_t *clientData = (uint8_t *)data;
-  log_d("Data from DirCon client %s received, hex value: %s", client->remoteIP().toString().c_str(), getHexString(clientData, len).c_str());
+  log_d("Data from DirCon client #%d with IP %s received, hex value: %s", clientIndex, client->remoteIP().toString().c_str(), getHexString(clientData, len).c_str());
+  
+  dirConLastSequenceNumber[clientIndex] = dirConMessage[clientIndex].SequenceNumber;
+  if (!dirConMessage[clientIndex].parse((uint8_t*)data, len, dirConLastSequenceNumber[clientIndex])) 
+  {
+    log_e("Failed to parse DirCon message, skipping further processing");
+    return;
+  }
 
-  std::vector<uint8_t> zwiftAsyncNotificationData = generateZwiftAsyncNotificationData(currentPower, currentCadence, 0LL, 0LL, 0LL);
-  std::vector<uint8_t> dirConPacket = generateDirConPacket(0x01, DIRCON_MSGID_UNSOLICITED_CHARACTERISTIC_NOTIFICATION, 0x00, 0x00, zwiftAsyncCharacteristicUUID, zwiftAsyncNotificationData);
-
-  client->write((char*)dirConPacket.data(), dirConPacket.size());
-
+  std::vector<uint8_t> returnData;
+  DirConMessage returnMessage;
+  returnMessage.Identifier = dirConMessage[clientIndex].Identifier;
+  switch (dirConMessage[clientIndex].Identifier)
+  {
+    case DIRCON_MSGID_DISCOVER_SERVICES:
+      log_i("DirCon service discovery request, returning services");
+      returnMessage.ResponseCode = DIRCON_RESPCODE_SUCCESS_REQUEST;
+      returnMessage.AdditionalUUIDs.push_back(cyclingPowerServiceUUID);
+      returnMessage.AdditionalUUIDs.push_back(cyclingSpeedAndCadenceServiceUUID);
+      returnMessage.AdditionalUUIDs.push_back(zwiftCustomServiceUUID);
+      break;
+    case DIRCON_MSGID_DISCOVER_CHARACTERISTICS:
+      log_i("DirCon characteristic discovery request for UUID %s, returning characteristics", dirConMessage[clientIndex].UUID.to128().toString().c_str());
+      returnMessage.ResponseCode = DIRCON_RESPCODE_SUCCESS_REQUEST;
+      if (cyclingPowerServiceUUID.equals(dirConMessage[clientIndex].UUID))
+      {
+        returnMessage.UUID = cyclingPowerServiceUUID;
+        for (size_t index = 0; index < bLECyclingPowerServiceCharacteristics->size(); index++)
+        {
+          log_d("Returning DirCon characteristic %s with type %d", bLECyclingPowerServiceCharacteristics->at(index)->getUUID().to128().toString().c_str(), getDirConCharacteristicTypeFromBLEProperties(bLECyclingPowerServiceCharacteristics->at(index)));
+          returnMessage.AdditionalUUIDs.push_back(bLECyclingPowerServiceCharacteristics->at(index)->getUUID());
+          returnMessage.AdditionalData.push_back(getDirConCharacteristicTypeFromBLEProperties(bLECyclingPowerServiceCharacteristics->at(index)));
+        }
+      } else if (cyclingSpeedAndCadenceServiceUUID.equals(dirConMessage[clientIndex].UUID))
+      {
+        returnMessage.UUID = cyclingSpeedAndCadenceServiceUUID;
+        for (size_t index = 0; index < bLECyclingSpeedAndCadenceServiceCharacteristics->size(); index++)
+        {
+          log_d("Returning DirCon characteristic %s with type %d", bLECyclingSpeedAndCadenceServiceCharacteristics->at(index)->getUUID().to128().toString().c_str(), getDirConCharacteristicTypeFromBLEProperties(bLECyclingSpeedAndCadenceServiceCharacteristics->at(index)));
+          returnMessage.AdditionalUUIDs.push_back(bLECyclingSpeedAndCadenceServiceCharacteristics->at(index)->getUUID());
+          returnMessage.AdditionalData.push_back(getDirConCharacteristicTypeFromBLEProperties(bLECyclingSpeedAndCadenceServiceCharacteristics->at(index)));
+        }
+      } else if (zwiftCustomServiceUUID.equals(dirConMessage[clientIndex].UUID))
+      {
+        returnMessage.UUID = zwiftCustomServiceUUID;
+        log_d("Returning DirCon characteristic %s with type %d", zwiftAsyncCharacteristicUUID.to128().toString().c_str(), DIRCON_CHAR_PROP_FLAG_NOTIFY);
+        returnMessage.AdditionalUUIDs.push_back(zwiftAsyncCharacteristicUUID);
+        returnMessage.AdditionalData.push_back(DIRCON_CHAR_PROP_FLAG_NOTIFY);
+        log_d("Returning DirCon characteristic %s with type %d", zwiftSyncRXCharacteristicUUID.to128().toString().c_str(), DIRCON_CHAR_PROP_FLAG_WRITE);
+        returnMessage.AdditionalUUIDs.push_back(zwiftSyncRXCharacteristicUUID);
+        returnMessage.AdditionalData.push_back(DIRCON_CHAR_PROP_FLAG_WRITE);
+        log_d("Returning DirCon characteristic %s with type %d", zwiftSyncTXCharacteristicUUID.to128().toString().c_str(), DIRCON_CHAR_PROP_FLAG_READ);
+        returnMessage.AdditionalUUIDs.push_back(zwiftSyncTXCharacteristicUUID);
+        returnMessage.AdditionalData.push_back(DIRCON_CHAR_PROP_FLAG_READ);
+      } else
+      {
+        log_e("Unknown service UUID %s for characteristic discovery requested, skipping further processing", dirConMessage[clientIndex].UUID.to128().toString().c_str());
+        returnMessage.ResponseCode = DIRCON_RESPCODE_SERVICE_NOT_FOUND;
+      }
+      break;
+    case DIRCON_MSGID_ENABLE_CHARACTERISTIC_NOTIFICATIONS:
+      log_i("DirCon characteristic enable notification request for characteristic %s with additional data of %d bytes", dirConMessage[clientIndex].UUID.to128().toString().c_str(), dirConMessage[clientIndex].AdditionalData.size());
+      returnMessage.ResponseCode = DIRCON_RESPCODE_SUCCESS_REQUEST;
+      returnMessage.UUID = dirConMessage[clientIndex].UUID;
+      break;
+    default:
+      log_e("Unknown identifier %d in DirCon message, skipping further processing", dirConMessage[clientIndex].Identifier);
+      returnMessage.Identifier = DIRCON_MSGID_ERROR;
+      break;
+  }
+  //std::vector<uint8_t> zwiftAsyncNotificationData = generateZwiftAsyncNotificationData(currentPower, currentCadence, 0LL, 0LL, 0LL);
+  //std::vector<uint8_t> dirConPacket = generateDirConPacket(0x01, DIRCON_MSGID_UNSOLICITED_CHARACTERISTIC_NOTIFICATION, 0x00, 0x00, zwiftAsyncCharacteristicUUID, zwiftAsyncNotificationData);
+  returnData = returnMessage.encode(dirConMessage[clientIndex].SequenceNumber);
+  if (returnData.size() > 0) 
+  {
+    log_d("Sending data to DirCon client #%d with IP %s, hex value: %s", clientIndex, client->remoteIP().toString().c_str(), getHexString(returnData.data(), returnData.size()).c_str());
+    client->write((char*)returnData.data(), returnData.size());
+  } else
+  {
+    log_e("DirCon message parsed but no data to answer");
+  }
 }
 
 void handleDirConError(void *arg, AsyncClient *client, int8_t error)
@@ -198,6 +335,7 @@ void handleNewDirConClient(void *arg, AsyncClient *client)
     if ((dirConClients[counter] == nullptr) || ((dirConClients[counter] != nullptr) && (!dirConClients[counter]->connected())))
     {
       dirConClients[counter] = client;
+      dirConLastSequenceNumber[counter] = 0;
       clientAccepted = true;
       break;
     }
@@ -278,7 +416,7 @@ void connectBLETrainerDevice()
     {
       /* Created a client but failed to connect, don't need to keep it as it has no data */
       NimBLEDevice::deleteClient(bLEClient);
-      log_d("Failed to connect to %s, deleting client", trainerDevices[selectedTrainerDeviceIndex].getName().c_str());
+      log_e("Failed to connect to %s, deleting client", trainerDevices[selectedTrainerDeviceIndex].getName().c_str());
       bLEConnected = false;
     }
     else
@@ -286,8 +424,36 @@ void connectBLETrainerDevice()
       bLEConnected = true;
     }
 
-    log_d("Connected to %s with RSSI %d", bLEClient->getPeerAddress().toString().c_str(),
-          bLEClient->getRssi());
+    log_d("Connected to %s with RSSI %d", bLEClient->getPeerAddress().toString().c_str(), bLEClient->getRssi());
+
+    log_d("Connecting remote services...");
+    bLECyclingPowerService = bLEClient->getService(cyclingPowerServiceUUID);
+    bLECyclingSpeedAndCadenceService = bLEClient->getService(cyclingSpeedAndCadenceServiceUUID);
+
+    if (bLECyclingPowerService != nullptr)
+    {
+      log_d("Reading remote cycling power service characteristics");
+      bLECyclingPowerServiceCharacteristics = bLECyclingPowerService->getCharacteristics(true);
+      for (size_t index = 0; index < bLECyclingPowerServiceCharacteristics->size(); index++)
+      {
+        log_d("Got remote characteristic %s", bLECyclingPowerServiceCharacteristics->at(index)->getUUID().to128().toString().c_str());
+      }
+    } else {
+      log_e("Failed to connect to remote cycling power service");
+    }
+
+    if (bLECyclingSpeedAndCadenceService != nullptr)
+    {
+      log_d("Reading remote cycling speed and cadence service characteristics");
+      bLECyclingSpeedAndCadenceServiceCharacteristics = bLECyclingSpeedAndCadenceService->getCharacteristics(true);
+      for (size_t index = 0; index < bLECyclingSpeedAndCadenceServiceCharacteristics->size(); index++)
+      {
+        log_d("Got remote characteristic %s", bLECyclingSpeedAndCadenceServiceCharacteristics->at(index)->getUUID().to128().toString().c_str());
+      }
+    } else {
+      log_e("Failed to connect to remote cycling speed and cadence service");
+    }
+
   }
   else
   {
