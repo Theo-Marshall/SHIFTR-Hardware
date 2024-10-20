@@ -10,7 +10,5 @@ char *getUniqueIdString();
 char *getDeviceName();
 char *getHostName();
 String getHexString(uint8_t *data, size_t len);
-uint8_t getDirConCharacteristicTypeFromBLEProperties(uint8_t bLEProperties); 
-uint8_t getDirConCharacteristicTypeFromBLEProperties(NimBLERemoteCharacteristic *remoteCharacteristic); 
 
 #endif

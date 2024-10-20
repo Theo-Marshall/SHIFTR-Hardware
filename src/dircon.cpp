@@ -1,28 +1,42 @@
 #include <Arduino.h>
 #include <NimBLEDevice.h>
-#include <dircon.h>
+#include <DirCon.h>
+#include <DirConMessage.h>
 
-std::vector<uint8_t> generateDirConPacket(uint8_t messageVersion, uint8_t identifier, uint8_t sequenceNumber, uint8_t responseCode, BLEUUID uuid, std::vector<uint8_t> data) {
-  std::vector<uint8_t> dirConPacket;
-  uint16_t length = 16;
-  uint8_t *uuidBytes = (uint8_t*)uuid.getNative();
-
-  dirConPacket.push_back(messageVersion);
-  dirConPacket.push_back(identifier);
-  dirConPacket.push_back(sequenceNumber);
-  dirConPacket.push_back(responseCode);
-  length += data.size();
-  dirConPacket.push_back((uint8_t)(length >> 8));
-  dirConPacket.push_back((uint8_t)(length));
-
-  for (uint8_t i = 16; i > 0; i--)
+uint8_t getDirConCharacteristicTypeFromBLEProperties(uint16_t bLEProperties)
+{
+  uint8_t returnValue = 0x00;
+  if ((bLEProperties && NIMBLE_PROPERTY::READ) == NIMBLE_PROPERTY::READ) 
   {
-    dirConPacket.push_back(uuidBytes[i]);
+    returnValue = returnValue | DIRCON_CHAR_PROP_FLAG_READ;
   }
-  for (uint8_t i = 0; i < data.size(); i++)
+  if (((bLEProperties && NIMBLE_PROPERTY::WRITE) == NIMBLE_PROPERTY::WRITE) || ((bLEProperties && NIMBLE_PROPERTY::WRITE_NR) == NIMBLE_PROPERTY::WRITE_NR))
   {
-    dirConPacket.push_back(data[i]);
+    returnValue = returnValue | DIRCON_CHAR_PROP_FLAG_WRITE;
+  }
+  if (((bLEProperties && NIMBLE_PROPERTY::NOTIFY) == NIMBLE_PROPERTY::NOTIFY) || ((bLEProperties && NIMBLE_PROPERTY::INDICATE) == NIMBLE_PROPERTY::INDICATE))
+  {
+    returnValue = returnValue | DIRCON_CHAR_PROP_FLAG_NOTIFY;
   }
 
-  return dirConPacket;
+  return returnValue;
+}
+
+uint8_t getDirConCharacteristicTypeFromBLEProperties(NimBLERemoteCharacteristic *remoteCharacteristic) 
+{
+  uint8_t returnValue = 0x00;
+  if (remoteCharacteristic->canRead()) 
+  {
+    returnValue = returnValue | DIRCON_CHAR_PROP_FLAG_READ;
+  }
+  if (remoteCharacteristic->canWrite() || remoteCharacteristic->canWriteNoResponse())
+  {
+    returnValue = returnValue | DIRCON_CHAR_PROP_FLAG_WRITE;
+  }
+  if (remoteCharacteristic->canIndicate() || remoteCharacteristic->canNotify() || remoteCharacteristic->canBroadcast())
+  {
+    returnValue = returnValue | DIRCON_CHAR_PROP_FLAG_NOTIFY;
+  }
+
+  return returnValue;
 }

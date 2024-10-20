@@ -7,6 +7,7 @@
 #define DIRCON_MDNS_SERVICE_NAME "_wahoo-fitness-tnp"
 #define DIRCON_MDNS_SERVICE_PROTOCOL "tcp"
 
-std::vector<uint8_t> generateDirConPacket(uint8_t messageVersion, uint8_t identifier, uint8_t sequenceNumber, uint8_t responseCode, BLEUUID uuid, std::vector<uint8_t> data);
+uint8_t getDirConCharacteristicTypeFromBLEProperties(uint8_t bLEProperties); 
+uint8_t getDirConCharacteristicTypeFromBLEProperties(NimBLERemoteCharacteristic *remoteCharacteristic); 
 
 #endif
