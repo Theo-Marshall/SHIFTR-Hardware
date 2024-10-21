@@ -25,3 +25,11 @@ void DirConService::addCharacteristic(NimBLEUUID characteristicUUID, uint8_t cha
     this->Characteristics.push_back(DirConCharacteristic(characteristicUUID, characteristicType));
   }  
 }
+
+void DirConService::unSubscribeNotifications(uint8_t clientId)
+{
+  for (size_t index = 0; index < this->Characteristics.size(); index++)
+  {
+    this->Characteristics.at(index).unSubscribeNotification(clientId);
+  }
+}

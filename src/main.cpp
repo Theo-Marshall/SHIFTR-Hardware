@@ -17,7 +17,17 @@
 #include <DirCon.h>
 #include <DirConService.h>
 
+void subscribeBLENotification(NimBLEUUID serviceUUID, NimBLEUUID characteristicUUID);
+void unSubscribeBLENotification(NimBLEUUID serviceUUID, NimBLEUUID characteristicUUID);
+std::vector<uint8_t> readBLECharacteristic(NimBLEUUID serviceUUID, NimBLEUUID characteristicUUID);
+bool writeBLECharacteristic(NimBLEUUID serviceUUID, NimBLEUUID characteristicUUID, std::vector<uint8_t> data);
+static void bLENotifyCallback(NimBLERemoteCharacteristic* pRemoteCharacteristic, uint8_t* pData, size_t length, bool isNotify);
+std::vector<uint8_t> readDirConCharacteristic(NimBLEUUID serviceUUID, NimBLEUUID characteristicUUID);
+bool writeDirConCharacteristic(NimBLEUUID serviceUUID, NimBLEUUID characteristicUUID, std::vector<uint8_t> data);
 void doDirConLoop();
+bool writeDirConMessage(NimBLEUUID serviceUUID, NimBLEUUID characteristicUUID, DirConMessage message);
+bool notifyDirConClients(void *argument);
+uint8_t getDirConClientIndex(AsyncClient *client);
 void handleDirConData(void *arg, AsyncClient *client, void *data, size_t len);
 void handleDirConError(void *arg, AsyncClient *client, int8_t error);
 void handleDirConDisconnect(void *arg, AsyncClient *client);
@@ -41,6 +51,8 @@ bool bLEConnected = false;
 bool ethernetConnected = false;
 bool wiFiConnected = false;
 
+auto timer = timer_create_default();
+
 int64_t currentPower = 150;
 int64_t currentCadence = 75;
 
@@ -59,12 +71,7 @@ NimBLEScan *bLEScanner;
 std::vector<NimBLEAdvertisedDevice> trainerDevices;
 size_t selectedTrainerDeviceIndex;
 NimBLEClient *bLEClient;
-//NimBLERemoteService *bLECyclingPowerService;
-//NimBLERemoteService *bLECyclingSpeedAndCadenceService;
-//std::vector<NimBLERemoteCharacteristic*> *bLECyclingPowerServiceCharacteristics;
-//std::vector<NimBLERemoteCharacteristic*> *bLECyclingSpeedAndCadenceServiceCharacteristics;
 
-/* Define a class to handle the callbacks when advertisements are received */
 class AdvertisedDeviceCallbacks : public NimBLEAdvertisedDeviceCallbacks
 {
 
@@ -84,7 +91,6 @@ class AdvertisedDeviceCallbacks : public NimBLEAdvertisedDeviceCallbacks
   };
 };
 
-/* Define a class to handle the callbacks for client connection events */
 class ClientCallbacks : public NimBLEClientCallbacks
 {
   void onConnect(NimBLEClient *pClient)
@@ -100,45 +106,198 @@ class ClientCallbacks : public NimBLEClientCallbacks
   };
 };
 
+static void bLENotifyCallback(NimBLERemoteCharacteristic* pRemoteCharacteristic, uint8_t* pData, size_t length, bool isNotify)
+{
+  log_d("Notification for BLE characteristic %s received, notify %d, hex value: %s, forwarding...", pRemoteCharacteristic->getUUID().to128().toString().c_str(), isNotify, getHexString(pData, length).c_str());
+  std::vector<uint8_t> returnData;
+  for (size_t index = 0; index < length; index++)
+  {
+    returnData.push_back(pData[index]);
+  }
+  
+  DirConMessage returnMessage;
+  returnMessage.Identifier = DIRCON_MSGID_UNSOLICITED_CHARACTERISTIC_NOTIFICATION;
+  returnMessage.ResponseCode = DIRCON_RESPCODE_SUCCESS_REQUEST;
+  returnMessage.UUID = pRemoteCharacteristic->getUUID();
+  returnMessage.AdditionalData = returnData;
+  if (!writeDirConMessage(pRemoteCharacteristic->getRemoteService()->getUUID(), pRemoteCharacteristic->getUUID(), returnMessage))
+  {
+    log_e("Error forwarding BLE notification to DirCon clients");
+    pRemoteCharacteristic->unsubscribe();
+  }
+ 
+}
+
+std::vector<uint8_t> readBLECharacteristic(NimBLEUUID serviceUUID, NimBLEUUID characteristicUUID)
+{
+  log_i("Reading BLE service %s with characteristic %s...", serviceUUID.to128().toString().c_str(), characteristicUUID.to128().toString().c_str());
+  std::vector<uint8_t> returnValue;
+
+  if (bLEClient->isConnected())
+  {
+    NimBLERemoteService* remoteService = nullptr;
+    NimBLERemoteCharacteristic* remoteCharacteristic = nullptr;
+    remoteService = bLEClient->getService(serviceUUID);
+    if (remoteService)
+    {
+      remoteCharacteristic = remoteService->getCharacteristic(characteristicUUID);
+      if (remoteCharacteristic)
+      {
+        if (remoteCharacteristic->canRead())
+        {
+          returnValue = remoteCharacteristic->readValue();
+        } else
+        {
+          log_e("Reading failed: BLE characteristic doesn't feature read");
+        }
+      } else
+      {
+        log_e("Reading failed: BLE characteristic not found");
+      }
+    } else
+    {
+      log_e("Reading failed: BLE service not found");
+    }
+  } else
+  {
+    log_e("Reading failed: BLE client not connected");
+  }
+  return returnValue;
+}
+
+bool writeBLECharacteristic(NimBLEUUID serviceUUID, NimBLEUUID characteristicUUID, std::vector<uint8_t> data)
+{
+  log_i("Writing BLE service %s with characteristic %s...", serviceUUID.to128().toString().c_str(), characteristicUUID.to128().toString().c_str());
+  bool success = false;
+  
+  if (bLEClient->isConnected())
+  {
+    NimBLERemoteService* remoteService = nullptr;
+    NimBLERemoteCharacteristic* remoteCharacteristic = nullptr;
+    remoteService = bLEClient->getService(serviceUUID);
+    if (remoteService)
+    {
+      remoteCharacteristic = remoteService->getCharacteristic(characteristicUUID);
+      if (remoteCharacteristic)
+      {
+        if (remoteCharacteristic->canWrite())
+        {
+          success = remoteCharacteristic->writeValue(data.data());
+        } else
+        {
+          log_e("Writing failed: BLE characteristic doesn't feature write");
+        }
+      } else
+      {
+        log_e("Writing failed: BLE characteristic not found");
+      }
+    } else
+    {
+      log_e("Writing failed: BLE service not found");
+    }
+  } else
+  {
+    log_e("Writing failed: BLE client not connected");
+  }
+  return success;
+}
+
+void subscribeBLENotification(NimBLEUUID serviceUUID, NimBLEUUID characteristicUUID)
+{
+  log_i("Subscribing to BLE service %s with characteristic %s...", serviceUUID.to128().toString().c_str(), characteristicUUID.to128().toString().c_str());
+  if (bLEClient->isConnected())
+  {
+    NimBLERemoteService* remoteService = nullptr;
+    NimBLERemoteCharacteristic* remoteCharacteristic = nullptr;
+    remoteService = bLEClient->getService(serviceUUID);
+    if (remoteService)
+    {
+      remoteCharacteristic = remoteService->getCharacteristic(characteristicUUID);
+      if (remoteCharacteristic)
+      {
+        if (remoteCharacteristic->canNotify())
+        {
+          if (!remoteCharacteristic->subscribe(true, bLENotifyCallback))
+          {
+            log_e("Subscription failed: Subscription notify call returned false");
+          }
+        } 
+        if (remoteCharacteristic->canIndicate())
+        {
+          if (!remoteCharacteristic->subscribe(false, bLENotifyCallback))
+          {
+            log_e("Subscription failed: Subscription indicate call returned false");
+          }
+        } 
+        if (!(remoteCharacteristic->canNotify() || remoteCharacteristic->canIndicate()))
+        {
+          log_e("Subscription failed: BLE characteristic doesn't feature notify or indicate");
+        }
+      } else
+      {
+        log_e("Subscription failed: BLE characteristic not found");
+      }
+    } else
+    {
+      log_e("Subscription failed: BLE service not found");
+    }
+  } else
+  {
+    log_e("Subscription failed: BLE client not connected");
+  }
+}
+
+void unSubscribeBLENotification(NimBLEUUID serviceUUID, NimBLEUUID characteristicUUID)
+{
+  log_i("Unsubscribing from BLE service %s with characteristic %s...", serviceUUID.to128().toString().c_str(), characteristicUUID.to128().toString().c_str());
+  if (bLEClient->isConnected())
+  {
+    NimBLERemoteService* remoteService = nullptr;
+    NimBLERemoteCharacteristic* remoteCharacteristic = nullptr;
+    remoteService = bLEClient->getService(serviceUUID);
+    if (remoteService)
+    {
+      remoteCharacteristic = remoteService->getCharacteristic(characteristicUUID);
+      if (remoteCharacteristic)
+      {
+        if (remoteCharacteristic->canNotify() || remoteCharacteristic->canIndicate())
+        {
+          if (!remoteCharacteristic->unsubscribe())
+          {
+            log_e("Unsubscribe failed: Unsubscribe call returned false");
+          }
+        } else
+        {
+          log_e("Unsubscribe failed: BLE characteristic doesn't feature notify or indicate");
+        }
+      } else
+      {
+        log_e("Unsubscribe failed: BLE characteristic not found");
+      }
+    } else
+    {
+      log_e("Unsubscribe failed: BLE service not found");
+    }
+  } else
+  {
+    log_e("Unsubscribe failed: BLE client not connected");
+  }
+}
+
+std::vector<uint8_t> readDirConCharacteristic(NimBLEUUID serviceUUID, NimBLEUUID characteristicUUID)
+{
+  std::vector<uint8_t> returnValue;
+  return returnValue;
+}
+
+bool writeDirConCharacteristic(NimBLEUUID serviceUUID, NimBLEUUID characteristicUUID, std::vector<uint8_t> data)
+{
+  return true;
+}
+
 void setup()
 {
   log_i("SHIFTR " VERSION " starting...");
-  /*
-  std::vector<uint8_t> messageData;
-  std::vector<uint8_t> dirConMessage;
-  
-  NimBLEUUID uuid1("1818");
-  NimBLEUUID uuid2("1816");
-
-  log_d("UUID 0 before: %s", uuid1.to128().toString().c_str());
-  log_d("UUID 1 before: %s", uuid2.to128().toString().c_str());
-
-  uint16_t length = 0;
-  uint8_t *uuidBytes1 = (uint8_t*)uuid1.to128().getNative();
-  uint8_t *uuidBytes2 = (uint8_t*)uuid2.to128().getNative();
-
-  dirConMessage.push_back(1);
-  dirConMessage.push_back(DIRCON_MSGID_DISCOVER_SERVICES);
-  dirConMessage.push_back(0);
-  dirConMessage.push_back(DIRCON_RESPCODE_SUCCESS_REQUEST);
-  length += 32;
-  dirConMessage.push_back((uint8_t)(length >> 8));
-  dirConMessage.push_back((uint8_t)(length));
-
-  for (uint8_t i = 16; i > 0; i--)
-  {
-    dirConMessage.push_back(uuidBytes1[i]);
-  }
-  for (uint8_t i = 16; i > 0; i--)
-  {
-    dirConMessage.push_back(uuidBytes2[i]);
-  }
-
-  DirConMessage message;
-  message.parse(dirConMessage.data(), dirConMessage.size(), 0);
-  log_d("UUID 0 after: %s", message.AdditionalUUIDs[0].toString().c_str());
-  log_d("UUID 1 after: %s", message.AdditionalUUIDs[1].toString().c_str());
-  */
   initializeEthernet();
   initializeWiFiManager();
   initializeBLE();
@@ -149,6 +308,7 @@ void loop()
   iotWebConf.doLoop();
   doBLELoop();
   doDirConLoop();
+  timer.tick();
 }
 
 void doDirConLoop()
@@ -173,17 +333,24 @@ void doDirConLoop()
         String serviceUUIDs = "";
         for (size_t index = 0; index < dirConServices.size(); index++)
         {
-          serviceUUIDs += dirConServices.at(index).UUID.to128().toString().c_str();
-          if (index < (dirConServices.size() -1)) 
+          if (dirConServices.at(index).Advertised)
           {
+            serviceUUIDs += dirConServices.at(index).UUID.to128().toString().c_str();
             serviceUUIDs += ",";
           }
         }
-        MDNS.addServiceTxt(DIRCON_MDNS_SERVICE_NAME, DIRCON_MDNS_SERVICE_PROTOCOL, "ble-service-uuids", serviceUUIDs);
+        if (serviceUUIDs.endsWith(","))
+        {
+          serviceUUIDs.remove(serviceUUIDs.length() - 1);
+        }
+        log_d("Service UUIDs: %s", serviceUUIDs.c_str());
+        MDNS.addServiceTxt(DIRCON_MDNS_SERVICE_NAME, DIRCON_MDNS_SERVICE_PROTOCOL, "ble-service-uuids", serviceUUIDs.c_str());
         log_d("Added MDNS serviceTxts");
         log_d("Starting DirCon server...");
         dirConServer->begin();
         dirConServer->onClient(&handleNewDirConClient, dirConServer);
+        log_d("Starting DirCon notification timer...");
+        timer.every(1000, notifyDirConClients);
       }
     }
   }
@@ -194,6 +361,8 @@ void doDirConLoop()
       log_d("Ethernet and WiFi or BLE disconnected, stopping MDNS...");
       mDNSStarted = false;
       MDNS.end();
+      log_d("Stopping DirCon notification timer...");
+      timer.cancel();
       log_d("Stopping DirCon server...");
       dirConServer->end();
       log_d("Clearing DirCon services...");
@@ -202,7 +371,62 @@ void doDirConLoop()
   }
 }
 
-void handleDirConData(void *arg, AsyncClient *client, void *data, size_t len)
+bool writeDirConMessage(NimBLEUUID serviceUUID, NimBLEUUID characteristicUUID, DirConMessage message)
+{
+  bool success = false;
+
+  if (wiFiConnected || ethernetConnected)
+  {
+    if (dirConServer != nullptr)
+    {
+      for (size_t serviceIndex = 0; serviceIndex < dirConServices.size(); serviceIndex++)
+      {
+        if (dirConServices.at(serviceIndex).UUID.equals(serviceUUID)) 
+        {
+          for (size_t characteristicIndex = 0; characteristicIndex < dirConServices.at(serviceIndex).Characteristics.size(); characteristicIndex++)
+          {
+            if (dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).NotificationSubscriptions.size() > 0) 
+            {
+              if (dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).UUID.equals(characteristicUUID))
+              {
+                for (size_t subscriptionIndex = 0; subscriptionIndex < dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).NotificationSubscriptions.size(); subscriptionIndex++)
+                {
+                  if ((dirConClients[dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).NotificationSubscriptions.at(subscriptionIndex)] != nullptr) && dirConClients[dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).NotificationSubscriptions.at(subscriptionIndex)]->connected())
+                  {
+                    log_d("Writing DirCon message to client #%d for characteristic %s", dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).NotificationSubscriptions.at(subscriptionIndex), dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).UUID.to128().toString().c_str());
+                    std::vector<uint8_t> clientData = message.encode(dirConLastSequenceNumber[dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).NotificationSubscriptions.at(subscriptionIndex)]);
+                    success = dirConClients[dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).NotificationSubscriptions.at(subscriptionIndex)]->write((char*)clientData.data(), clientData.size());
+                    if (!success)
+                    {
+                      log_e("Error writing DirCon message");
+                    }
+                  }
+                }
+                break;
+              }
+            }
+          }
+          break;
+        }
+      }
+    }
+  }
+  return success;
+}
+
+bool notifyDirConClients(void *argument)
+{
+  //log_d("Notifying DirCon clients");
+  //DirConMessage returnMessage;
+  //returnMessage.Identifier = DIRCON_MSGID_UNSOLICITED_CHARACTERISTIC_NOTIFICATION;
+  //returnMessage.ResponseCode = DIRCON_RESPCODE_SUCCESS_REQUEST;
+  //returnMessage.UUID = zwiftAsyncCharacteristicUUID;
+  //returnMessage.AdditionalData = generateZwiftAsyncNotificationData(currentPower, currentCadence, 0LL, 0LL, 0LL);
+  //writeDirConMessage(zwiftCustomServiceUUID, zwiftAsyncCharacteristicUUID, returnMessage);
+  return true;
+}
+
+uint8_t getDirConClientIndex(AsyncClient *client)
 {
   uint8_t clientIndex = 0xFF;
   for (size_t index = 0; index < DIRCON_MAX_CLIENTS; index++)
@@ -216,27 +440,35 @@ void handleDirConData(void *arg, AsyncClient *client, void *data, size_t len)
       } 
     }
   }
+  return clientIndex;
+}
 
+void handleDirConData(void *arg, AsyncClient *client, void *data, size_t len)
+{
+  uint8_t clientIndex = getDirConClientIndex(client);
+  
   if (clientIndex == 0xFF) 
   {
     log_e("Unable to identify client index, skipping handling of data");
     return;
   } 
 
-  uint8_t *clientData = (uint8_t *)data;
-  log_d("Data from DirCon client #%d with IP %s received, hex value: %s", clientIndex, client->remoteIP().toString().c_str(), getHexString(clientData, len).c_str());
+  //uint8_t *clientData = (uint8_t *)data;
+  //log_d("Data from DirCon client #%d with IP %s received, hex value: %s", clientIndex, client->remoteIP().toString().c_str(), getHexString(clientData, len).c_str());
   
-  dirConLastSequenceNumber[clientIndex] = dirConMessage[clientIndex].SequenceNumber;
   if (!dirConMessage[clientIndex].parse((uint8_t*)data, len, dirConLastSequenceNumber[clientIndex])) 
   {
     log_e("Failed to parse DirCon message, skipping further processing");
     return;
   }
 
+  dirConLastSequenceNumber[clientIndex] = dirConMessage[clientIndex].SequenceNumber;
+  
   std::vector<uint8_t> returnData;
   DirConMessage returnMessage;
   returnMessage.Identifier = dirConMessage[clientIndex].Identifier;
-  bool serviceFound = false;
+  bool uUIDFound = false;
+  bool enableNotification = false;
   switch (dirConMessage[clientIndex].Identifier)
   {
     case DIRCON_MSGID_DISCOVER_SERVICES:
@@ -244,28 +476,32 @@ void handleDirConData(void *arg, AsyncClient *client, void *data, size_t len)
       returnMessage.ResponseCode = DIRCON_RESPCODE_SUCCESS_REQUEST;
       for (size_t serviceIndex = 0; serviceIndex < dirConServices.size(); serviceIndex++)
       {
-        returnMessage.AdditionalUUIDs.push_back(dirConServices.at(serviceIndex).UUID);
+        if (dirConServices.at(serviceIndex).Advertised)
+        {
+          returnMessage.AdditionalUUIDs.push_back(dirConServices.at(serviceIndex).UUID);
+        }
       }
       break;
     case DIRCON_MSGID_DISCOVER_CHARACTERISTICS:
       log_i("DirCon characteristic discovery request for service UUID %s, returning characteristics", dirConMessage[clientIndex].UUID.to128().toString().c_str());
       returnMessage.ResponseCode = DIRCON_RESPCODE_SUCCESS_REQUEST;
+      returnMessage.UUID = dirConMessage[clientIndex].UUID;
+      uUIDFound = false;
       for (size_t serviceIndex = 0; serviceIndex < dirConServices.size(); serviceIndex++)
       {
         if (dirConServices.at(serviceIndex).UUID.equals(dirConMessage[clientIndex].UUID))
         {
-          returnMessage.UUID = dirConMessage[clientIndex].UUID;
           for (size_t characteristicIndex = 0; characteristicIndex < dirConServices.at(serviceIndex).Characteristics.size(); characteristicIndex++)
           {
             log_d("Returning DirCon characteristic %s with type %d", dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).UUID.to128().toString().c_str(), dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).Type);
             returnMessage.AdditionalUUIDs.push_back(dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).UUID);
             returnMessage.AdditionalData.push_back(dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).Type);
           }
-          serviceFound = true;
+          uUIDFound = true;
           break;
         }
       }
-      if (!serviceFound)
+      if (!uUIDFound)
       {
         log_e("Unknown service UUID %s for characteristic discovery requested, skipping further processing", dirConMessage[clientIndex].UUID.to128().toString().c_str());
         returnMessage.ResponseCode = DIRCON_RESPCODE_SERVICE_NOT_FOUND;
@@ -275,18 +511,130 @@ void handleDirConData(void *arg, AsyncClient *client, void *data, size_t len)
       log_i("DirCon characteristic enable notification request for characteristic %s with additional data of %d bytes", dirConMessage[clientIndex].UUID.to128().toString().c_str(), dirConMessage[clientIndex].AdditionalData.size());
       returnMessage.ResponseCode = DIRCON_RESPCODE_SUCCESS_REQUEST;
       returnMessage.UUID = dirConMessage[clientIndex].UUID;
+      if (dirConMessage[clientIndex].AdditionalData.size() == 1) {
+        enableNotification = (dirConMessage[clientIndex].AdditionalData.at(0) != 0);
+      } else 
+      {
+        log_e("Value of enable notification request is missing, skipping further processing", dirConMessage[clientIndex].Identifier);
+        returnMessage.Identifier = DIRCON_RESPCODE_CHARACTERISTIC_OPERATION_NOT_SUPPORTED;
+      }
+      uUIDFound = false;
+      for (size_t serviceIndex = 0; serviceIndex < dirConServices.size(); serviceIndex++)
+      {
+        for (size_t characteristicIndex = 0; characteristicIndex < dirConServices.at(serviceIndex).Characteristics.size(); characteristicIndex++)
+        {
+          if (dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).UUID.equals(dirConMessage[clientIndex].UUID)) 
+          {
+            log_d("Subscribing for characteristic %s with value %d for clientIndex %d", dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).UUID.to128().toString().c_str(), enableNotification, clientIndex);
+            dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).subscribeNotification(clientIndex, enableNotification);
+            // if there's at least one subscriber then enable BLE notifications, otherwise disable them (except Zwift special service)
+            if (!dirConServices.at(serviceIndex).UUID.equals(zwiftCustomServiceUUID))
+            {
+              if (dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).NotificationSubscriptions.size() > 0) 
+              {
+                subscribeBLENotification(dirConServices.at(serviceIndex).UUID, dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).UUID);
+              } else 
+              {
+                unSubscribeBLENotification(dirConServices.at(serviceIndex).UUID, dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).UUID);
+              }
+            }
+            uUIDFound = true;
+            break;
+          }
+        }
+        if (uUIDFound)
+        {
+          break;
+        }
+      }
+      if (!uUIDFound)
+      {
+        log_e("Unknown characteristic UUID %s for enable notification requested, skipping further processing", dirConMessage[clientIndex].UUID.to128().toString().c_str());
+        returnMessage.ResponseCode = DIRCON_RESPCODE_CHARACTERISTIC_NOT_FOUND;
+      }
+      break;
+    case DIRCON_MSGID_READ_CHARACTERISTIC:
+      log_i("DirCon read characteristic request for characteristic %s", dirConMessage[clientIndex].UUID.to128().toString().c_str());
+      returnMessage.ResponseCode = DIRCON_RESPCODE_SUCCESS_REQUEST;
+      returnMessage.UUID = dirConMessage[clientIndex].UUID;
+      uUIDFound = false;
+      for (size_t serviceIndex = 0; serviceIndex < dirConServices.size(); serviceIndex++)
+      {
+        for (size_t characteristicIndex = 0; characteristicIndex < dirConServices.at(serviceIndex).Characteristics.size(); characteristicIndex++)
+        {
+          if (dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).UUID.equals(dirConMessage[clientIndex].UUID)) 
+          {
+            if (!dirConServices.at(serviceIndex).UUID.equals(zwiftCustomServiceUUID))
+            {
+              returnMessage.AdditionalData = readBLECharacteristic(dirConServices.at(serviceIndex).UUID, dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).UUID);
+            } else
+            {
+              returnMessage.AdditionalData = readDirConCharacteristic(dirConServices.at(serviceIndex).UUID, dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).UUID);
+            }
+            uUIDFound = true;
+            break;
+          }
+        }
+        if (uUIDFound)
+        {
+          break;
+        }
+      }
+      if (!uUIDFound)
+      {
+        log_e("Unknown characteristic UUID %s for read requested, skipping further processing", dirConMessage[clientIndex].UUID.to128().toString().c_str());
+        returnMessage.ResponseCode = DIRCON_RESPCODE_CHARACTERISTIC_NOT_FOUND;
+      }
+      break;
+    case DIRCON_MSGID_WRITE_CHARACTERISTIC:
+      log_i("DirCon write characteristic request for characteristic %s", dirConMessage[clientIndex].UUID.to128().toString().c_str());
+      returnMessage.ResponseCode = DIRCON_RESPCODE_SUCCESS_REQUEST;
+      returnMessage.UUID = dirConMessage[clientIndex].UUID;
+      uUIDFound = false;
+      for (size_t serviceIndex = 0; serviceIndex < dirConServices.size(); serviceIndex++)
+      {
+        for (size_t characteristicIndex = 0; characteristicIndex < dirConServices.at(serviceIndex).Characteristics.size(); characteristicIndex++)
+        {
+          if (dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).UUID.equals(dirConMessage[clientIndex].UUID)) 
+          {
+            if (!dirConServices.at(serviceIndex).UUID.equals(zwiftCustomServiceUUID))
+            {
+              if (!writeBLECharacteristic(dirConServices.at(serviceIndex).UUID, dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).UUID, dirConMessage[clientIndex].AdditionalData))
+              {
+                returnMessage.ResponseCode = DIRCON_RESPCODE_CHARACTERISTIC_OPERATION_NOT_SUPPORTED;
+              }
+            } else
+            {
+              if (!writeDirConCharacteristic(dirConServices.at(serviceIndex).UUID, dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).UUID, dirConMessage[clientIndex].AdditionalData))
+              {
+                returnMessage.ResponseCode = DIRCON_RESPCODE_CHARACTERISTIC_OPERATION_NOT_SUPPORTED;
+              }
+            }
+            uUIDFound = true;
+            break;
+          }
+        }
+        if (uUIDFound)
+        {
+          break;
+        }
+      }
+      if (!uUIDFound)
+      {
+        log_e("Unknown characteristic UUID %s for write requested, skipping further processing", dirConMessage[clientIndex].UUID.to128().toString().c_str());
+        returnMessage.ResponseCode = DIRCON_RESPCODE_CHARACTERISTIC_NOT_FOUND;
+      }
       break;
     default:
       log_e("Unknown identifier %d in DirCon message, skipping further processing", dirConMessage[clientIndex].Identifier);
       returnMessage.Identifier = DIRCON_MSGID_ERROR;
       break;
   }
-  //std::vector<uint8_t> zwiftAsyncNotificationData = generateZwiftAsyncNotificationData(currentPower, currentCadence, 0LL, 0LL, 0LL);
-  //std::vector<uint8_t> dirConPacket = generateDirConPacket(0x01, DIRCON_MSGID_UNSOLICITED_CHARACTERISTIC_NOTIFICATION, 0x00, 0x00, zwiftAsyncCharacteristicUUID, zwiftAsyncNotificationData);
-  returnData = returnMessage.encode(dirConMessage[clientIndex].SequenceNumber);
+
+  returnData = returnMessage.encode(dirConLastSequenceNumber[clientIndex]);
   if (returnData.size() > 0) 
   {
-    log_d("Sending data to DirCon client #%d with IP %s, hex value: %s", clientIndex, client->remoteIP().toString().c_str(), getHexString(returnData.data(), returnData.size()).c_str());
+    //log_d("Sending data to DirCon client #%d with IP %s, hex value: %s", clientIndex, client->remoteIP().toString().c_str(), getHexString(returnData.data(), returnData.size()).c_str());
     client->write((char*)returnData.data(), returnData.size());
   } else
   {
@@ -303,6 +651,19 @@ void handleDirConError(void *arg, AsyncClient *client, int8_t error)
 void handleDirConDisconnect(void *arg, AsyncClient *client)
 {
   log_d("DirCon client disconnected");
+  uint8_t clientIndex = getDirConClientIndex(client);
+  
+  if (clientIndex == 0xFF) 
+  {
+    log_e("Unable to identify client index, removing subscriptions failed");
+    return;
+  } 
+
+  for (size_t index = 0; index < dirConServices.size(); index++)
+  {
+    dirConServices.at(index).unSubscribeNotifications(clientIndex);
+  }
+
 }
 
 void handleDirConTimeOut(void *arg, AsyncClient *client, uint32_t time)
@@ -414,10 +775,11 @@ void connectBLETrainerDevice()
     log_d("Clearing DirCon services and adding Zwift default service");
     dirConServices.clear();
     DirConService dirConZwiftService(zwiftCustomServiceUUID);
+    dirConZwiftService.Advertised = true;
     dirConZwiftService.addCharacteristic(zwiftAsyncCharacteristicUUID, DIRCON_CHAR_PROP_FLAG_NOTIFY);
     dirConZwiftService.addCharacteristic(zwiftSyncRXCharacteristicUUID, DIRCON_CHAR_PROP_FLAG_WRITE);
     dirConZwiftService.addCharacteristic(zwiftSyncTXCharacteristicUUID, DIRCON_CHAR_PROP_FLAG_READ);
-    dirConServices.push_back(dirConZwiftService);
+    //dirConServices.push_back(dirConZwiftService);
 
     log_d("Iterating remote BLE services and characteristics...");
     std::vector<NimBLERemoteService *> *remoteServices = bLEClient->getServices(true);
@@ -425,6 +787,11 @@ void connectBLETrainerDevice()
     {
       log_d("Found service %s, reading characteristics...", remoteServices->at(serviceIndex)->getUUID().to128().toString().c_str());
       DirConService dirConService(remoteServices->at(serviceIndex)->getUUID());
+      if (trainerDevices[selectedTrainerDeviceIndex].isAdvertisingService(remoteServices->at(serviceIndex)->getUUID()))
+      {
+        log_d("Service %s is advertised", remoteServices->at(serviceIndex)->getUUID().to128().toString().c_str());
+        dirConService.Advertised = true;
+      }
       std::vector<NimBLERemoteCharacteristic *> *remoteCharacteristics = remoteServices->at(serviceIndex)->getCharacteristics(true);
       for (size_t characteristicIndex = 0; characteristicIndex < remoteCharacteristics->size(); characteristicIndex++)
       {

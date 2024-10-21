@@ -11,7 +11,9 @@ class DirConService {
     DirConService(NimBLEUUID serviceUUID);
     NimBLEUUID UUID;
     std::vector<DirConCharacteristic> Characteristics;
+    bool Advertised = false;
     void addCharacteristic(NimBLEUUID characteristicUUID, uint8_t characteristicType);
+    void unSubscribeNotifications(uint8_t clientId);
   private:
 };
 

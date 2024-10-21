@@ -144,6 +144,9 @@ bool DirConMessage::parse(uint8_t *data, size_t len, uint8_t sequenceNumber)
   this->ResponseCode = data[3];
   this->Length = (data[4] << 8) | data[5];
   this->Request = false;
+  this->UUID = NimBLEUUID();
+  this->AdditionalData.clear();
+  this->AdditionalUUIDs.clear();
 
   if ((len - DIRCON_MESSAGE_HEADER_LENGTH) < this->Length) 
   {
