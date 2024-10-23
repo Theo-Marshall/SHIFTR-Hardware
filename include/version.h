@@ -1,11 +1,11 @@
 #ifndef VERSION_H
 #define VERSION_H
-#define VERSION "0.0.0+219"
+#define VERSION "0.0.0+222"
 #define VERSION_MAJOR 0
 #define VERSION_MINOR 0
 #define VERSION_PATCH 0
-#define VERSION_BUILD 219
+#define VERSION_BUILD 222
 #define VERSION_DATE "2024-10-23"
-#define VERSION_TIME "07:51"
-#define VERSION_FULL "0.0.0+219 2024-10-23 07:51"
+#define VERSION_TIME "14:08"
+#define VERSION_FULL "0.0.0+222 2024-10-23 14:08"
 #endif
