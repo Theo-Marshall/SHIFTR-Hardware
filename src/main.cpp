@@ -25,7 +25,7 @@ static void bLENotifyCallback(NimBLERemoteCharacteristic* pRemoteCharacteristic,
 std::vector<uint8_t> readDirConCharacteristic(NimBLEUUID serviceUUID, NimBLEUUID characteristicUUID);
 bool writeDirConCharacteristic(NimBLEUUID serviceUUID, NimBLEUUID characteristicUUID, std::vector<uint8_t> data);
 void doDirConLoop();
-bool writeDirConMessage(NimBLEUUID serviceUUID, NimBLEUUID characteristicUUID, DirConMessage message);
+bool writeDirConMessage(NimBLEUUID serviceUUID, NimBLEUUID characteristicUUID, DirConMessage message, uint8_t sequenceNumber);
 bool notifyDirConClients(void *argument);
 uint8_t getDirConClientIndex(AsyncClient *client);
 void handleDirConData(void *arg, AsyncClient *client, void *data, size_t len);
@@ -58,8 +58,6 @@ int64_t currentCadence = 75;
 
 AsyncServer *dirConServer = new AsyncServer(DIRCON_TCP_PORT);
 AsyncClient *dirConClients[DIRCON_MAX_CLIENTS];
-DirConMessage dirConMessage[DIRCON_MAX_CLIENTS];
-uint8_t dirConLastSequenceNumber[DIRCON_MAX_CLIENTS];
 std::vector<DirConService> dirConServices;
 
 DNSServer dnsServer;
@@ -86,6 +84,13 @@ class AdvertisedDeviceCallbacks : public NimBLEAdvertisedDeviceCallbacks
         log_d("Device %s offers cycling speed and cadence service %s", advertisedDevice->getName().c_str(), cyclingSpeedAndCadenceServiceUUID.toString().c_str());
         log_d("Adding %s to device list", advertisedDevice->getName().c_str());
         trainerDevices.push_back(NimBLEAdvertisedDevice(*advertisedDevice));
+
+        log_d("Number of advertised services: %d", advertisedDevice->getServiceUUIDCount());
+        for (size_t index = 0; index < advertisedDevice->getServiceUUIDCount(); index++)
+        {
+          log_d("Advertised service: %s", advertisedDevice->getServiceUUID(index).to128().toString().c_str());
+        }
+        
       }
     }
   };
@@ -120,7 +125,7 @@ static void bLENotifyCallback(NimBLERemoteCharacteristic* pRemoteCharacteristic,
   returnMessage.ResponseCode = DIRCON_RESPCODE_SUCCESS_REQUEST;
   returnMessage.UUID = pRemoteCharacteristic->getUUID();
   returnMessage.AdditionalData = returnData;
-  if (!writeDirConMessage(pRemoteCharacteristic->getRemoteService()->getUUID(), pRemoteCharacteristic->getUUID(), returnMessage))
+  if (!writeDirConMessage(pRemoteCharacteristic->getRemoteService()->getUUID(), pRemoteCharacteristic->getUUID(), returnMessage, 0))
   {
     log_e("Error forwarding BLE notification to DirCon clients");
     pRemoteCharacteristic->unsubscribe();
@@ -335,7 +340,7 @@ void doDirConLoop()
         {
           if (dirConServices.at(index).Advertised)
           {
-            serviceUUIDs += dirConServices.at(index).UUID.to128().toString().c_str();
+            serviceUUIDs += dirConServices.at(index).UUID.to16().toString().c_str();
             serviceUUIDs += ",";
           }
         }
@@ -345,6 +350,7 @@ void doDirConLoop()
         }
         log_d("Service UUIDs: %s", serviceUUIDs.c_str());
         MDNS.addServiceTxt(DIRCON_MDNS_SERVICE_NAME, DIRCON_MDNS_SERVICE_PROTOCOL, "ble-service-uuids", serviceUUIDs.c_str());
+        //MDNS.addServiceTxt(DIRCON_MDNS_SERVICE_NAME, DIRCON_MDNS_SERVICE_PROTOCOL, "ble-service-uuids", "0x1816,0x1818,0xa305,0xfec1");
         log_d("Added MDNS serviceTxts");
         log_d("Starting DirCon server...");
         dirConServer->begin();
@@ -371,7 +377,7 @@ void doDirConLoop()
   }
 }
 
-bool writeDirConMessage(NimBLEUUID serviceUUID, NimBLEUUID characteristicUUID, DirConMessage message)
+bool writeDirConMessage(NimBLEUUID serviceUUID, NimBLEUUID characteristicUUID, DirConMessage message, uint8_t sequenceNumber)
 {
   bool success = false;
 
@@ -394,7 +400,7 @@ bool writeDirConMessage(NimBLEUUID serviceUUID, NimBLEUUID characteristicUUID, D
                   if ((dirConClients[dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).NotificationSubscriptions.at(subscriptionIndex)] != nullptr) && dirConClients[dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).NotificationSubscriptions.at(subscriptionIndex)]->connected())
                   {
                     log_d("Writing DirCon message to client #%d for characteristic %s", dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).NotificationSubscriptions.at(subscriptionIndex), dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).UUID.to128().toString().c_str());
-                    std::vector<uint8_t> clientData = message.encode(dirConLastSequenceNumber[dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).NotificationSubscriptions.at(subscriptionIndex)]);
+                    std::vector<uint8_t> clientData = message.encode(sequenceNumber);
                     success = dirConClients[dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).NotificationSubscriptions.at(subscriptionIndex)]->write((char*)clientData.data(), clientData.size());
                     if (!success)
                     {
@@ -446,7 +452,6 @@ uint8_t getDirConClientIndex(AsyncClient *client)
 void handleDirConData(void *arg, AsyncClient *client, void *data, size_t len)
 {
   uint8_t clientIndex = getDirConClientIndex(client);
-  
   if (clientIndex == 0xFF) 
   {
     log_e("Unable to identify client index, skipping handling of data");
@@ -456,20 +461,19 @@ void handleDirConData(void *arg, AsyncClient *client, void *data, size_t len)
   //uint8_t *clientData = (uint8_t *)data;
   //log_d("Data from DirCon client #%d with IP %s received, hex value: %s", clientIndex, client->remoteIP().toString().c_str(), getHexString(clientData, len).c_str());
   
-  if (!dirConMessage[clientIndex].parse((uint8_t*)data, len, dirConLastSequenceNumber[clientIndex])) 
+  DirConMessage inputMessage;
+  if (!inputMessage.parse((uint8_t*)data, len, 0))
   {
     log_e("Failed to parse DirCon message, skipping further processing");
     return;
   }
-
-  dirConLastSequenceNumber[clientIndex] = dirConMessage[clientIndex].SequenceNumber;
   
   std::vector<uint8_t> returnData;
   DirConMessage returnMessage;
-  returnMessage.Identifier = dirConMessage[clientIndex].Identifier;
+  returnMessage.Identifier = inputMessage.Identifier;
   bool uUIDFound = false;
   bool enableNotification = false;
-  switch (dirConMessage[clientIndex].Identifier)
+  switch (inputMessage.Identifier)
   {
     case DIRCON_MSGID_DISCOVER_SERVICES:
       log_i("DirCon service discovery request, returning services");
@@ -483,13 +487,13 @@ void handleDirConData(void *arg, AsyncClient *client, void *data, size_t len)
       }
       break;
     case DIRCON_MSGID_DISCOVER_CHARACTERISTICS:
-      log_i("DirCon characteristic discovery request for service UUID %s, returning characteristics", dirConMessage[clientIndex].UUID.to128().toString().c_str());
+      log_i("DirCon characteristic discovery request for service UUID %s, returning characteristics", inputMessage.UUID.to128().toString().c_str());
       returnMessage.ResponseCode = DIRCON_RESPCODE_SUCCESS_REQUEST;
-      returnMessage.UUID = dirConMessage[clientIndex].UUID;
+      returnMessage.UUID = inputMessage.UUID;
       uUIDFound = false;
       for (size_t serviceIndex = 0; serviceIndex < dirConServices.size(); serviceIndex++)
       {
-        if (dirConServices.at(serviceIndex).UUID.equals(dirConMessage[clientIndex].UUID))
+        if (dirConServices.at(serviceIndex).UUID.equals(inputMessage.UUID))
         {
           for (size_t characteristicIndex = 0; characteristicIndex < dirConServices.at(serviceIndex).Characteristics.size(); characteristicIndex++)
           {
@@ -503,19 +507,19 @@ void handleDirConData(void *arg, AsyncClient *client, void *data, size_t len)
       }
       if (!uUIDFound)
       {
-        log_e("Unknown service UUID %s for characteristic discovery requested, skipping further processing", dirConMessage[clientIndex].UUID.to128().toString().c_str());
+        log_e("Unknown service UUID %s for characteristic discovery requested, skipping further processing", inputMessage.UUID.to128().toString().c_str());
         returnMessage.ResponseCode = DIRCON_RESPCODE_SERVICE_NOT_FOUND;
       }
       break;      
     case DIRCON_MSGID_ENABLE_CHARACTERISTIC_NOTIFICATIONS:
-      log_i("DirCon characteristic enable notification request for characteristic %s with additional data of %d bytes", dirConMessage[clientIndex].UUID.to128().toString().c_str(), dirConMessage[clientIndex].AdditionalData.size());
+      log_i("DirCon characteristic enable notification request for characteristic %s with additional data of %d bytes", inputMessage.UUID.to128().toString().c_str(), inputMessage.AdditionalData.size());
       returnMessage.ResponseCode = DIRCON_RESPCODE_SUCCESS_REQUEST;
-      returnMessage.UUID = dirConMessage[clientIndex].UUID;
-      if (dirConMessage[clientIndex].AdditionalData.size() == 1) {
-        enableNotification = (dirConMessage[clientIndex].AdditionalData.at(0) != 0);
+      returnMessage.UUID = inputMessage.UUID;
+      if (inputMessage.AdditionalData.size() == 1) {
+        enableNotification = (inputMessage.AdditionalData.at(0) != 0);
       } else 
       {
-        log_e("Value of enable notification request is missing, skipping further processing", dirConMessage[clientIndex].Identifier);
+        log_e("Value of enable notification request is missing, skipping further processing", inputMessage.Identifier);
         returnMessage.Identifier = DIRCON_RESPCODE_CHARACTERISTIC_OPERATION_NOT_SUPPORTED;
       }
       uUIDFound = false;
@@ -523,7 +527,7 @@ void handleDirConData(void *arg, AsyncClient *client, void *data, size_t len)
       {
         for (size_t characteristicIndex = 0; characteristicIndex < dirConServices.at(serviceIndex).Characteristics.size(); characteristicIndex++)
         {
-          if (dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).UUID.equals(dirConMessage[clientIndex].UUID)) 
+          if (dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).UUID.equals(inputMessage.UUID)) 
           {
             log_d("Subscribing for characteristic %s with value %d for clientIndex %d", dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).UUID.to128().toString().c_str(), enableNotification, clientIndex);
             dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).subscribeNotification(clientIndex, enableNotification);
@@ -549,20 +553,20 @@ void handleDirConData(void *arg, AsyncClient *client, void *data, size_t len)
       }
       if (!uUIDFound)
       {
-        log_e("Unknown characteristic UUID %s for enable notification requested, skipping further processing", dirConMessage[clientIndex].UUID.to128().toString().c_str());
+        log_e("Unknown characteristic UUID %s for enable notification requested, skipping further processing", inputMessage.UUID.to128().toString().c_str());
         returnMessage.ResponseCode = DIRCON_RESPCODE_CHARACTERISTIC_NOT_FOUND;
       }
       break;
     case DIRCON_MSGID_READ_CHARACTERISTIC:
-      log_i("DirCon read characteristic request for characteristic %s", dirConMessage[clientIndex].UUID.to128().toString().c_str());
+      log_i("DirCon read characteristic request for characteristic %s", inputMessage.UUID.to128().toString().c_str());
       returnMessage.ResponseCode = DIRCON_RESPCODE_SUCCESS_REQUEST;
-      returnMessage.UUID = dirConMessage[clientIndex].UUID;
+      returnMessage.UUID = inputMessage.UUID;
       uUIDFound = false;
       for (size_t serviceIndex = 0; serviceIndex < dirConServices.size(); serviceIndex++)
       {
         for (size_t characteristicIndex = 0; characteristicIndex < dirConServices.at(serviceIndex).Characteristics.size(); characteristicIndex++)
         {
-          if (dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).UUID.equals(dirConMessage[clientIndex].UUID)) 
+          if (dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).UUID.equals(inputMessage.UUID)) 
           {
             if (!dirConServices.at(serviceIndex).UUID.equals(zwiftCustomServiceUUID))
             {
@@ -582,30 +586,30 @@ void handleDirConData(void *arg, AsyncClient *client, void *data, size_t len)
       }
       if (!uUIDFound)
       {
-        log_e("Unknown characteristic UUID %s for read requested, skipping further processing", dirConMessage[clientIndex].UUID.to128().toString().c_str());
+        log_e("Unknown characteristic UUID %s for read requested, skipping further processing", inputMessage.UUID.to128().toString().c_str());
         returnMessage.ResponseCode = DIRCON_RESPCODE_CHARACTERISTIC_NOT_FOUND;
       }
       break;
     case DIRCON_MSGID_WRITE_CHARACTERISTIC:
-      log_i("DirCon write characteristic request for characteristic %s", dirConMessage[clientIndex].UUID.to128().toString().c_str());
+      log_i("DirCon write characteristic request for characteristic %s", inputMessage.UUID.to128().toString().c_str());
       returnMessage.ResponseCode = DIRCON_RESPCODE_SUCCESS_REQUEST;
-      returnMessage.UUID = dirConMessage[clientIndex].UUID;
+      returnMessage.UUID = inputMessage.UUID;
       uUIDFound = false;
       for (size_t serviceIndex = 0; serviceIndex < dirConServices.size(); serviceIndex++)
       {
         for (size_t characteristicIndex = 0; characteristicIndex < dirConServices.at(serviceIndex).Characteristics.size(); characteristicIndex++)
         {
-          if (dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).UUID.equals(dirConMessage[clientIndex].UUID)) 
+          if (dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).UUID.equals(inputMessage.UUID)) 
           {
             if (!dirConServices.at(serviceIndex).UUID.equals(zwiftCustomServiceUUID))
             {
-              if (!writeBLECharacteristic(dirConServices.at(serviceIndex).UUID, dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).UUID, dirConMessage[clientIndex].AdditionalData))
+              if (!writeBLECharacteristic(dirConServices.at(serviceIndex).UUID, dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).UUID, inputMessage.AdditionalData))
               {
                 returnMessage.ResponseCode = DIRCON_RESPCODE_CHARACTERISTIC_OPERATION_NOT_SUPPORTED;
               }
             } else
             {
-              if (!writeDirConCharacteristic(dirConServices.at(serviceIndex).UUID, dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).UUID, dirConMessage[clientIndex].AdditionalData))
+              if (!writeDirConCharacteristic(dirConServices.at(serviceIndex).UUID, dirConServices.at(serviceIndex).Characteristics.at(characteristicIndex).UUID, inputMessage.AdditionalData))
               {
                 returnMessage.ResponseCode = DIRCON_RESPCODE_CHARACTERISTIC_OPERATION_NOT_SUPPORTED;
               }
@@ -621,17 +625,17 @@ void handleDirConData(void *arg, AsyncClient *client, void *data, size_t len)
       }
       if (!uUIDFound)
       {
-        log_e("Unknown characteristic UUID %s for write requested, skipping further processing", dirConMessage[clientIndex].UUID.to128().toString().c_str());
+        log_e("Unknown characteristic UUID %s for write requested, skipping further processing", inputMessage.UUID.to128().toString().c_str());
         returnMessage.ResponseCode = DIRCON_RESPCODE_CHARACTERISTIC_NOT_FOUND;
       }
       break;
     default:
-      log_e("Unknown identifier %d in DirCon message, skipping further processing", dirConMessage[clientIndex].Identifier);
+      log_e("Unknown identifier %d in DirCon message, skipping further processing", inputMessage.Identifier);
       returnMessage.Identifier = DIRCON_MSGID_ERROR;
       break;
   }
 
-  returnData = returnMessage.encode(dirConLastSequenceNumber[clientIndex]);
+  returnData = returnMessage.encode(inputMessage.SequenceNumber);
   if (returnData.size() > 0) 
   {
     //log_d("Sending data to DirCon client #%d with IP %s, hex value: %s", clientIndex, client->remoteIP().toString().c_str(), getHexString(returnData.data(), returnData.size()).c_str());
@@ -681,7 +685,6 @@ void handleNewDirConClient(void *arg, AsyncClient *client)
     if ((dirConClients[counter] == nullptr) || ((dirConClients[counter] != nullptr) && (!dirConClients[counter]->connected())))
     {
       dirConClients[counter] = client;
-      dirConLastSequenceNumber[counter] = 0;
       clientAccepted = true;
       break;
     }
@@ -790,6 +793,11 @@ void connectBLETrainerDevice()
       if (trainerDevices[selectedTrainerDeviceIndex].isAdvertisingService(remoteServices->at(serviceIndex)->getUUID()))
       {
         log_d("Service %s is advertised", remoteServices->at(serviceIndex)->getUUID().to128().toString().c_str());
+        dirConService.Advertised = true;
+      }
+      if (tacxCustomFECServiceUUID.equals(remoteServices->at(serviceIndex)->getUUID()) || tacxCustomServiceUUID.equals(remoteServices->at(serviceIndex)->getUUID())) 
+      {
+        log_d("Service %s is force advertised", remoteServices->at(serviceIndex)->getUUID().to128().toString().c_str());
         dirConService.Advertised = true;
       }
       std::vector<NimBLERemoteCharacteristic *> *remoteCharacteristics = remoteServices->at(serviceIndex)->getCharacteristics(true);
