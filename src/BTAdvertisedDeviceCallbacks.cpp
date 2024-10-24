@@ -21,6 +21,13 @@ void BTAdvertisedDeviceCallbacks::onResult(NimBLEAdvertisedDevice* advertisedDev
 
 void BTAdvertisedDeviceCallbacks::onScanEnd(NimBLEScanResults scanResults) {
   if (BTDeviceManager::scannedDevices.size() <= 0) {
-    NimBLEDevice::getScan()->start(0, nullptr, false);
+    if (!BTDeviceManager::isConnected()) {
+      NimBLEDevice::getScan()->start(0, false);
+    }
+  } else {
+    if (!BTDeviceManager::isConnected()) {
+      NimBLEAdvertisedDevice* remoteDevice = BTDeviceManager::getRemoteDevice();
+      BTDeviceManager::connectRemoteDevice(remoteDevice);
+    }
   }
 }

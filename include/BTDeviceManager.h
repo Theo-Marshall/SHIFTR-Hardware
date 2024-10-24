@@ -24,6 +24,8 @@ class BTDeviceManager {
     static NimBLEClient *nimBLEClient;
     static std::vector<NimBLEUUID> remoteDeviceFilterUUIDs;
     static std::vector<NimBLEAdvertisedDevice*> scannedDevices;
+    static NimBLEAdvertisedDevice* getRemoteDevice();
+    static bool connectRemoteDevice(NimBLEAdvertisedDevice* remoteDevice);
 };
 
 #endif

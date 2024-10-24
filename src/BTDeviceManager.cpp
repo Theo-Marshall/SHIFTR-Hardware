@@ -1,9 +1,10 @@
 #include <BTAdvertisedDeviceCallbacks.h>
+#include <BTClientCallbacks.h>
 #include <BTDeviceManager.h>
 
 std::vector<NimBLEUUID> BTDeviceManager::remoteDeviceFilterUUIDs{};
-std::vector<NimBLEAdvertisedDevice*> BTDeviceManager::scannedDevices{};
-  
+std::vector<NimBLEAdvertisedDevice *> BTDeviceManager::scannedDevices{};
+
 bool BTDeviceManager::start() {
   if (serviceManager == nullptr) {
     return false;
@@ -20,7 +21,7 @@ bool BTDeviceManager::start() {
   nimBLEScanner->setInterval(97);
   nimBLEScanner->setWindow(37);
   nimBLEScanner->setMaxResults(0);
-  nimBLEScanner->start(0, nullptr, false);
+  nimBLEScanner->start(0, false);
   return true;
 }
 
@@ -43,6 +44,11 @@ void BTDeviceManager::setDeviceName(const std::string &deviceName) {
 
 void BTDeviceManager::setRemoteDeviceName(const std::string &remoteDeviceName) {
   BTDeviceManager::remoteDeviceName = remoteDeviceName;
+  if (NimBLEDevice::getScan() != nullptr) {
+    if (!NimBLEDevice::getScan()->isScanning()) {
+      NimBLEDevice::getScan()->start(0, false);
+    }
+  }
 }
 
 void BTDeviceManager::setServiceManager(ServiceManager *serviceManager) {
@@ -51,4 +57,23 @@ void BTDeviceManager::setServiceManager(ServiceManager *serviceManager) {
 
 void BTDeviceManager::addRemoteDeviceFilter(NimBLEUUID serviceUUID) {
   BTDeviceManager::remoteDeviceFilterUUIDs.push_back(serviceUUID);
+}
+
+NimBLEAdvertisedDevice* BTDeviceManager::getRemoteDevice() {
+  for (NimBLEAdvertisedDevice *scannedDevice : BTDeviceManager::scannedDevices) {
+    if (scannedDevice->getName().rfind(BTDeviceManager::remoteDeviceName, 0) == 0) {
+      return scannedDevice;
+    }
+  }
+  return nullptr;
+}
+
+bool BTDeviceManager::connectRemoteDevice(NimBLEAdvertisedDevice *remoteDevice) {
+  if (remoteDevice != nullptr) {
+    BTDeviceManager::nimBLEClient = NimBLEDevice::createClient();
+    BTDeviceManager::nimBLEClient->setClientCallbacks(new BTClientCallbacks, false);
+    BTDeviceManager::nimBLEClient->setConnectTimeout(10);
+    return BTDeviceManager::nimBLEClient->connect(remoteDevice->getAddress(), false);
+  }
+  return false;
 }
