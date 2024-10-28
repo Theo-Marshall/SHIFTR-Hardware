@@ -10,15 +10,9 @@ Service::Service(NimBLEUUID uuid, bool advertise, bool internal) {
   this->Internal = internal;
 }
 
-Service::Service(NimBLEUUID uuid, std::vector<Characteristic> characteristics, bool advertise, bool internal) {
-  this->UUID = uuid;
-  this->Characteristics = characteristics;
-  this->Advertise = advertise;
-  this->Internal = internal;
-}
-
 void Service::addCharacteristic(Characteristic characteristic) {
   this->Characteristics.push_back(characteristic);
+  this->getCharacteristic(characteristic.UUID)->subscribeOnSubscriptionChanged(this->handleCharacteristicOnSubscriptionChanged());
 }
 
 bool Service::isAdvertised() {
@@ -38,4 +32,15 @@ Characteristic* Service::getCharacteristic(NimBLEUUID characteristicUUID) {
 
 std::vector<Characteristic>* Service::getCharacteristics() {
   return &this->Characteristics;
+}
+
+void Service::subscribeOnSubscriptionChanged(void (*onSubscriptionChangedCallback)(Service*, Characteristic*, bool)) {
+  this->onSubscriptionChangedCallbacks.push_back(onSubscriptionChangedCallback);
+}
+
+void Service::handleCharacteristicOnSubscriptionChanged(Characteristic* characteristic, bool removed) {
+  for (size_t callbackIndex = 0; callbackIndex < this->onSubscriptionChangedCallbacks.size(); callbackIndex++)
+  {
+    this->onSubscriptionChangedCallbacks.at(callbackIndex)(this, characteristic, removed);
+  }
 }

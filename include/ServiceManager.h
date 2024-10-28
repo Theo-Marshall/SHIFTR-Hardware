@@ -10,6 +10,8 @@ class ServiceManager {
   std::vector<Service>* getServices();
   void addService(Service service);
   Service* getService(NimBLEUUID serviceUUID);
+  Service* getServiceByCharacteristic(NimBLEUUID characteristicUUID);
+  Characteristic* getCharacteristic(NimBLEUUID characteristicUUID);
   void subscribeOnServiceAdded(void (*onServiceAddedCallback)(Service*));
 
  private:
