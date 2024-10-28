@@ -1,0 +1,6 @@
+[ota]
+upload_port = wt32-eth01.local
+username = "admin"
+password = "password"
+
+

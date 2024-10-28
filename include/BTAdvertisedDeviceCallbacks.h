@@ -4,9 +4,7 @@
 #include <NimBLEDevice.h>
 
 class BTAdvertisedDeviceCallbacks : public NimBLEAdvertisedDeviceCallbacks {
-  void onDiscovered(NimBLEAdvertisedDevice* advertisedDevice);
   void onResult(NimBLEAdvertisedDevice* advertisedDevice);
-  void onScanEnd(NimBLEScanResults scanResults);
 };
 
 #endif

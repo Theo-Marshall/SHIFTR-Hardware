@@ -26,21 +26,22 @@
 #define DIRCON_RESPCODE_UNKNOWN_PROTOCOL 0x07
 
 class DirConMessage {
-  public:
-    DirConMessage();
-    uint8_t MessageVersion = 1;
-    uint8_t Identifier = DIRCON_MSGID_ERROR;
-    uint8_t SequenceNumber = 0;
-    uint8_t ResponseCode = DIRCON_RESPCODE_SUCCESS_REQUEST;
-    uint16_t Length = 0;
-    NimBLEUUID UUID;
-    std::vector<NimBLEUUID> AdditionalUUIDs;
-    std::vector<uint8_t> AdditionalData;
-    bool Request = false;
-    std::vector<uint8_t> encode(uint8_t sequenceNumber);
-    bool parse(uint8_t *data, size_t len, uint8_t sequenceNumber);
-  private:
-    bool isRequest(int last_seq_number);
+ public:
+  DirConMessage();
+  uint8_t MessageVersion = 1;
+  uint8_t Identifier = DIRCON_MSGID_ERROR;
+  uint8_t SequenceNumber = 0;
+  uint8_t ResponseCode = DIRCON_RESPCODE_SUCCESS_REQUEST;
+  uint16_t Length = 0;
+  NimBLEUUID UUID;
+  std::vector<NimBLEUUID> AdditionalUUIDs;
+  std::vector<uint8_t> AdditionalData;
+  bool Request = false;
+  std::vector<uint8_t> encode(uint8_t sequenceNumber);
+  bool parse(uint8_t* data, size_t len, uint8_t sequenceNumber);
+
+ private:
+  bool isRequest(int last_seq_number);
 };
 
 #endif

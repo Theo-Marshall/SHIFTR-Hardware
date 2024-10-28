@@ -10,3 +10,9 @@ void BTClientCallbacks::onDisconnect(NimBLEClient *pClient, int reason) {
   log_d("Disconnected from %s, reason %d", pClient->getPeerAddress().toString().c_str(), reason);
   BTDeviceManager::connected = false;
 };
+
+bool BTClientCallbacks::onConnParamsUpdateRequest(NimBLEClient* pClient, const ble_gap_upd_params* params) {
+  log_d("Connection parameter update request from %s", pClient->getPeerAddress().toString().c_str());
+  return true;
+}
+

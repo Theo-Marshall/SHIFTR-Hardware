@@ -1,6 +1,6 @@
 import sys, re, datetime
 
-PATH_VERSION = './include/version.h'
+PATH_VERSION = './include/Version.h'
 MAJOR, MINOR, PATCH, BUILD = 0, 1, 2, 3
 
 # Read existing version.h file

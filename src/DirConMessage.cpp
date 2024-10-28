@@ -4,23 +4,18 @@
 
 DirConMessage::DirConMessage() {}
 
-std::vector<uint8_t> DirConMessage::encode(uint8_t sequenceNumber)
-{
+std::vector<uint8_t> DirConMessage::encode(uint8_t sequenceNumber) {
   log_d("Encoding DirCon message");
   std::vector<uint8_t> encodedMessage;
-  if (this->Identifier != DIRCON_MSGID_ERROR)
-  {
+  if (this->Identifier != DIRCON_MSGID_ERROR) {
     this->MessageVersion = 1;
-    if (this->Request) 
-    {
+    if (this->Request) {
       log_d("Increasing sequence number");
       this->SequenceNumber = (sequenceNumber & 0xFF);
-    } else if (this->Identifier == DIRCON_MSGID_UNSOLICITED_CHARACTERISTIC_NOTIFICATION)
-    {
+    } else if (this->Identifier == DIRCON_MSGID_UNSOLICITED_CHARACTERISTIC_NOTIFICATION) {
       log_d("Setting sequence number to 0");
       this->SequenceNumber = 0;
-    } else
-    {
+    } else {
       log_d("Setting sequence number to last sequence number %d", sequenceNumber);
       this->SequenceNumber = sequenceNumber;
     }
@@ -29,56 +24,46 @@ std::vector<uint8_t> DirConMessage::encode(uint8_t sequenceNumber)
     encodedMessage.push_back(this->SequenceNumber);
     encodedMessage.push_back(this->ResponseCode);
 
-    if (!this->Request && this->ResponseCode != DIRCON_RESPCODE_SUCCESS_REQUEST)
-    {
+    if (!this->Request && this->ResponseCode != DIRCON_RESPCODE_SUCCESS_REQUEST) {
       log_d("Message isn't a request and responsecode isn't DIRCON_RESPCODE_SUCCESS_REQUEST, so length = 0");
       this->Length = 0;
       encodedMessage.push_back((uint8_t)(this->Length >> 8));
       encodedMessage.push_back((uint8_t)(this->Length));
-    } else if (this->Identifier == DIRCON_MSGID_DISCOVER_SERVICES)
-    {
+    } else if (this->Identifier == DIRCON_MSGID_DISCOVER_SERVICES) {
       log_d("Message type is DIRCON_MSGID_DISCOVER_SERVICES");
-      if (this->Request)
-      {
+      if (this->Request) {
         log_d("Message is a request, so length = 0");
         this->Length = 0;
         encodedMessage.push_back((uint8_t)(this->Length >> 8));
         encodedMessage.push_back((uint8_t)(this->Length));
-      } else
-      {
+      } else {
         this->Length = this->AdditionalUUIDs.size() * 16;
         log_d("Message isn't a request, so length is count(AdditionalUUIDs) * 16 = %d", this->Length);
         encodedMessage.push_back((uint8_t)(this->Length >> 8));
         encodedMessage.push_back((uint8_t)(this->Length));
         log_d("Appending %d UUIDs", this->AdditionalUUIDs.size());
-        for (size_t counter = 0; counter < this->AdditionalUUIDs.size(); counter++)
-        {
-          uint8_t *uuidBytes = (uint8_t*)this->AdditionalUUIDs[counter].to128().getNative();
-          for (uint8_t index = 16; index > 0; index--)
-          {
+        for (size_t counter = 0; counter < this->AdditionalUUIDs.size(); counter++) {
+          uint8_t *uuidBytes = (uint8_t *)this->AdditionalUUIDs[counter].to128().getNative();
+          for (uint8_t index = 16; index > 0; index--) {
             encodedMessage.push_back(uuidBytes[index]);
           }
         }
       }
-    } else if (this->Identifier == DIRCON_MSGID_DISCOVER_CHARACTERISTICS && !this->Request)
-    {
+    } else if (this->Identifier == DIRCON_MSGID_DISCOVER_CHARACTERISTICS && !this->Request) {
       this->Length = 16 + this->AdditionalUUIDs.size() * 17;
       log_d("Message isn't a request and type is DIRCON_MSGID_DISCOVER_CHARACTERISTICS, so length is 16 + count(AdditionalUUIDs) * 17 = %d", this->Length);
       encodedMessage.push_back((uint8_t)(this->Length >> 8));
       encodedMessage.push_back((uint8_t)(this->Length));
       log_d("Appending UUID");
-      uint8_t *uuidBytes = (uint8_t*)this->UUID.to128().getNative();
-      for (uint8_t index = 16; index > 0; index--)
-      {
+      uint8_t *uuidBytes = (uint8_t *)this->UUID.to128().getNative();
+      for (uint8_t index = 16; index > 0; index--) {
         encodedMessage.push_back(uuidBytes[index]);
       }
       log_d("Appending %d UUIDs and additional data of size %d", this->AdditionalUUIDs.size(), this->AdditionalData.size());
       size_t dataIndex = 0;
-      for (size_t counter = 0; counter < this->AdditionalUUIDs.size(); counter++)
-      {
-        uint8_t *uuidBytes = (uint8_t*)this->AdditionalUUIDs[counter].to128().getNative();
-        for (uint8_t index = 16; index > 0; index--)
-        {
+      for (size_t counter = 0; counter < this->AdditionalUUIDs.size(); counter++) {
+        uint8_t *uuidBytes = (uint8_t *)this->AdditionalUUIDs[counter].to128().getNative();
+        for (uint8_t index = 16; index > 0; index--) {
           encodedMessage.push_back(uuidBytes[index]);
         }
         encodedMessage.push_back(this->AdditionalData[dataIndex]);
@@ -86,55 +71,47 @@ std::vector<uint8_t> DirConMessage::encode(uint8_t sequenceNumber)
       }
     } else if (((this->Identifier == DIRCON_MSGID_READ_CHARACTERISTIC ||
                  this->Identifier == DIRCON_MSGID_DISCOVER_CHARACTERISTICS) &&
-                 this->Request) ||
-                (this->Identifier == DIRCON_MSGID_ENABLE_CHARACTERISTIC_NOTIFICATIONS && !this->Request))
-    {
+                this->Request) ||
+               (this->Identifier == DIRCON_MSGID_ENABLE_CHARACTERISTIC_NOTIFICATIONS && !this->Request)) {
       this->Length = 16;
       log_d("Message is a request and type is DIRCON_MSGID_[READ|DISCOVER]_CHARACTERISTICS or isn't a request and type is DIRCON_MSGID_ENABLE_CHARACTERISTIC_NOTIFICATIONS, so length = %d", this->Length);
       encodedMessage.push_back((uint8_t)(this->Length >> 8));
       encodedMessage.push_back((uint8_t)(this->Length));
       log_d("Appending UUID");
-      uint8_t *uuidBytes = (uint8_t*)this->UUID.to128().getNative();
-      for (uint8_t index = 16; index > 0; index--)
-      {
+      uint8_t *uuidBytes = (uint8_t *)this->UUID.to128().getNative();
+      for (uint8_t index = 16; index > 0; index--) {
         encodedMessage.push_back(uuidBytes[index]);
       }
 
     } else if (this->Identifier == DIRCON_MSGID_WRITE_CHARACTERISTIC ||
                this->Identifier == DIRCON_MSGID_UNSOLICITED_CHARACTERISTIC_NOTIFICATION ||
-              (this->Identifier == DIRCON_MSGID_READ_CHARACTERISTIC && !this->Request) ||
-              (this->Identifier == DIRCON_MSGID_ENABLE_CHARACTERISTIC_NOTIFICATIONS && this->Request))
-    {
+               (this->Identifier == DIRCON_MSGID_READ_CHARACTERISTIC && !this->Request) ||
+               (this->Identifier == DIRCON_MSGID_ENABLE_CHARACTERISTIC_NOTIFICATIONS && this->Request)) {
       this->Length = 16 + this->AdditionalData.size();
       log_d("Message type is DIRCON_MSGID_WRITE_CHARACTERISTICS or DIRCON_MSGID_UNSOLICITED_CHARACTERISTIC_NOTIFICATION or isn't a request and DIRCON_MSGID_READ_CHARACTERISTIC or is a request and DIRCON_MSGID_ENABLE_CHARACTERISTIC_NOTIFICATIONS, so length = %d", this->Length);
       encodedMessage.push_back((uint8_t)(this->Length >> 8));
       encodedMessage.push_back((uint8_t)(this->Length));
       log_d("Appending UUID");
-      uint8_t *uuidBytes = (uint8_t*)this->UUID.to128().getNative();
-      for (uint8_t index = 16; index > 0; index--)
-      {
+      uint8_t *uuidBytes = (uint8_t *)this->UUID.to128().getNative();
+      for (uint8_t index = 16; index > 0; index--) {
         encodedMessage.push_back(uuidBytes[index]);
       }
       log_d("Appending additional data of size %d", this->AdditionalData.size());
-      for (size_t counter = 0; counter < this->AdditionalData.size(); counter++)
-      {
+      for (size_t counter = 0; counter < this->AdditionalData.size(); counter++) {
         encodedMessage.push_back(this->AdditionalData[counter]);
       }
     }
-  } else
-  {
+  } else {
     log_d("Identifier is DIRCON_MSGID_ERROR, returning no data");
   }
 
-  log_d("Encoded DirCon message with length %d and hex value: %s", encodedMessage.size(), getHexString(encodedMessage.data(), encodedMessage.size()).c_str());
+  // log_d("Encoded DirCon message with length %d and hex value: %s", encodedMessage.size(), getHexString(encodedMessage.data(), encodedMessage.size()).c_str());
   return encodedMessage;
 }
 
-bool DirConMessage::parse(uint8_t *data, size_t len, uint8_t sequenceNumber)
-{
-  log_d("Parsing DirCon message with hex value: %s", getHexString(data, len).c_str());
-  if (len < DIRCON_MESSAGE_HEADER_LENGTH)
-  {
+bool DirConMessage::parse(uint8_t *data, size_t len, uint8_t sequenceNumber) {
+  // log_d("Parsing DirCon message with hex value: %s", getHexString(data, len).c_str());
+  if (len < DIRCON_MESSAGE_HEADER_LENGTH) {
     log_d("Error parsing DirCon message: Header length %d < %d", len, DIRCON_MESSAGE_HEADER_LENGTH);
     return false;
   }
@@ -148,24 +125,20 @@ bool DirConMessage::parse(uint8_t *data, size_t len, uint8_t sequenceNumber)
   this->AdditionalData.clear();
   this->AdditionalUUIDs.clear();
 
-  if ((len - DIRCON_MESSAGE_HEADER_LENGTH) < this->Length) 
-  {
+  if ((len - DIRCON_MESSAGE_HEADER_LENGTH) < this->Length) {
     log_d("Error parsing DirCon message: Content length %d < %d", (len - DIRCON_MESSAGE_HEADER_LENGTH), this->Length);
     return false;
   }
 
   bool returnValue = false;
-  switch (this->Identifier)
-  {
+  switch (this->Identifier) {
     case DIRCON_MSGID_DISCOVER_SERVICES:
       log_d("Parsing DirCon request type DIRCON_MSGID_DISCOVER_SERVICES");
-      if (!this->Length)
-      {
+      if (!this->Length) {
         log_d("DirCon request has no length, just checking if isRequest() of sequence %d", sequenceNumber);
         this->Request = this->isRequest(sequenceNumber);
         returnValue = true;
-      } else if ((this->Length % 16) == 0)
-      {
+      } else if ((this->Length % 16) == 0) {
         log_d("Parsing UUIDs in request");
         this->AdditionalUUIDs.clear();
         size_t index = 0;
@@ -175,8 +148,7 @@ bool DirConMessage::parse(uint8_t *data, size_t len, uint8_t sequenceNumber)
           index += 16;
         }
         returnValue = true;
-      } else 
-      {
+      } else {
         log_d("Error parsing DirCon message: Length %d isn't a multiple of 16", this->Length);
         returnValue = false;
       }
@@ -184,18 +156,15 @@ bool DirConMessage::parse(uint8_t *data, size_t len, uint8_t sequenceNumber)
 
     case DIRCON_MSGID_DISCOVER_CHARACTERISTICS:
       log_d("Parsing DirCon request type DIRCON_MSGID_DISCOVER_CHARACTERISTICS");
-      if (this->Length >= 16)
-      {
+      if (this->Length >= 16) {
         log_d("Parsing UUID of request");
         NimBLEUUID uuid(data + DIRCON_MESSAGE_HEADER_LENGTH, 16, true);
         this->UUID = uuid;
-        if (this->Length == 16)
-        {
+        if (this->Length == 16) {
           log_d("DirCon request only has one UUID, just checking if isRequest() of sequence %d", sequenceNumber);
           this->Request = this->isRequest(sequenceNumber);
           returnValue = true;
-        } else if ((this->Length - 16) % 17 == 0)
-        {
+        } else if ((this->Length - 16) % 17 == 0) {
           log_d("Parsing additional UUIDs and additional data of request");
           this->AdditionalUUIDs.clear();
           this->AdditionalData.clear();
@@ -208,13 +177,11 @@ bool DirConMessage::parse(uint8_t *data, size_t len, uint8_t sequenceNumber)
           }
           returnValue = true;
 
-        } else 
-        {
+        } else {
           log_d("Error parsing additional UUIDs and data: Length %d isn't a multiple of 17", (this->Length - 16));
           returnValue = false;
         }
-      } else 
-      {
+      } else {
         log_d("Error parsing DirCon message: Length %d < 16", this->Length);
         returnValue = false;
       }
@@ -222,18 +189,15 @@ bool DirConMessage::parse(uint8_t *data, size_t len, uint8_t sequenceNumber)
 
     case DIRCON_MSGID_READ_CHARACTERISTIC:
       log_d("Parsing DirCon request type DIRCON_MSGID_READ_CHARACTERISTIC");
-      if (this->Length >= 16)
-      {
+      if (this->Length >= 16) {
         log_d("Parsing UUID of request");
         NimBLEUUID uuid(data + DIRCON_MESSAGE_HEADER_LENGTH, 16, true);
         this->UUID = uuid;
-        if (this->Length == 16)
-        {
+        if (this->Length == 16) {
           log_d("DirCon request only has one UUID, just checking if isRequest() of sequence %d", sequenceNumber);
           this->Request = this->isRequest(sequenceNumber);
           returnValue = true;
-        } else
-        {
+        } else {
           log_d("Parsing additional data of request");
           this->AdditionalData.clear();
           size_t index = 0;
@@ -243,8 +207,7 @@ bool DirConMessage::parse(uint8_t *data, size_t len, uint8_t sequenceNumber)
           }
           returnValue = true;
         }
-      } else 
-      {
+      } else {
         log_d("Error parsing DirCon message: Length %d < 16", this->Length);
         returnValue = false;
       }
@@ -252,8 +215,7 @@ bool DirConMessage::parse(uint8_t *data, size_t len, uint8_t sequenceNumber)
 
     case DIRCON_MSGID_WRITE_CHARACTERISTIC:
       log_d("Parsing DirCon request type DIRCON_MSGID_WRITE_CHARACTERISTIC");
-      if (this->Length > 16)
-      {
+      if (this->Length > 16) {
         log_d("Parsing UUID and additional data of request and checking if isRequest() of sequence %d", sequenceNumber);
         NimBLEUUID uuid(data + DIRCON_MESSAGE_HEADER_LENGTH, 16, true);
         this->UUID = uuid;
@@ -265,8 +227,7 @@ bool DirConMessage::parse(uint8_t *data, size_t len, uint8_t sequenceNumber)
           index++;
         }
         returnValue = true;
-      } else 
-      {
+      } else {
         log_d("Error parsing DirCon message: Length %d < 16", this->Length);
         returnValue = false;
       }
@@ -274,21 +235,18 @@ bool DirConMessage::parse(uint8_t *data, size_t len, uint8_t sequenceNumber)
 
     case DIRCON_MSGID_ENABLE_CHARACTERISTIC_NOTIFICATIONS:
       log_d("Parsing DirCon request type DIRCON_MSGID_ENABLE_CHARACTERISTIC_NOTIFICATIONS");
-      if ((this->Length == 16) || (this->Length == 17))
-      {
+      if ((this->Length == 16) || (this->Length == 17)) {
         log_d("Parsing UUID of request");
         NimBLEUUID uuid(data + DIRCON_MESSAGE_HEADER_LENGTH, 16, true);
         this->UUID = uuid;
-        if (this->Length == 17)
-        {
+        if (this->Length == 17) {
           log_d("Parsing additional data of request, setting Request to true");
           this->Request = true;
           this->AdditionalData.clear();
           this->AdditionalData.push_back((uint8_t)data[DIRCON_MESSAGE_HEADER_LENGTH + 16]);
         }
         returnValue = true;
-      } else 
-      {
+      } else {
         log_d("Error parsing DirCon message: Length %d isn't 16 or 17", this->Length);
         returnValue = false;
       }
@@ -296,8 +254,7 @@ bool DirConMessage::parse(uint8_t *data, size_t len, uint8_t sequenceNumber)
 
     case DIRCON_MSGID_UNSOLICITED_CHARACTERISTIC_NOTIFICATION:
       log_d("Parsing DirCon request type DIRCON_MSGID_UNSOLICITED_CHARACTERISTIC_NOTIFICATION");
-      if (this->Length > 16)
-      {
+      if (this->Length > 16) {
         log_d("Parsing UUID and additional data of request and checking if isRequest() of sequence %d", sequenceNumber);
         NimBLEUUID uuid(data + DIRCON_MESSAGE_HEADER_LENGTH, 16, true);
         this->UUID = uuid;
@@ -308,8 +265,7 @@ bool DirConMessage::parse(uint8_t *data, size_t len, uint8_t sequenceNumber)
           index++;
         }
         returnValue = true;
-      } else 
-      {
+      } else {
         log_d("Error parsing DirCon message: Length %d < 16", this->Length);
         returnValue = false;
       }

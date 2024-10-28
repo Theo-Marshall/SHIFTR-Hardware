@@ -1,67 +1,51 @@
 #include <Arduino.h>
-#include <config.h>
-#include <NimBLEDevice.h>
-#include <DirConMessage.h>
+#include <Config.h>
+#include <Utils.h>
 
-const char *getMacAddressString()
-{
-  uint64_t macAddress = ESP.getEfuseMac();
+uint64_t Utils::macAddress = ESP.getEfuseMac();
+
+std::string Utils::getMacAddressString() {
   static char macAddressString[18];
   sprintf(macAddressString, "%02X-%02X-%02X-%02X-%02X-%02X", (uint8_t)(macAddress), (uint8_t)(macAddress >> 8), (uint8_t)(macAddress >> 16), (uint8_t)(macAddress >> 24), (uint8_t)(macAddress >> 32), (uint8_t)(macAddress >> 40));
-  return macAddressString;
+  std::string returnString = macAddressString;
+  return returnString;
 }
 
-const char *getSerialNumberString()
-{
-  uint64_t macAddress = ESP.getEfuseMac();
+std::string Utils::getSerialNumberString() {
   static char serialNumberString[16];
   sprintf(serialNumberString, "%i%i%i", (uint8_t)(macAddress >> 24), (uint8_t)(macAddress >> 32), (uint8_t)(macAddress >> 40));
-  return serialNumberString;
+  std::string returnString = serialNumberString;
+  return returnString;
 }
 
-char *getUniqueIdString()
-{
-  uint64_t macAddress = ESP.getEfuseMac();
-  static char uniqueIdString[7];
-  sprintf(uniqueIdString, "%02X%02X%02X", (uint8_t)(macAddress >> 24), (uint8_t)(macAddress >> 32), (uint8_t)(macAddress >> 40));
-  return uniqueIdString;
+std::string Utils::getDeviceName() {
+  static char deviceName[strlen(DEVICE_NAME_PREFIX) + 8];
+  sprintf(deviceName, "%s %02X%02X%02X", DEVICE_NAME_PREFIX, (uint8_t)(macAddress >> 24), (uint8_t)(macAddress >> 32), (uint8_t)(macAddress >> 40));
+  deviceName[strlen(DEVICE_NAME_PREFIX) + 7] = 0x00;
+  std::string returnString = deviceName;
+  return returnString;
 }
 
-char *getDeviceName()
-{
-  static char displayName[strlen(DEVICE_NAME_PREFIX) + 8];
-  sprintf(displayName, "%s %s", DEVICE_NAME_PREFIX, getUniqueIdString());
-  displayName[strlen(DEVICE_NAME_PREFIX) + 7] = 0x00;
-  return displayName;
+std::string Utils::getHostName() {
+  std::string returnString = Utils::getDeviceName();
+  std::replace(returnString.begin(), returnString.end(), 0x20, 0x2D);
+  return returnString;
 }
 
-char *getHostName()
-{
-  char *deviceName = getDeviceName();
-  static char hostName[strlen(DEVICE_NAME_PREFIX) + 8];
-  for (uint8_t currentByte = 0; currentByte < (strlen(DEVICE_NAME_PREFIX) + 8); currentByte++) {
-    if (deviceName[currentByte] != 0x20) {
-      hostName[currentByte] = deviceName[currentByte];
-    } else {
-      hostName[currentByte] = 0x2D;
+std::string Utils::getHexString(uint8_t* data, size_t length) {
+  static char hexNumber[3];
+  std::string hexString = "[";
+  for (size_t index = 0; index < length; index++) {
+    sprintf(hexNumber, "%02X", data[index]);
+    hexString.append(hexNumber);
+    if (index < (length - 1)) {
+      hexString.append(" ");
     }
   }
-  return hostName;
+  hexString.append("]");
+  return hexString;
 }
 
-String getHexString(uint8_t *data, size_t len) 
-{
-  char hexNumber[3];
-  String hexString = "[";
-  for (size_t counter = 0; counter < len; counter++)
-  {
-    sprintf(hexNumber, "%02X", data[counter]);
-    hexString += hexNumber;
-    if (counter < (len - 1))
-    {
-      hexString += " ";
-    } 
-  }
-  hexString += "]";
-  return hexString;
+std::string Utils::getHexString(std::vector<uint8_t> data) {
+  return Utils::getHexString(data.data(), data.size());
 }
