@@ -37,7 +37,7 @@ void setup() {
   zwiftCustomService.addCharacteristic(Characteristic(zwiftAsyncCharacteristicUUID, NOTIFY));
   zwiftCustomService.addCharacteristic(Characteristic(zwiftSyncRXCharacteristicUUID, WRITE));
   zwiftCustomService.addCharacteristic(Characteristic(zwiftSyncTXCharacteristicUUID, INDICATE));
-  serviceManager.addService(zwiftCustomService);
+  //serviceManager.addService(zwiftCustomService);
   log_i("Service manager initialized");
 
   // initialize bluetooth device manager

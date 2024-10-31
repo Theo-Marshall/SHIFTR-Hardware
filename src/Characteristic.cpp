@@ -1,4 +1,6 @@
+#include <Arduino.h>
 #include <Characteristic.h>
+#include <Service.h>
 
 Characteristic::Characteristic(NimBLEUUID uuid, uint32_t properties) 
 {
@@ -9,10 +11,7 @@ Characteristic::Characteristic(NimBLEUUID uuid, uint32_t properties)
 void Characteristic::addSubscription(uint32_t clientID) {
   if (!this->isSubscribed(clientID)) {
     this->subscriptions.push_back(clientID);    
-    for (size_t callbackIndex = 0; callbackIndex < this->onSubscriptionChangedCallbacks.size(); callbackIndex++)
-    {
-      this->onSubscriptionChangedCallbacks.at(callbackIndex)(this, false);
-    }
+    this->doCallbacks(false);
   }
 }
 
@@ -27,10 +26,7 @@ void Characteristic::removeSubscription(uint32_t clientID) {
     }
   }
   this->subscriptions = filteredSubscriptions;
-  for (size_t callbackIndex = 0; callbackIndex < this->onSubscriptionChangedCallbacks.size(); callbackIndex++)
-  {
-    this->onSubscriptionChangedCallbacks.at(callbackIndex)(this, true);
-  }
+  this->doCallbacks(true);
 }
 
 bool Characteristic::isSubscribed(uint32_t clientID) {
@@ -47,7 +43,17 @@ std::vector<uint32_t> Characteristic::getSubscriptions() {
   return this->subscriptions;
 }
 
-void Characteristic::subscribeOnSubscriptionChanged(void (*onSubscriptionChangedCallback)(Characteristic*, bool)) {
-  this->onSubscriptionChangedCallbacks.push_back(onSubscriptionChangedCallback);
+void Characteristic::subscribeCallbacks(CharacteristicCallbacks* callbacks) {
+  this->characteristicCallbacks.push_back(callbacks);
 }
 
+Service* Characteristic::getService() {
+  return this->service;
+}
+
+void Characteristic::doCallbacks(bool removed) {
+  for (size_t callbackIndex = 0; callbackIndex < this->characteristicCallbacks.size(); callbackIndex++)
+  {
+    this->characteristicCallbacks.at(callbackIndex)->onSubscriptionChanged(this, removed);
+  }
+}

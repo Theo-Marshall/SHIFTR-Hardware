@@ -16,12 +16,27 @@ bool BTDeviceManager::started = false;
 Timer<> BTDeviceManager::scanTimer = timer_create_default();
 Timer<> BTDeviceManager::connectTimer = timer_create_default();
 
+class BTDeviceServiceManagerCallbacks : public ServiceManagerCallbacks {
+  void onCharacteristicSubscriptionChanged(Characteristic* characteristic, bool removed) {
+    if (characteristic->getSubscriptions().size() == 0) {
+      if (removed) {
+        log_d("REMOVE BT NOTIFY");
+        // remove bt notify
+      } else {
+        log_d("ADD BT NOTIFY");
+        // add bt notify
+      }
+    }
+  };
+};
+
 bool BTDeviceManager::start() {
   if (!started) {
     scannedDevices.clear();
     if (serviceManager == nullptr) {
       return false;
     }
+    serviceManager->subscribeCallbacks(new BTDeviceServiceManagerCallbacks);
     NimBLEDevice::setScanFilterMode(CONFIG_BTDM_SCAN_DUPL_TYPE_DATA_DEVICE);
     NimBLEDevice::setScanDuplicateCacheSize(200);
     NimBLEDevice::init(deviceName);
@@ -233,4 +248,57 @@ uint32_t BTDeviceManager::getProperties(NimBLERemoteCharacteristic* remoteCharac
     returnValue = returnValue | NOTIFY;
   }
   return returnValue;
+}
+
+bool BTDeviceManager::writeBLECharacteristic(NimBLEUUID serviceUUID, NimBLEUUID characteristicUUID, std::vector<uint8_t> data) {
+  if (!connected) {
+    log_e("BLE characteristic write failed: Not connected");
+    return false;
+  }
+  NimBLERemoteService* remoteService = nullptr;
+  NimBLERemoteCharacteristic* remoteCharacteristic = nullptr;
+  remoteService = nimBLEClient->getService(serviceUUID);
+  if (remoteService) {
+    remoteCharacteristic = remoteService->getCharacteristic(characteristicUUID);
+    if (remoteCharacteristic) {
+      if (remoteCharacteristic->canWrite()) {
+        if (remoteCharacteristic->writeValue(data.data())) {
+          return true;
+        }
+      } else {
+        log_e("BLE characteristic write failed: Remote characteristic not writable");
+      }
+    } else {
+      log_e("BLE characteristic write failed: Remote characteristic not found");
+    }
+  } else {
+    log_e("BLE characteristic write failed: Remote service not found");
+  }
+  return false;
+}
+
+std::vector<uint8_t> BTDeviceManager::readBLECharacteristic(NimBLEUUID serviceUUID, NimBLEUUID characteristicUUID) {
+  std::vector<uint8_t> returnData;
+  if (!connected) {
+    log_e("BLE characteristic read failed: Not connected");
+    return returnData;
+  }
+  NimBLERemoteService* remoteService = nullptr;
+  NimBLERemoteCharacteristic* remoteCharacteristic = nullptr;
+  remoteService = nimBLEClient->getService(serviceUUID);
+  if (remoteService) {
+    remoteCharacteristic = remoteService->getCharacteristic(characteristicUUID);
+    if (remoteCharacteristic) {
+      if (remoteCharacteristic->canRead()) {
+        returnData = remoteCharacteristic->readValue();
+      } else {
+        log_e("BLE characteristic read failed: Remote characteristic not readable");
+      }
+    } else {
+      log_e("BLE characteristic read failed: Remote characteristic not found");
+    }
+  } else {
+    log_e("BLE characteristic read failed: Remote service not found");
+  }
+  return returnData;
 }

@@ -18,6 +18,9 @@ class BTDeviceManager {
   static bool isConnected();
   static bool isStarted();
   static std::string getConnecedDeviceName();
+  static bool writeBLECharacteristic(NimBLEUUID serviceUUID, NimBLEUUID characteristicUUID, std::vector<uint8_t> data);
+  static std::vector<uint8_t> readBLECharacteristic(NimBLEUUID serviceUUID, NimBLEUUID characteristicUUID);
+
 
  private:
   friend class BTAdvertisedDeviceCallbacks;
