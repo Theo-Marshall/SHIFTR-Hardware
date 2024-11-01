@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark light">
+    <link rel="shortcut icon" type="image/x-icon" href="favicon.ico">
+    <link rel="stylesheet" type="text/css" href="style.css">
+</head>
+
+<script type="text/javascript">
+    function updateStatus() {
+        let version = document.getElementById('version');
+        let deviceName = document.getElementById('device_name');
+        let statusContainer = document.getElementById('status_container');
+        let hostName = document.getElementById('hostname');
+        let ethernet = document.getElementById('ethernet');
+        let wifi = document.getElementById('wifi');
+        let ble = document.getElementById('ble');
+        let freeheap = document.getElementById('freeheap');
+
+        let config = document.getElementById('config_btn');
+        config.onclick = function () { location.href = '/config'; };
+        let firmware = document.getElementById('firmware_btn');
+        firmware.onclick = function () { location.href = '/firmware'; };
+
+        fetch('/status', {
+            method: 'GET',
+            cache: 'no-store',
+            headers: {
+                'Accept': 'application/json',
+                'Cache-Control': 'no-cache',
+            },
+        })
+            .then(response => response.json())
+            .then(response => {
+                version.style = '';
+                version.innerHTML = response.version;
+                deviceName.style = '';
+                deviceName.innerHTML = response.devicename;
+                hostName.innerHTML = response.hostname;
+                ethernet.innerHTML = response.ethernet_status;
+                wifi.innerHTML = response.wifi_status;
+                ble.innerHTML = response.ble_status;
+                freeheap.innerHTML = response.free_heap;
+                statusContainer.style = '';
+                setTimeout('updateStatus()', 5000);
+            });
+
+    }
+</script>
+
+<body onLoad="updateStatus()">
+
+    <div class="container" id="header_container">
+        <a class="helpbadge" href="https://github.com/JuergenLeber/SHIFTR" target="_blank">?</a>
+        <div id="header_wrapper">
+            <div id="logo_container">
+                <img src="favicon.ico" width=64 alt="logo" />
+                <h1 class="title">&nbsp;<b>SHIFTR</b>&nbsp;<span id="version" style="display: none"></span></h1>
+            </div>
+        </div>
+        <h1 id="device_name" style="display: none">DEVICE-NAME</h1>
+    </div>
+
+    <div class="container" id="status_container" style="display: none">
+        <h1>Status</h1>
+        <div class="form">
+            <div>
+                <div class="form-control">
+                    <label>Hostname:</label>
+                    <span id="hostname"></span>
+                </div>
+                <div class="form-control">
+                    <label>Ethernet:</label>
+                    <span id="ethernet"></span>
+                </div>
+                <div class="form-control">
+                    <label>WiFi:</label>
+                    <span id="wifi"></span>
+                </div>
+                <div class="form-control">
+                    <label>BLE:</label>
+                    <span id="ble"></span>
+                </div>
+                <div class="form-control">
+                    <label>Free heap:</label>
+                    <span id="freeheap"></span>&nbsp;<span>bytes</span>
+                </div>
+                <div class="button-container">
+                    <button class="btn" id="config_btn">
+                        <label>Configuration</label>
+                    </button>
+                    <button class="btn" id="firmware_btn">
+                        <label>Firmware</label>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="form" style="text-align: center">
+            &copy; Copyright <a href="https://github.com/JuergenLeber/SHIFTR">SHIFTR
+                contributors</a>.
+            <br>Use <a href="https://github.com/JuergenLeber/SHIFTR/issues">GitHub</a> to report bugs and
+            request features.
+            <br>
+        </div>
+    </div>
+
+</body>
+
+</html>

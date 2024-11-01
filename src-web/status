@@ -1,0 +1,10 @@
+{
+    "devicename": "SHIFTR-123456",
+    "version": "1.2.3+456",
+    "hostname": "SHIFTR-123456.local",
+    "ethernet_status": "Connected",
+    "wifi_status": "Not connected",
+    "ble_status": "Failure",
+    "free_heap": 123456
+
+}
