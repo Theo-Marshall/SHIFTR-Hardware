@@ -1,5 +1,6 @@
 #include <ServiceManager.h>
 #include <Service.h>
+#include <Arduino.h>
 
 class ServiceManagerCharacteristicCallbacks : public CharacteristicCallbacks {
   void onSubscriptionChanged(Characteristic* characteristic, bool removed) {
@@ -14,49 +15,48 @@ class ServiceManagerCharacteristicCallbacks : public CharacteristicCallbacks {
 
 ServiceManager::ServiceManager() {}
 
-std::vector<Service>* ServiceManager::getServices()
+std::vector<Service*> ServiceManager::getServices()
 {
-  return &this->Services;
+  return this->services;
 }
 
-void ServiceManager::addService(Service service) {
-  this->Services.push_back(service);
-  Service* addedService = &this->Services.at(this->Services.size()-1);
-  addedService->serviceManager = this;
-  addedService->subscribeCallbacks(new ServiceManagerCharacteristicCallbacks);
+void ServiceManager::addService(Service* service) {
+  service->serviceManager = this;
+  service->subscribeCallbacks(new ServiceManagerCharacteristicCallbacks);
+  this->services.push_back(service);
   for (size_t callbackIndex = 0; callbackIndex < this->serviceManagerCallbacks.size(); callbackIndex++)
   {
-    this->serviceManagerCallbacks.at(callbackIndex)->onServiceAdded(addedService);
+    this->serviceManagerCallbacks.at(callbackIndex)->onServiceAdded(service);
   }
 }
 
-Service* ServiceManager::getService(NimBLEUUID serviceUUID) {
-  for (size_t serviceIndex = 0; serviceIndex < this->Services.size(); serviceIndex++)
+Service* ServiceManager::getService(const NimBLEUUID& serviceUUID) {
+  for (size_t serviceIndex = 0; serviceIndex < this->services.size(); serviceIndex++)
   {
-    if (this->Services.at(serviceIndex).UUID.equals(serviceUUID)) {
-      return &this->Services.at(serviceIndex);
+    if (this->services.at(serviceIndex)->UUID.equals(serviceUUID)) {
+      return this->services.at(serviceIndex);
       break;
     }
   }
   return nullptr;
 }
 
-Service* ServiceManager::getServiceByCharacteristic(NimBLEUUID characteristicUUID) {
-  for (size_t serviceIndex = 0; serviceIndex < this->Services.size(); serviceIndex++)
+Service* ServiceManager::getServiceByCharacteristic(const NimBLEUUID& characteristicUUID) {
+  for (size_t serviceIndex = 0; serviceIndex < this->services.size(); serviceIndex++)
   {
-    if (this->Services.at(serviceIndex).getCharacteristic(characteristicUUID) != nullptr) {
-      return &this->Services.at(serviceIndex);
+    if (this->services.at(serviceIndex)->getCharacteristic(characteristicUUID) != nullptr) {
+      return this->services.at(serviceIndex);
       break;
     }
   }
   return nullptr;
 }
 
-Characteristic* ServiceManager::getCharacteristic(NimBLEUUID characteristicUUID) {
-  for (size_t serviceIndex = 0; serviceIndex < this->Services.size(); serviceIndex++)
+Characteristic* ServiceManager::getCharacteristic(const NimBLEUUID& characteristicUUID) {
+  for (size_t serviceIndex = 0; serviceIndex < this->services.size(); serviceIndex++)
   {
-    if (this->Services.at(serviceIndex).getCharacteristic(characteristicUUID) != nullptr) {
-      return this->Services.at(serviceIndex).getCharacteristic(characteristicUUID);
+    if (this->services.at(serviceIndex)->getCharacteristic(characteristicUUID) != nullptr) {
+      return this->services.at(serviceIndex)->getCharacteristic(characteristicUUID);
       break;
     }
   }

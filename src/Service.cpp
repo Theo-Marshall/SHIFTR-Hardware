@@ -1,30 +1,34 @@
+#include <Arduino.h>
 #include <Service.h>
 
 class ServiceCharacteristicCallbacks : public CharacteristicCallbacks {
   void onSubscriptionChanged(Characteristic* characteristic, bool removed) {
     Service* service = characteristic->getService();
-    for (size_t callbackIndex = 0; callbackIndex < service->characteristicCallbacks.size(); callbackIndex++)
-    {
-      service->characteristicCallbacks.at(callbackIndex)->onSubscriptionChanged(characteristic, removed);
+    if (service != nullptr) {
+      for (size_t callbackIndex = 0; callbackIndex < service->characteristicCallbacks.size(); callbackIndex++)
+      {
+        service->characteristicCallbacks.at(callbackIndex)->onSubscriptionChanged(characteristic, removed);
+      }
     }
   };
 };
 
-Service::Service(NimBLEUUID uuid) {
+Service::Service(const NimBLEUUID &uuid) {
   this->UUID = uuid;
 }
 
-Service::Service(NimBLEUUID uuid, bool advertise, bool internal) {
+Service::Service(const NimBLEUUID &uuid, bool advertise, bool internal) {
   this->UUID = uuid;
   this->Advertise = advertise;
   this->Internal = internal;
 }
 
-void Service::addCharacteristic(Characteristic characteristic) {
-  this->Characteristics.push_back(characteristic);
-  Characteristic* addedCharacteristic = &this->Characteristics.at(this->Characteristics.size()-1);
-  addedCharacteristic->service = this;
-  addedCharacteristic->subscribeCallbacks(new ServiceCharacteristicCallbacks);
+Service::~Service() {}
+
+void Service::addCharacteristic(Characteristic* characteristic) {
+  characteristic->setService(this);
+  characteristic->subscribeCallbacks(new ServiceCharacteristicCallbacks);
+  this->characteristics.push_back(characteristic);
 }
 
 bool Service::isAdvertised() {
@@ -35,19 +39,19 @@ bool Service::isInternal() {
   return this->Internal;
 }
 
-Characteristic* Service::getCharacteristic(NimBLEUUID characteristicUUID) {
-  for (size_t characteristicIndex = 0; characteristicIndex < this->Characteristics.size(); characteristicIndex++)
+Characteristic* Service::getCharacteristic(const NimBLEUUID &characteristicUUID) {
+  for (size_t characteristicIndex = 0; characteristicIndex < this->characteristics.size(); characteristicIndex++)
   {
-    if (this->Characteristics.at(characteristicIndex).UUID.equals(characteristicUUID)) {
-      return &this->Characteristics.at(characteristicIndex);
+    if (this->characteristics.at(characteristicIndex)->UUID.equals(characteristicUUID)) {
+      return this->characteristics.at(characteristicIndex);
       break;
     }
   }
   return nullptr;
 }
 
-std::vector<Characteristic>* Service::getCharacteristics() {
-  return &this->Characteristics;
+std::vector<Characteristic*> Service::getCharacteristics() {
+  return this->characteristics;
 }
 
 ServiceManager* Service::getServiceManager() {

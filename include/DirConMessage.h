@@ -37,11 +37,12 @@ class DirConMessage {
   std::vector<NimBLEUUID> AdditionalUUIDs;
   std::vector<uint8_t> AdditionalData;
   bool Request = false;
-  std::vector<uint8_t> encode(uint8_t sequenceNumber);
-  bool parse(uint8_t* data, size_t len, uint8_t sequenceNumber);
+  std::vector<uint8_t>* encode(uint8_t sequenceNumber);
+  size_t parse(uint8_t* data, size_t len, uint8_t sequenceNumber);
 
  private:
   bool isRequest(int last_seq_number);
+  std::vector<uint8_t> encodedMessage;
 };
 
 #endif

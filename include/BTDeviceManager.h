@@ -14,17 +14,17 @@ class BTDeviceManager {
   static void setLocalDeviceName(const std::string localDeviceName);
   static void setRemoteDeviceNameFilter(const std::string remoteDeviceNameFilter);
   static void setServiceManager(ServiceManager* serviceManager);
-  static void addRemoteDeviceFilter(NimBLEUUID serviceUUID);
+  static void addRemoteDeviceFilter(const NimBLEUUID& serviceUUID);
   static bool isConnected();
   static bool isStarted();
   static std::string getConnecedDeviceName();
-  static bool writeBLECharacteristic(NimBLEUUID serviceUUID, NimBLEUUID characteristicUUID, std::vector<uint8_t> data);
-  static std::vector<uint8_t> readBLECharacteristic(NimBLEUUID serviceUUID, NimBLEUUID characteristicUUID);
-
+  static bool writeBLECharacteristic(const NimBLEUUID& serviceUUID, const NimBLEUUID& characteristicUUID, std::vector<uint8_t>* data);
+  static std::vector<uint8_t> readBLECharacteristic(const NimBLEUUID& serviceUUID, const NimBLEUUID& characteristicUUID);
 
  private:
   friend class BTAdvertisedDeviceCallbacks;
   friend class BTClientCallbacks;
+  friend class BTDeviceServiceManagerCallbacks;
   static std::string deviceName;
   static std::string remoteDeviceName;
   static std::string connectedDeviceName;
@@ -44,6 +44,8 @@ class BTDeviceManager {
   static bool doScan(void* argument);
   static bool doConnect(void* argument);
   static uint32_t getProperties(NimBLERemoteCharacteristic* remoteCharacteristic);
+  static void onBLENotify(BLERemoteCharacteristic* pBLERemoteCharacteristic, uint8_t* pData, size_t length, bool isNotify);
+  static bool changeBLENotify(Characteristic* characteristic, bool remove);
 };
 
 #endif

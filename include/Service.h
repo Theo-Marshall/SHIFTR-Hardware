@@ -13,21 +13,22 @@ class Service {
   friend class Characteristic;
   friend class ServiceCharacteristicCallbacks;
   friend class ServiceManager;
-  Service(NimBLEUUID uuid);
-  Service(NimBLEUUID uuid, bool advertise, bool internal);
-  void addCharacteristic(Characteristic characteristic);
-  std::vector<Characteristic>* getCharacteristics();
+  Service(const NimBLEUUID &uuid);
+  Service(const NimBLEUUID &uuid, bool advertise, bool internal);
+  ~Service();
+  void addCharacteristic(Characteristic* characteristic);
+  std::vector<Characteristic*> getCharacteristics();
   bool isAdvertised();
   bool isInternal();
-  Characteristic* getCharacteristic(NimBLEUUID characteristicUUID);
+  Characteristic* getCharacteristic(const NimBLEUUID &characteristicUUID);
   ServiceManager* getServiceManager();
   void subscribeCallbacks(CharacteristicCallbacks* callbacks);
   NimBLEUUID UUID;
-  std::vector<Characteristic> Characteristics;
   bool Advertise = false;
   bool Internal = false;
 
  private:
+  std::vector<Characteristic*> characteristics;
   ServiceManager* serviceManager;
   std::vector<CharacteristicCallbacks*> characteristicCallbacks;
 

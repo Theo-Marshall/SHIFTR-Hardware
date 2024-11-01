@@ -3,6 +3,7 @@
 #include <BTDeviceManager.h>
 #include <Config.h>
 #include <arduino-timer.h>
+#include <DirConManager.h>
 
 std::vector<NimBLEUUID> BTDeviceManager::remoteDeviceFilterUUIDs{};
 std::vector<NimBLEAdvertisedDevice> BTDeviceManager::scannedDevices{};
@@ -18,17 +19,20 @@ Timer<> BTDeviceManager::connectTimer = timer_create_default();
 
 class BTDeviceServiceManagerCallbacks : public ServiceManagerCallbacks {
   void onCharacteristicSubscriptionChanged(Characteristic* characteristic, bool removed) {
-    if (characteristic->getSubscriptions().size() == 0) {
-      if (removed) {
-        log_d("REMOVE BT NOTIFY");
-        // remove bt notify
-      } else {
-        log_d("ADD BT NOTIFY");
-        // add bt notify
+    if (removed && (characteristic->getSubscriptions().size() == 0)) {
+      BTDeviceManager::changeBLENotify(characteristic, true);
+    } else {
+      if (characteristic->getSubscriptions().size() > 0) {
+        BTDeviceManager::changeBLENotify(characteristic, false);
       }
     }
   };
 };
+
+void BTDeviceManager::onBLENotify(BLERemoteCharacteristic* pBLERemoteCharacteristic, uint8_t* pData, size_t length, bool isNotify) {
+  log_d("Notify for characteristic %s, length %d", pBLERemoteCharacteristic->getUUID().toString().c_str(), length);
+  DirConManager::notifyDirConCharacteristic(pBLERemoteCharacteristic->getUUID(), pData, length);
+}
 
 bool BTDeviceManager::start() {
   if (!started) {
@@ -103,7 +107,7 @@ void BTDeviceManager::setServiceManager(ServiceManager* serviceManager) {
   BTDeviceManager::serviceManager = serviceManager;
 }
 
-void BTDeviceManager::addRemoteDeviceFilter(NimBLEUUID serviceUUID) {
+void BTDeviceManager::addRemoteDeviceFilter(const NimBLEUUID& serviceUUID) {
   remoteDeviceFilterUUIDs.push_back(serviceUUID);
 }
 
@@ -142,8 +146,8 @@ bool BTDeviceManager::connectRemoteDevice(NimBLEAdvertisedDevice* remoteDevice) 
       Service* service = serviceManager->getService((*remoteService)->getUUID());
       bool isAdvertising = remoteDevice->isAdvertisingService((*remoteService)->getUUID());
       if (service == nullptr) {
-        serviceManager->addService(Service((*remoteService)->getUUID(), isAdvertising, false));
-        service = serviceManager->getService((*remoteService)->getUUID());
+        service = new Service((*remoteService)->getUUID(), isAdvertising, false);
+        serviceManager->addService(service);
       }
       service->Advertise = isAdvertising;
       std::vector<NimBLERemoteCharacteristic*>* remoteCharacteristics = (*remoteService)->getCharacteristics(true);
@@ -152,10 +156,10 @@ bool BTDeviceManager::connectRemoteDevice(NimBLEAdvertisedDevice* remoteDevice) 
         Characteristic* characteristic = service->getCharacteristic((*remoteCharacterisic)->getUUID());
         uint32_t properties = 0;
         if (characteristic == nullptr) {
-          service->addCharacteristic(Characteristic((*remoteCharacterisic)->getUUID(), getProperties((*remoteCharacterisic))));
-          characteristic = service->getCharacteristic((*remoteCharacterisic)->getUUID());
+          characteristic = new Characteristic((*remoteCharacterisic)->getUUID(), getProperties((*remoteCharacterisic)));
+          service->addCharacteristic(characteristic);
         }
-        characteristic->Properties = getProperties((*remoteCharacterisic));
+        characteristic->setProperties(getProperties((*remoteCharacterisic)));
       }
     }
 
@@ -250,7 +254,7 @@ uint32_t BTDeviceManager::getProperties(NimBLERemoteCharacteristic* remoteCharac
   return returnValue;
 }
 
-bool BTDeviceManager::writeBLECharacteristic(NimBLEUUID serviceUUID, NimBLEUUID characteristicUUID, std::vector<uint8_t> data) {
+bool BTDeviceManager::writeBLECharacteristic(const NimBLEUUID& serviceUUID, const NimBLEUUID& characteristicUUID, std::vector<uint8_t>* data) {
   if (!connected) {
     log_e("BLE characteristic write failed: Not connected");
     return false;
@@ -262,7 +266,7 @@ bool BTDeviceManager::writeBLECharacteristic(NimBLEUUID serviceUUID, NimBLEUUID 
     remoteCharacteristic = remoteService->getCharacteristic(characteristicUUID);
     if (remoteCharacteristic) {
       if (remoteCharacteristic->canWrite()) {
-        if (remoteCharacteristic->writeValue(data.data())) {
+        if (remoteCharacteristic->writeValue(data)) {
           return true;
         }
       } else {
@@ -277,7 +281,7 @@ bool BTDeviceManager::writeBLECharacteristic(NimBLEUUID serviceUUID, NimBLEUUID 
   return false;
 }
 
-std::vector<uint8_t> BTDeviceManager::readBLECharacteristic(NimBLEUUID serviceUUID, NimBLEUUID characteristicUUID) {
+std::vector<uint8_t> BTDeviceManager::readBLECharacteristic(const NimBLEUUID& serviceUUID, const NimBLEUUID& characteristicUUID) {
   std::vector<uint8_t> returnData;
   if (!connected) {
     log_e("BLE characteristic read failed: Not connected");
@@ -301,4 +305,33 @@ std::vector<uint8_t> BTDeviceManager::readBLECharacteristic(NimBLEUUID serviceUU
     log_e("BLE characteristic read failed: Remote service not found");
   }
   return returnData;
+}
+
+bool BTDeviceManager::changeBLENotify(Characteristic* characteristic, bool remove) {
+  if (!connected) {
+    log_e("BLE characteristic change notify failed: Not connected");
+    return false;
+  }
+  NimBLERemoteService* remoteService = nullptr;
+  NimBLERemoteCharacteristic* remoteCharacteristic = nullptr;
+  remoteService = nimBLEClient->getService(characteristic->getService()->UUID);
+  if (remoteService) {
+    remoteCharacteristic = remoteService->getCharacteristic(characteristic->UUID);
+    if (remoteCharacteristic) {
+      if (remoteCharacteristic->canNotify() || remoteCharacteristic->canIndicate()) {
+        if (!remove) {
+          return remoteCharacteristic->subscribe(true, onBLENotify);
+        } else {
+          return remoteCharacteristic->unsubscribe();
+        }
+      } else {
+        log_e("BLE characteristic change notify failed: Remote characteristic can't notify nor indicate");
+      }
+    } else {
+      log_e("BLE characteristic change notify failed: Remote characteristic not found");
+    }
+  } else {
+    log_e("BLE characteristic change notify failed: Remote service not found");
+  }
+  return false;
 }

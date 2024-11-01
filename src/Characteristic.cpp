@@ -2,15 +2,14 @@
 #include <Characteristic.h>
 #include <Service.h>
 
-Characteristic::Characteristic(NimBLEUUID uuid, uint32_t properties) 
-{
+Characteristic::Characteristic(const NimBLEUUID& uuid, uint32_t properties) {
   this->UUID = uuid;
-  this->Properties = properties;
+  this->properties = properties;
 }
 
 void Characteristic::addSubscription(uint32_t clientID) {
   if (!this->isSubscribed(clientID)) {
-    this->subscriptions.push_back(clientID);    
+    this->subscriptions.push_back(clientID);
     this->doCallbacks(false);
   }
 }
@@ -20,7 +19,7 @@ void Characteristic::removeSubscription(uint32_t clientID) {
     return;
   }
   std::vector<uint32_t> filteredSubscriptions;
-  for(uint32_t subscription : this->subscriptions) {
+  for (uint32_t subscription : this->subscriptions) {
     if (subscription != clientID) {
       filteredSubscriptions.push_back(subscription);
     }
@@ -30,7 +29,7 @@ void Characteristic::removeSubscription(uint32_t clientID) {
 }
 
 bool Characteristic::isSubscribed(uint32_t clientID) {
-  for(uint32_t subscription : this->subscriptions) {
+  for (uint32_t subscription : this->subscriptions) {
     if (subscription == clientID) {
       return true;
       break;
@@ -51,9 +50,20 @@ Service* Characteristic::getService() {
   return this->service;
 }
 
+void Characteristic::setProperties(uint32_t properties) {
+  this->properties = properties;
+}
+
+uint32_t Characteristic::getProperties() {
+  return this->properties;
+}
+
+void Characteristic::setService(Service* service) {
+  this->service = service;
+}
+
 void Characteristic::doCallbacks(bool removed) {
-  for (size_t callbackIndex = 0; callbackIndex < this->characteristicCallbacks.size(); callbackIndex++)
-  {
+  for (size_t callbackIndex = 0; callbackIndex < this->characteristicCallbacks.size(); callbackIndex++) {
     this->characteristicCallbacks.at(callbackIndex)->onSubscriptionChanged(this, removed);
   }
 }

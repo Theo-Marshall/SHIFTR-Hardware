@@ -16,6 +16,7 @@
 
 void networkEvent(WiFiEvent_t event);
 void handleWebServerRoot();
+void handleWebServerFile(const String& fileName);
 
 bool isMDNSStarted = false;
 bool isBLEConnected = false;
@@ -33,11 +34,11 @@ void setup() {
   log_i(DEVICE_NAME_PREFIX " " VERSION " starting...");
   log_i("Device name: %s, host name: %s", Utils::getDeviceName().c_str(), Utils::getHostName().c_str());
   // initialize service manager
-  Service zwiftCustomService(zwiftCustomServiceUUID, true, true);
-  zwiftCustomService.addCharacteristic(Characteristic(zwiftAsyncCharacteristicUUID, NOTIFY));
-  zwiftCustomService.addCharacteristic(Characteristic(zwiftSyncRXCharacteristicUUID, WRITE));
-  zwiftCustomService.addCharacteristic(Characteristic(zwiftSyncTXCharacteristicUUID, INDICATE));
-  serviceManager.addService(zwiftCustomService);
+  Service zwiftCustomService(NimBLEUUID(ZWIFT_CUSTOM_SERVICE_UUID), true, true);
+  zwiftCustomService.addCharacteristic(new Characteristic(NimBLEUUID(ZWIFT_ASYNC_CHARACTERISTIC_UUID), NOTIFY));
+  zwiftCustomService.addCharacteristic(new Characteristic(NimBLEUUID(ZWIFT_SYNCRX_CHARACTERISTIC_UUID), WRITE));
+  zwiftCustomService.addCharacteristic(new Characteristic(NimBLEUUID(ZWIFT_SYNCTX_CHARACTERISTIC_UUID), INDICATE));
+  //serviceManager.addService(zwiftCustomService);
   log_i("Service manager initialized");
 
   // initialize bluetooth device manager
@@ -89,6 +90,9 @@ void setup() {
       [](const char* userName, char* password) { updateServer.updateCredentials(STR(OTA_USERNAME), STR(OTA_PASSWORD)); });
   iotWebConf.init();
   webServer.on("/", handleWebServerRoot);
+  webServer.on("/favicon.ico", [] { handleWebServerFile("favicon.ico"); });
+  webServer.on("/style.css", [] { handleWebServerFile("style.css"); });
+  webServer.on("/index.html", [] { handleWebServerFile("index.html"); });
   webServer.on("/config", [] { iotWebConf.handleConfig(); });
   webServer.onNotFound([]() { iotWebConf.handleNotFound(); });
   log_i("WiFi manager and web server initialized");
@@ -218,7 +222,7 @@ void handleWebServerRoot() {
   }
   s += "</p>";
   s += "<p>BLE: ";
-  if (isBLEConnected) {
+  if (BTDeviceManager::isConnected()) {
     s += "Connected";
     s += ", device: ";
     s += BTDeviceManager::getConnecedDeviceName().c_str();
@@ -226,8 +230,34 @@ void handleWebServerRoot() {
     s += "Not connected";
   }
   s += "</p>";
+  s += "<p>Memory: Free heap: ";
+  s += ESP.getFreeHeap();
+  s += "</p>";
   s += "Go to <a href='config'>configuration</a> to change settings.";
   s += "</body></html>\n";
 
   webServer.send(200, "text/html", s);
 }
+
+extern const uint8_t favicon_ico_start[] asm("_binary_src_web_favicon_ico_start");
+extern const uint8_t favicon_ico_end[] asm("_binary_src_web_favicon_ico_end");
+
+extern const uint8_t index_html_start[] asm("_binary_src_web_index_html_start");
+extern const uint8_t index_html_end[] asm("_binary_src_web_index_html_end");
+
+extern const uint8_t style_css_start[] asm("_binary_src_web_style_css_start");
+extern const uint8_t style_css_end[] asm("_binary_src_web_style_css_end");
+
+void handleWebServerFile(const String& fileName) {
+  if (fileName.equals("index.html")) {
+    webServer.send_P(200, "text/html", (char*)index_html_start, (index_html_end - index_html_start));
+  }
+  if (fileName.equals("style.css")) {
+    webServer.send_P(200, "text/css", (char*)style_css_start, (style_css_end - style_css_start));
+  }
+  if (fileName.equals("favicon.ico")) {
+    webServer.send_P(200, "image/x-icon", (char*)favicon_ico_start, (favicon_ico_end - favicon_ico_start));
+  }
+}
+
+  

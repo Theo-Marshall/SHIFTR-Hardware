@@ -9,14 +9,14 @@ class ServiceManager {
   friend class BTDeviceManager;
   friend class ServiceManagerCharacteristicCallbacks;
   ServiceManager();
-  std::vector<Service>* getServices();
-  void addService(Service service);
-  Service* getService(NimBLEUUID serviceUUID);
-  Service* getServiceByCharacteristic(NimBLEUUID characteristicUUID);
-  Characteristic* getCharacteristic(NimBLEUUID characteristicUUID);
+  std::vector<Service*> getServices();
+  void addService(Service* service);
+  Service* getService(const NimBLEUUID& serviceUUID);
+  Service* getServiceByCharacteristic(const NimBLEUUID& characteristicUUID);
+  Characteristic* getCharacteristic(const NimBLEUUID& characteristicUUID);
   void subscribeCallbacks(ServiceManagerCallbacks* callbacks);
  private:
-  std::vector<Service> Services;
+  std::vector<Service*> services;
   std::vector<ServiceManagerCallbacks*> serviceManagerCallbacks;
 };
 
