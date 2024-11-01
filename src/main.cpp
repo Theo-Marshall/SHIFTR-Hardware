@@ -17,6 +17,7 @@
 void networkEvent(WiFiEvent_t event);
 void handleWebServerRoot();
 void handleWebServerFile(const String& fileName);
+void handleWebServerStatus();
 
 bool isMDNSStarted = false;
 bool isBLEConnected = false;
@@ -89,10 +90,11 @@ void setup() {
       [](const char* updatePath) { updateServer.setup(&webServer, updatePath); },
       [](const char* userName, char* password) { updateServer.updateCredentials(STR(OTA_USERNAME), STR(OTA_PASSWORD)); });
   iotWebConf.init();
-  webServer.on("/", handleWebServerRoot);
+  //webServer.on("/", handleWebServerRoot);
+  webServer.on("/status", handleWebServerStatus);
   webServer.on("/favicon.ico", [] { handleWebServerFile("favicon.ico"); });
   webServer.on("/style.css", [] { handleWebServerFile("style.css"); });
-  webServer.on("/index.html", [] { handleWebServerFile("index.html"); });
+  webServer.on("/", [] { handleWebServerFile("index.html"); });
   webServer.on("/config", [] { iotWebConf.handleConfig(); });
   webServer.onNotFound([]() { iotWebConf.handleNotFound(); });
   log_i("WiFi manager and web server initialized");
@@ -249,6 +251,10 @@ extern const uint8_t style_css_start[] asm("_binary_src_web_style_css_start");
 extern const uint8_t style_css_end[] asm("_binary_src_web_style_css_end");
 
 void handleWebServerFile(const String& fileName) {
+  if (iotWebConf.handleCaptivePortal()) {
+    return;
+  }
+
   if (fileName.equals("index.html")) {
     webServer.send_P(200, "text/html", (char*)index_html_start, (index_html_end - index_html_start));
   }
@@ -260,4 +266,75 @@ void handleWebServerFile(const String& fileName) {
   }
 }
 
+void handleWebServerStatus() {
+
+  String json = "{";
+  json += "\"devicename\": \"";
+  json += Utils::getDeviceName().c_str();
+  json += "\",";
+
+  json += "\"version\": \"";
+  json += VERSION;
+  json += "\",";
+
+  json += "\"hostname\": \"";
+  json += Utils::getHostName().c_str();
+  json += "\",";
+
+  json += "\"ethernet_status\": \"";
+  if (isEthernetConnected) {
+    json += "Connected";
+    json += ", IP: ";
+    json += ETH.localIP().toString();
+  } else {
+    json += "Not connected";
+  }
+  json += "\",";
+
+  json += "\"wifi_status\": \"";
+  switch (iotWebConf.getState()) {
+    case iotwebconf::NetworkState::ApMode:
+      json += "Access-Point mode";
+      break;
+    case iotwebconf::NetworkState::Boot:
+      json += "Booting";
+      break;
+    case iotwebconf::NetworkState::Connecting:
+      json += "Connecting";
+      break;
+    case iotwebconf::NetworkState::NotConfigured:
+      json += "Not configured";
+      break;
+    case iotwebconf::NetworkState::OffLine:
+      json += "Offline";
+      break;
+    case iotwebconf::NetworkState::OnLine:
+      json += "Online";
+      json += ", SSID: ";
+      json += WiFi.SSID();
+      json += ", IP: ";
+      json += WiFi.localIP().toString();
+      break;
+    default:
+      json += "Unknown";
+      break;
+  }
+  json += "\",";
+
+  json += "\"ble_status\": \"";
+  if (BTDeviceManager::isConnected()) {
+    json += "Connected";
+    json += ", device: ";
+    json += BTDeviceManager::getConnecedDeviceName().c_str();
+  } else {
+    json += "Not connected";
+  }
+  json += "\",";
+
+  json += "\"free_heap\": ";
+  json += ESP.getFreeHeap();
+  json += "}";
+  
+  webServer.send(200, "application/json", json);
+}
   
