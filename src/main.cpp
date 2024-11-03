@@ -90,7 +90,6 @@ void setup() {
       [](const char* updatePath) { updateServer.setup(&webServer, updatePath); },
       [](const char* userName, char* password) { updateServer.updateCredentials(STR(OTA_USERNAME), STR(OTA_PASSWORD)); });
   iotWebConf.init();
-  //webServer.on("/", handleWebServerRoot);
   webServer.on("/status", handleWebServerStatus);
   webServer.on("/favicon.ico", [] { handleWebServerFile("favicon.ico"); });
   webServer.on("/style.css", [] { handleWebServerFile("style.css"); });
@@ -169,76 +168,6 @@ void networkEvent(WiFiEvent_t event) {
     default:
       break;
   }
-}
-
-void handleWebServerRoot() {
-  // -- Let IotWebConf test and handle captive portal requests.
-  if (iotWebConf.handleCaptivePortal()) {
-    // -- Captive portal request were already served.
-    return;
-  }
-  String s = "<!DOCTYPE html><html lang=\"en\"><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, user-scalable=no\"/>";
-  s += "<title>";
-  s += Utils::getDeviceName().c_str();
-  s += "</title></head><body>";
-  s += "<h1>";
-  s += Utils::getDeviceName().c_str();
-  s += " " VERSION;
-  s += "</h1>";
-  s += "<p>Ethernet: ";
-  if (isEthernetConnected) {
-    s += "Connected";
-    s += ", IP: ";
-    s += ETH.localIP().toString();
-  } else {
-    s += "Not connected";
-  }
-  s += "</p>";
-  s += "<p>WiFi: ";
-  switch (iotWebConf.getState()) {
-    case iotwebconf::NetworkState::ApMode:
-      s += "Access-Point mode";
-      break;
-    case iotwebconf::NetworkState::Boot:
-      s += "Booting";
-      break;
-    case iotwebconf::NetworkState::Connecting:
-      s += "Connecting";
-      break;
-    case iotwebconf::NetworkState::NotConfigured:
-      s += "Not configured";
-      break;
-    case iotwebconf::NetworkState::OffLine:
-      s += "Offline";
-      break;
-    case iotwebconf::NetworkState::OnLine:
-      s += "Online";
-      s += ", SSID: ";
-      s += WiFi.SSID();
-      s += ", IP: ";
-      s += WiFi.localIP().toString();
-      break;
-    default:
-      s += "Unknown";
-      break;
-  }
-  s += "</p>";
-  s += "<p>BLE: ";
-  if (BTDeviceManager::isConnected()) {
-    s += "Connected";
-    s += ", device: ";
-    s += BTDeviceManager::getConnecedDeviceName().c_str();
-  } else {
-    s += "Not connected";
-  }
-  s += "</p>";
-  s += "<p>Memory: Free heap: ";
-  s += ESP.getFreeHeap();
-  s += "</p>";
-  s += "Go to <a href='config'>configuration</a> to change settings.";
-  s += "</body></html>\n";
-
-  webServer.send(200, "text/html", s);
 }
 
 extern const uint8_t favicon_ico_start[] asm("_binary_src_web_favicon_ico_start");
@@ -324,7 +253,7 @@ void handleWebServerStatus() {
   json += "\"ble_status\": \"";
   if (BTDeviceManager::isConnected()) {
     json += "Connected";
-    json += ", device: ";
+    json += ", ";
     json += BTDeviceManager::getConnecedDeviceName().c_str();
   } else {
     json += "Not connected";

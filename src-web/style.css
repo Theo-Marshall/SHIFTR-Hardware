@@ -148,6 +148,32 @@ h1 {
     display: inline-block;
 }
 
+.statusgreen {
+    background-color: #34c759;
+    border: 1px solid var(--foreground);
+    border-radius: 12px;
+    font-size: 14px;
+    line-height: 10px;
+    height: 13px;
+    padding: 6px 6px 1px 6px;
+    min-width: 8px;
+    position: relative;
+    text-align: center;
+}
+
+.statusred {
+    background-color: red;
+    border: 1px solid var(--foreground);
+    border-radius: 12px;
+    font-size: 14px;
+    line-height: 10px;
+    height: 13px;
+    padding: 6px 6px 1px 6px;
+    min-width: 8px;
+    position: relative;
+    text-align: center;
+}
+
 .helpbadge {
     background-color: var(--background-alt);
     border: 1px solid var(--foreground);

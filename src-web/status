@@ -6,5 +6,4 @@
     "wifi_status": "Not connected",
     "ble_status": "Failure",
     "free_heap": 123456
-
 }
