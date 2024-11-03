@@ -18,6 +18,10 @@ class DirConManager {
   static void update();
   static void setServiceManager(ServiceManager* serviceManager);
   static void notifyDirConCharacteristic(const NimBLEUUID& characteristicUUID, uint8_t* pData, size_t length);
+  static int64_t getCurrentPower();
+  static int64_t getCurrentCadence();
+  static void setCurrentPower(int64_t power);
+  static void setCurrentCadence(int64_t cadence);
 
  private:
   static bool doNotifications(void* arg);
@@ -31,11 +35,16 @@ class DirConManager {
   static bool processDirConMessage(DirConMessage* dirConMessage, AsyncClient* client, size_t clientIndex);
   static uint8_t getDirConProperties(uint32_t characteristicProperties);
   static std::vector<uint8_t> processZwiftSyncRequest(std::vector<uint8_t>* requestData);
+  static void notifyDirConCharacteristic(Characteristic* characteristic, uint8_t* pData, size_t length);
+  static void notifyInternalCharacteristics();
+  static std::vector<uint8_t> generateZwiftAsyncNotificationData(int64_t power, int64_t cadence, int64_t unknown1, int64_t unknown2, int64_t unknown3, int64_t unknown4 = 25714LL);
   static ServiceManager* serviceManager;
   static Timer<> notificationTimer;
   static AsyncServer* dirConServer;
   static AsyncClient* dirConClients[DIRCON_MAX_CLIENTS];
   static bool started;
+  static int64_t currentPower;
+  static int64_t currentCadence;
 };
 
 #endif

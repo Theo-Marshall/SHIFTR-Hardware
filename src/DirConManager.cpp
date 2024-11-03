@@ -6,6 +6,7 @@
 #include <Service.h>
 #include <ServiceManagerCallbacks.h>
 #include <Utils.h>
+#include <leb128.h>
 
 ServiceManager *DirConManager::serviceManager{};
 Timer<> DirConManager::notificationTimer = timer_create_default();
@@ -17,7 +18,7 @@ class DirConServiceManagerCallbacks : public ServiceManagerCallbacks {
   void onServiceAdded(Service *service) {
     if (service->isAdvertised()) {
       String serviceUUIDs = "";
-      for (Service* currentService : service->getServiceManager()->getServices()) {
+      for (Service *currentService : service->getServiceManager()->getServices()) {
         if (currentService->isAdvertised()) {
           if (serviceUUIDs != "") {
             serviceUUIDs += ",";
@@ -135,11 +136,11 @@ void DirConManager::handleDirConTimeOut(void *arg, AsyncClient *client, uint32_t
   client->stop();
 }
 
-void DirConManager::removeSubscriptions(AsyncClient* client) {
+void DirConManager::removeSubscriptions(AsyncClient *client) {
   size_t clientIndex = DirConManager::getDirConClientIndex(client);
   if (clientIndex != (DIRCON_MAX_CLIENTS + 1)) {
-    for(Service* service : serviceManager->getServices()) {
-      for(Characteristic* characteristic : service->getCharacteristics()) {
+    for (Service *service : serviceManager->getServices()) {
+      for (Characteristic *characteristic : service->getCharacteristics()) {
         characteristic->removeSubscription(clientIndex);
       }
     }
@@ -161,7 +162,7 @@ size_t DirConManager::getDirConClientIndex(AsyncClient *client) {
 bool DirConManager::processDirConMessage(DirConMessage *dirConMessage, AsyncClient *client, size_t clientIndex) {
   Service *service = nullptr;
   Characteristic *characteristic = nullptr;
-  std::vector<uint8_t>* returnData;
+  std::vector<uint8_t> *returnData;
   DirConMessage returnMessage;
   returnMessage.Identifier = dirConMessage->Identifier;
   returnMessage.UUID = dirConMessage->UUID;
@@ -169,7 +170,7 @@ bool DirConManager::processDirConMessage(DirConMessage *dirConMessage, AsyncClie
     case DIRCON_MSGID_DISCOVER_SERVICES:
       log_d("DirCon service discovery request, returning services");
       returnMessage.ResponseCode = DIRCON_RESPCODE_SUCCESS_REQUEST;
-      for (Service* currentService : serviceManager->getServices()) {
+      for (Service *currentService : serviceManager->getServices()) {
         returnMessage.AdditionalUUIDs.push_back(currentService->UUID);
       }
       break;
@@ -181,7 +182,7 @@ bool DirConManager::processDirConMessage(DirConMessage *dirConMessage, AsyncClie
         returnMessage.ResponseCode = DIRCON_RESPCODE_SERVICE_NOT_FOUND;
         break;
       }
-      for (Characteristic* characteristic : service->getCharacteristics()) {
+      for (Characteristic *characteristic : service->getCharacteristics()) {
         returnMessage.AdditionalUUIDs.push_back(characteristic->UUID);
         returnMessage.AdditionalData.push_back(getDirConProperties(characteristic->getProperties()));
       }
@@ -294,7 +295,7 @@ uint8_t DirConManager::getDirConProperties(uint32_t characteristicProperties) {
   return returnValue;
 }
 
-std::vector<uint8_t> DirConManager::processZwiftSyncRequest(std::vector<uint8_t>* requestData) {
+std::vector<uint8_t> DirConManager::processZwiftSyncRequest(std::vector<uint8_t> *requestData) {
   std::vector<uint8_t> returnData;
   if (requestData->size() >= 3) {
     uint8_t zwiftCommand = requestData->at(0);
@@ -303,8 +304,7 @@ std::vector<uint8_t> DirConManager::processZwiftSyncRequest(std::vector<uint8_t>
     switch (zwiftCommand) {
       case 0x52:
         if (requestData->size() == 8) {
-          for (size_t index = 0; index < (requestData->size() -1) ; index++)
-          {
+          for (size_t index = 0; index < (requestData->size() - 1); index++) {
             returnData.push_back(requestData->at(index));
           }
           returnData.push_back(0x00);
@@ -318,22 +318,91 @@ std::vector<uint8_t> DirConManager::processZwiftSyncRequest(std::vector<uint8_t>
   return returnData;
 }
 
-void DirConManager::notifyDirConCharacteristic(const NimBLEUUID& characteristicUUID, uint8_t* pData, size_t length) {
-  Characteristic* characteristic = serviceManager->getCharacteristic(characteristicUUID);
+void DirConManager::notifyDirConCharacteristic(const NimBLEUUID &characteristicUUID, uint8_t *pData, size_t length) {
+  notifyDirConCharacteristic(serviceManager->getCharacteristic(characteristicUUID), pData, length);
+}
+
+void DirConManager::notifyDirConCharacteristic(Characteristic* characteristic, uint8_t *pData, size_t length) {
   if (characteristic != nullptr) {
     if (characteristic->getSubscriptions().size() > 0) {
       DirConMessage dirConMessage;
       dirConMessage.Identifier = DIRCON_MSGID_UNSOLICITED_CHARACTERISTIC_NOTIFICATION;
-      dirConMessage.UUID = characteristicUUID;
-      for (size_t dataIndex = 0; dataIndex < length; dataIndex++)
-      {
+      dirConMessage.UUID = characteristic->UUID;
+      for (size_t dataIndex = 0; dataIndex < length; dataIndex++) {
         dirConMessage.AdditionalData.push_back(pData[dataIndex]);
       }
-      std::vector<uint8_t>* messageData = dirConMessage.encode(0);
-      for(uint32_t clientIndex : characteristic->getSubscriptions()) {
+      std::vector<uint8_t> *messageData = dirConMessage.encode(0);
+      for (uint32_t clientIndex : characteristic->getSubscriptions()) {
         log_d("Sending DirCon notify to client #%d, hex value: %s", clientIndex, Utils::getHexString(messageData->data(), messageData->size()).c_str());
-        dirConClients[clientIndex]->write((char *)messageData->data(), messageData->size());
+        if ((dirConClients[clientIndex] != nullptr) && dirConClients[clientIndex]->connected()) {
+          dirConClients[clientIndex]->write((char *)messageData->data(), messageData->size());
+        }
       }
     }
   }
+}
+
+void DirConManager::notifyInternalCharacteristics() {
+  for (Service *service : serviceManager->getServices()) {
+    if (service->isInternal()) {
+      for (Characteristic *characteristic : service->getCharacteristics()) {
+        if (characteristic->UUID.equals(NimBLEUUID(ZWIFT_ASYNC_CHARACTERISTIC_UUID))) {
+          std::vector<uint8_t> notificationData = generateZwiftAsyncNotificationData(currentPower, currentCadence, 0, 0, 0);
+          notifyDirConCharacteristic(characteristic, notificationData.data(), notificationData.size());
+        }
+      }
+    }
+  }
+}
+
+std::vector<uint8_t> DirConManager::generateZwiftAsyncNotificationData(int64_t power, int64_t cadence, int64_t unknown1, int64_t unknown2, int64_t unknown3, int64_t unknown4) {
+  std::vector<uint8_t> notificationData;
+  int64_t currentData = 0;
+  uint8_t leb128Buffer[16];
+  size_t leb128Size = 0;
+
+  notificationData.push_back(0x03);
+
+  for(uint8_t dataBlock = 0x08; dataBlock <= 0x30; dataBlock += 0x08) {
+    notificationData.push_back(dataBlock);
+    if (dataBlock == 0x08) {
+      currentData = power;
+    }
+    if (dataBlock == 0x10) {
+      currentData = cadence;
+    }
+    if (dataBlock == 0x18) {
+      currentData = unknown1;
+    }
+    if (dataBlock == 0x20) {
+      currentData = unknown2;
+    }
+    if (dataBlock == 0x28) {
+      currentData = unknown3;
+    }
+    if (dataBlock == 0x30) {
+      currentData = unknown4;
+    }
+    leb128Size = bfs::EncodeLeb128(currentData, leb128Buffer, sizeof(leb128Buffer));
+    for (uint8_t leb128Byte = 0; leb128Byte < leb128Size; leb128Byte++) {
+      notificationData.push_back(leb128Buffer[leb128Byte]);
+    }
+  }
+  return notificationData;
+}
+
+int64_t DirConManager::getCurrentPower() {
+  return currentPower;
+}
+
+int64_t DirConManager::getCurrentCadence() {
+  return currentCadence;
+}
+
+void DirConManager::setCurrentPower(int64_t power) {
+  currentPower = power;
+}
+
+void DirConManager::setCurrentCadence(int64_t cadence) {
+  currentCadence = cadence;
 }
