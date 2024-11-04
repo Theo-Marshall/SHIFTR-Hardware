@@ -13,6 +13,18 @@ Timer<> DirConManager::notificationTimer = timer_create_default();
 bool DirConManager::started = false;
 AsyncServer *DirConManager::dirConServer = new AsyncServer(DIRCON_TCP_PORT);
 AsyncClient *DirConManager::dirConClients[];
+int64_t DirConManager::currentPower = 0;
+int64_t DirConManager::currentCadence = 0;
+int64_t DirConManager::currentInclination = 0;
+int64_t DirConManager::currentGearRatio = 0;
+int16_t DirConManager::currentDevicePower = 0;
+uint16_t DirConManager::currentDeviceCrankRevolutions = 0;
+uint16_t DirConManager::currentDeviceCrankLastEventTime = 0;
+bool DirConManager::currentDeviceCrankStaleness = true;
+uint16_t DirConManager::currentDeviceCadence = 0;
+uint8_t DirConManager::currentDeviceGearRatio = 0;
+
+bool DirConManager::virtualShiftingEnabled = false;
 
 class DirConServiceManagerCallbacks : public ServiceManagerCallbacks {
   void onServiceAdded(Service *service) {
@@ -29,6 +41,23 @@ class DirConServiceManagerCallbacks : public ServiceManagerCallbacks {
       log_i("Updating advertised service UUIDs: %s", serviceUUIDs.c_str());
       MDNS.addServiceTxt(DIRCON_MDNS_SERVICE_NAME, DIRCON_MDNS_SERVICE_PROTOCOL, "ble-service-uuids", serviceUUIDs.c_str());
     };
+  };
+
+  void onCharacteristicSubscriptionChanged(Characteristic *characteristic, bool removed) {
+    if (characteristic->UUID.equals(NimBLEUUID(CYCLING_POWER_MEASUREMENT_CHARACTERISTIC_UUID))) {
+      if (removed && (characteristic->getSubscriptions().size() == 0)) {
+        DirConManager::currentDeviceCrankStaleness = true;
+        DirConManager::currentDeviceCrankRevolutions = 0;
+        DirConManager::currentDeviceCrankLastEventTime = 0;
+        DirConManager::currentDeviceCadence = 0;
+        DirConManager::currentDevicePower = 0;
+        DirConManager::currentDeviceGearRatio = 0;
+      } else {
+        if (characteristic->getSubscriptions().size() > 0) {
+          DirConManager::currentDeviceCrankStaleness = true;
+        }
+      }
+    }
   };
 };
 
@@ -68,6 +97,7 @@ void DirConManager::update() {
 
 bool DirConManager::doNotifications(void *arg) {
   if (started) {
+    notifyInternalCharacteristics();
   }
   return true;
 }
@@ -256,6 +286,7 @@ bool DirConManager::processDirConMessage(DirConMessage *dirConMessage, AsyncClie
             break;
           }
         } else {
+          log_e("DirCon read to internal characteristic, not implemented!");
           // TODO
         }
       } else {
@@ -295,13 +326,112 @@ uint8_t DirConManager::getDirConProperties(uint32_t characteristicProperties) {
   return returnValue;
 }
 
+std::map<uint8_t, int64_t> DirConManager::getZwiftDataValues(std::vector<uint8_t> *requestData) {
+  std::map<uint8_t, int64_t> returnMap;
+  if (requestData->size() > 4) {
+    if (requestData->at(0) == 0x04) {
+      size_t processedBytes = 0;
+      size_t dataIndex = 3;
+      if (requestData->size() == (requestData->at(2) + dataIndex)) {
+        uint8_t currentKey = 0;
+        int64_t currentValue = 0;
+        while (dataIndex < requestData->size()) {
+          currentKey = requestData->at(dataIndex);
+          dataIndex++;
+          processedBytes = bfs::DecodeLeb128(requestData->data() + dataIndex, requestData->size() - dataIndex, &currentValue);
+          dataIndex = dataIndex + processedBytes;
+          if (processedBytes == 0) {
+            log_e("Error parsing Zwift data values, hex: ", Utils::getHexString(requestData).c_str());
+            dataIndex++;
+          }
+          returnMap.emplace(currentKey, currentValue);
+        }
+      }
+    }
+  }
+  return returnMap;
+}
+
 std::vector<uint8_t> DirConManager::processZwiftSyncRequest(std::vector<uint8_t> *requestData) {
+  log_i("Processing Zwift Sync request with hex value: %s", Utils::getHexString(requestData).c_str());
+  uint8_t checksum = 0;
   std::vector<uint8_t> returnData;
   if (requestData->size() >= 3) {
     uint8_t zwiftCommand = requestData->at(0);
     uint8_t zwiftCommandSubtype = requestData->at(1);
     uint8_t zwiftCommandLength = requestData->at(2);
+    std::map<uint8_t, int64_t> requestValues = getZwiftDataValues(requestData);
+
     switch (zwiftCommand) {
+      // Status request
+      case 0x00:
+        break;
+
+      // Change request
+      case 0x04:
+        if (requestValues.size() > 0) {
+          switch (zwiftCommandSubtype) {
+            // Inclination change
+            case 0x22:
+              if (requestValues.find(0x10) != requestValues.end()) {
+                currentInclination = requestValues.at(0x10);
+              }
+              log_i("Inclination change %d, %d", 0, currentInclination);
+              break;
+
+            // Gear ratio change
+            case 0x2A:
+              if (requestValues.find(0x10) != requestValues.end()) {
+                currentGearRatio = requestValues.at(0x10);
+                if (currentGearRatio == 0) {
+                  virtualShiftingEnabled = false;
+                  currentDeviceGearRatio = 0;
+                } else {
+                  virtualShiftingEnabled = true;
+                  currentDeviceGearRatio = (uint8_t)(currentGearRatio / 300);
+                }
+              }
+
+              returnData.push_back(0xA4); // SYNC
+              returnData.push_back(0x09); // MSG_LEN
+              returnData.push_back(0x4F); // MSG_ID
+              returnData.push_back(0x05); // CONTENT_START
+              returnData.push_back(0x37); // PAGE 55 (0x37)
+              returnData.push_back(0xFF); // USER WEIGHT 
+              returnData.push_back(0xFF);
+              returnData.push_back(0xFF); // RESERVED
+              returnData.push_back(0xFF); // BICYCLE WEIGHT
+              returnData.push_back(0xFF);
+              returnData.push_back(0xFF); // BICYCLE WHEEL DIAMETER 0.01m
+              returnData.push_back(currentDeviceGearRatio); // CONTENT_END
+              checksum = returnData.at(0);
+              for (size_t checksumIndex = 1; checksumIndex < returnData.size(); checksumIndex++)
+              {
+                checksum = (checksum ^ returnData.at(checksumIndex));
+              }
+              returnData.push_back(checksum); // CHECKSUM
+              if (!BTDeviceManager::writeBLECharacteristic(NimBLEUUID(TACX_FEC_PRIMARY_SERVICE_UUID), NimBLEUUID(TACX_FEC_WRITE_CHARACTERISTIC_UUID), &returnData)) {
+                log_e("Error writing TACX FEC characteristic");
+              }
+              returnData.clear();
+              break;
+            
+            // Unknown
+            default:
+              log_e("Unknown Zwift Sync change request with hex value: %s", Utils::getHexString(requestData).c_str());
+              for (auto requestValue = requestValues.begin(); requestValue != requestValues.end(); requestValue++) {
+                log_i("Zwift sync data key: %d, value %d", requestValue->first, requestValue->second);
+              }
+              break;
+          }
+        }
+        break;
+
+      // Unknown request, similar to 0x00
+      case 0x41:
+        break;
+
+      // RideOn request
       case 0x52:
         if (requestData->size() == 8) {
           for (size_t index = 0; index < (requestData->size() - 1); index++) {
@@ -310,11 +440,14 @@ std::vector<uint8_t> DirConManager::processZwiftSyncRequest(std::vector<uint8_t>
           returnData.push_back(0x00);
         }
         break;
+
+      // Unknown request
       default:
+        log_e("Unknown Zwift Sync request with hex value: %s", Utils::getHexString(requestData).c_str());
         break;
     }
   }
-  log_d("Return data hex: %s", Utils::getHexString(returnData).c_str());
+  log_i("Returning data with hex value: %s", Utils::getHexString(returnData).c_str());
   return returnData;
 }
 
@@ -322,8 +455,53 @@ void DirConManager::notifyDirConCharacteristic(const NimBLEUUID &characteristicU
   notifyDirConCharacteristic(serviceManager->getCharacteristic(characteristicUUID), pData, length);
 }
 
-void DirConManager::notifyDirConCharacteristic(Characteristic* characteristic, uint8_t *pData, size_t length) {
+void DirConManager::notifyDirConCharacteristic(Characteristic *characteristic, uint8_t *pData, size_t length) {
   if (characteristic != nullptr) {
+    // Fetch current power and cadence data
+    if (characteristic->UUID.equals(NimBLEUUID(CYCLING_POWER_MEASUREMENT_CHARACTERISTIC_UUID))) {
+      uint16_t flags = 0;
+      int16_t power = 0;
+      uint16_t crankRevolutions = 0;
+      uint16_t crankLastEventTime = 0;
+      size_t currentIndex = 0;
+      if (length >= (currentIndex + 2)) {
+        flags = (pData[currentIndex + 1] << 8) | pData[currentIndex];
+        currentIndex += 2;
+        if (length >= (currentIndex + 2)) {
+          power = (pData[currentIndex + 1] << 8) | pData[currentIndex];
+          currentDevicePower = power;
+          currentIndex += 2;
+          if ((flags & 1) == 1) {
+            currentIndex += 1; // Skip "Pedal Power Balance"
+          }
+          if ((flags & 4) == 4) {
+            currentIndex += 2; // Skip "Accumulated Torque"
+          }
+          if ((flags & 16) == 16) {
+            currentIndex += 6; // Skip "Wheel Revolution Data"
+          }
+          if ((flags & 32) == 32) {
+            if (length >= (currentIndex + 4)) {
+              crankRevolutions = (pData[currentIndex + 1] << 8) | pData[currentIndex];
+              currentIndex += 2;
+              crankLastEventTime = (pData[currentIndex + 1] << 8) | pData[currentIndex];
+              currentIndex += 2;
+              if (!currentDeviceCrankStaleness) {
+                uint16_t eventTimeDiff = crankLastEventTime - currentDeviceCrankLastEventTime;
+                uint16_t revolutionsDiff = crankRevolutions - currentDeviceCrankRevolutions;
+                currentDeviceCadence = 1024 * 60 * revolutionsDiff / eventTimeDiff;
+              } else {
+                currentDeviceCrankStaleness = false;
+              }
+              currentDeviceCrankRevolutions = crankRevolutions;
+              currentDeviceCrankLastEventTime = crankLastEventTime;
+              log_d("Extracted CPS data - power: %d, revolutions: %d, lasteventtime: %d, cadence: %d", power, crankRevolutions, crankLastEventTime, currentDeviceCadence);
+            }
+          }
+        }
+      }
+    }
+
     if (characteristic->getSubscriptions().size() > 0) {
       DirConMessage dirConMessage;
       dirConMessage.Identifier = DIRCON_MSGID_UNSOLICITED_CHARACTERISTIC_NOTIFICATION;
@@ -347,6 +525,8 @@ void DirConManager::notifyInternalCharacteristics() {
     if (service->isInternal()) {
       for (Characteristic *characteristic : service->getCharacteristics()) {
         if (characteristic->UUID.equals(NimBLEUUID(ZWIFT_ASYNC_CHARACTERISTIC_UUID))) {
+          currentPower = currentDevicePower;
+          currentCadence = currentDeviceCadence;
           std::vector<uint8_t> notificationData = generateZwiftAsyncNotificationData(currentPower, currentCadence, 0, 0, 0);
           notifyDirConCharacteristic(characteristic, notificationData.data(), notificationData.size());
         }
@@ -363,7 +543,7 @@ std::vector<uint8_t> DirConManager::generateZwiftAsyncNotificationData(int64_t p
 
   notificationData.push_back(0x03);
 
-  for(uint8_t dataBlock = 0x08; dataBlock <= 0x30; dataBlock += 0x08) {
+  for (uint8_t dataBlock = 0x08; dataBlock <= 0x30; dataBlock += 0x08) {
     notificationData.push_back(dataBlock);
     if (dataBlock == 0x08) {
       currentData = power;
@@ -399,10 +579,38 @@ int64_t DirConManager::getCurrentCadence() {
   return currentCadence;
 }
 
+int64_t DirConManager::getCurrentInclination() {
+  return currentInclination;
+}
+
+int64_t DirConManager::getCurrentGearRatio() {
+  return currentGearRatio;
+}
+
+bool DirConManager::isVirtualShiftingEnabled() {
+  return virtualShiftingEnabled;
+}
+
 void DirConManager::setCurrentPower(int64_t power) {
   currentPower = power;
 }
 
 void DirConManager::setCurrentCadence(int64_t cadence) {
   currentCadence = cadence;
+}
+
+int16_t DirConManager::getCurrentDevicePower() {
+  return currentDevicePower;
+}
+
+uint16_t DirConManager::getcurrentDeviceCrankRevolutions() {
+  return currentDeviceCrankRevolutions;
+}
+
+uint16_t DirConManager::getcurrentDeviceCrankLastEventTime() {
+  return currentDeviceCrankLastEventTime;
+}
+
+uint16_t DirConManager::getcurrentDeviceCadence() {
+  return currentDeviceCadence;
 }

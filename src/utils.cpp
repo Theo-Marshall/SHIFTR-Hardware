@@ -49,3 +49,7 @@ std::string Utils::getHexString(uint8_t* data, size_t length) {
 std::string Utils::getHexString(std::vector<uint8_t> data) {
   return Utils::getHexString(data.data(), data.size());
 }
+
+std::string Utils::getHexString(std::vector<uint8_t>* data) {
+  return Utils::getHexString(data->data(), data->size());
+}

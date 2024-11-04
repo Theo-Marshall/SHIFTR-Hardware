@@ -35,11 +35,11 @@ void setup() {
   log_i(DEVICE_NAME_PREFIX " " VERSION " starting...");
   log_i("Device name: %s, host name: %s", Utils::getDeviceName().c_str(), Utils::getHostName().c_str());
   // initialize service manager
-  Service zwiftCustomService(NimBLEUUID(ZWIFT_CUSTOM_SERVICE_UUID), true, true);
-  zwiftCustomService.addCharacteristic(new Characteristic(NimBLEUUID(ZWIFT_ASYNC_CHARACTERISTIC_UUID), NOTIFY));
-  zwiftCustomService.addCharacteristic(new Characteristic(NimBLEUUID(ZWIFT_SYNCRX_CHARACTERISTIC_UUID), WRITE));
-  zwiftCustomService.addCharacteristic(new Characteristic(NimBLEUUID(ZWIFT_SYNCTX_CHARACTERISTIC_UUID), INDICATE));
-  //serviceManager.addService(zwiftCustomService);
+  Service* zwiftCustomService = new Service(NimBLEUUID(ZWIFT_CUSTOM_SERVICE_UUID), true, true);
+  zwiftCustomService->addCharacteristic(new Characteristic(NimBLEUUID(ZWIFT_ASYNC_CHARACTERISTIC_UUID), NOTIFY));
+  zwiftCustomService->addCharacteristic(new Characteristic(NimBLEUUID(ZWIFT_SYNCRX_CHARACTERISTIC_UUID), WRITE));
+  zwiftCustomService->addCharacteristic(new Characteristic(NimBLEUUID(ZWIFT_SYNCTX_CHARACTERISTIC_UUID), INDICATE));
+  serviceManager.addService(zwiftCustomService);
   log_i("Service manager initialized");
 
   // initialize bluetooth device manager
@@ -259,6 +259,24 @@ void handleWebServerStatus() {
     json += "Not connected";
   }
   json += "\",";
+
+  String services_json = "\"ble_services\": [";
+  for (Service* service : serviceManager.getServices()) {
+    services_json += "\"";
+    services_json += service->UUID.to128().toString().c_str();
+    services_json += "\",";
+    for(Characteristic* characteristic : service->getCharacteristics()) {
+      services_json += "\"-- ";
+      services_json += characteristic->UUID.to128().toString().c_str();
+      services_json += "\",";
+    }
+  }
+  if (services_json.endsWith(",")) {
+    services_json.remove(services_json.length() - 1);
+  }
+  services_json += "],";
+
+  json += services_json;
 
   json += "\"free_heap\": ";
   json += ESP.getFreeHeap();

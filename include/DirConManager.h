@@ -20,10 +20,18 @@ class DirConManager {
   static void notifyDirConCharacteristic(const NimBLEUUID& characteristicUUID, uint8_t* pData, size_t length);
   static int64_t getCurrentPower();
   static int64_t getCurrentCadence();
+  static int64_t getCurrentInclination();
+  static int64_t getCurrentGearRatio();
+  static int16_t getCurrentDevicePower();
+  static uint16_t getcurrentDeviceCrankRevolutions();
+  static uint16_t getcurrentDeviceCrankLastEventTime();
+  static uint16_t getcurrentDeviceCadence();
+  static bool isVirtualShiftingEnabled();
   static void setCurrentPower(int64_t power);
   static void setCurrentCadence(int64_t cadence);
 
  private:
+ friend class DirConServiceManagerCallbacks;
   static bool doNotifications(void* arg);
   static void handleNewClient(void* arg, AsyncClient* client);
   static void handleDirConData(void* arg, AsyncClient* client, void* data, size_t len);
@@ -38,6 +46,7 @@ class DirConManager {
   static void notifyDirConCharacteristic(Characteristic* characteristic, uint8_t* pData, size_t length);
   static void notifyInternalCharacteristics();
   static std::vector<uint8_t> generateZwiftAsyncNotificationData(int64_t power, int64_t cadence, int64_t unknown1, int64_t unknown2, int64_t unknown3, int64_t unknown4 = 25714LL);
+  static std::map<uint8_t, int64_t> getZwiftDataValues(std::vector<uint8_t> *requestData);
   static ServiceManager* serviceManager;
   static Timer<> notificationTimer;
   static AsyncServer* dirConServer;
@@ -45,6 +54,15 @@ class DirConManager {
   static bool started;
   static int64_t currentPower;
   static int64_t currentCadence;
+  static int64_t currentInclination;
+  static int64_t currentGearRatio;
+  static int16_t currentDevicePower;
+  static uint16_t currentDeviceCrankRevolutions;
+  static uint16_t currentDeviceCrankLastEventTime;
+  static bool currentDeviceCrankStaleness;
+  static uint16_t currentDeviceCadence;
+  static uint8_t currentDeviceGearRatio;
+  static bool virtualShiftingEnabled;
 };
 
 #endif

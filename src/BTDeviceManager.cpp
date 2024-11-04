@@ -19,11 +19,13 @@ Timer<> BTDeviceManager::connectTimer = timer_create_default();
 
 class BTDeviceServiceManagerCallbacks : public ServiceManagerCallbacks {
   void onCharacteristicSubscriptionChanged(Characteristic* characteristic, bool removed) {
-    if (removed && (characteristic->getSubscriptions().size() == 0)) {
-      BTDeviceManager::changeBLENotify(characteristic, true);
-    } else {
-      if (characteristic->getSubscriptions().size() > 0) {
-        BTDeviceManager::changeBLENotify(characteristic, false);
+    if (!characteristic->getService()->isInternal()) {
+      if (removed && (characteristic->getSubscriptions().size() == 0)) {
+        BTDeviceManager::changeBLENotify(characteristic, true);
+      } else {
+        if (characteristic->getSubscriptions().size() > 0) {
+          BTDeviceManager::changeBLENotify(characteristic, false);
+        }
       }
     }
   };
@@ -325,13 +327,13 @@ bool BTDeviceManager::changeBLENotify(Characteristic* characteristic, bool remov
           return remoteCharacteristic->unsubscribe();
         }
       } else {
-        log_e("BLE characteristic change notify failed: Remote characteristic can't notify nor indicate");
+        log_e("BLE characteristic change notify failed: Remote characteristic %s can't notify nor indicate", characteristic->UUID.to128().toString().c_str());
       }
     } else {
-      log_e("BLE characteristic change notify failed: Remote characteristic not found");
+      log_e("BLE characteristic change notify failed: Remote characteristic %s not found", characteristic->UUID.to128().toString().c_str());
     }
   } else {
-    log_e("BLE characteristic change notify failed: Remote service not found");
+    log_e("BLE characteristic change notify failed: Remote service for characteristic %s not found", characteristic->UUID.to128().toString().c_str());
   }
   return false;
 }
