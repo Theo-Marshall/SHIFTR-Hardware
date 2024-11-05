@@ -45,11 +45,13 @@ class DirConManager {
   static size_t getDirConClientIndex(AsyncClient* client);
   static bool processDirConMessage(DirConMessage* dirConMessage, AsyncClient* client, size_t clientIndex);
   static uint8_t getDirConProperties(uint32_t characteristicProperties);
-  static std::vector<uint8_t> processZwiftSyncRequest(std::vector<uint8_t>* requestData);
+  static bool processZwiftSyncRequest(Service* service, Characteristic* characteristic, std::vector<uint8_t>* requestData);
   static void notifyDirConCharacteristic(Characteristic* characteristic, uint8_t* pData, size_t length);
   static void notifyInternalCharacteristics();
   static std::vector<uint8_t> generateZwiftAsyncNotificationData(int64_t power, int64_t cadence, int64_t unknown1, int64_t unknown2, int64_t unknown3, int64_t unknown4 = 25714LL);
   static std::map<uint8_t, int64_t> getZwiftDataValues(std::vector<uint8_t> *requestData);
+  static void sendDirConCharacteristicNotification(const NimBLEUUID &characteristicUUID, uint8_t *pData, size_t length, bool onlySubscribers);
+  static void sendDirConCharacteristicNotification(Characteristic *characteristic, uint8_t *pData, size_t length, bool onlySubscribers);
   static ServiceManager* serviceManager;
   static Timer<> notificationTimer;
   static AsyncServer* dirConServer;

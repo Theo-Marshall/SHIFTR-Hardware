@@ -264,11 +264,10 @@ bool DirConManager::processDirConMessage(DirConMessage *dirConMessage, AsyncClie
             break;
           }
         } else {
-          if (characteristic->UUID.equals(NimBLEUUID(ZWIFT_SYNCRX_CHARACTERISTIC_UUID))) {
-            returnMessage.Identifier = DIRCON_MSGID_UNSOLICITED_CHARACTERISTIC_NOTIFICATION;
-            returnMessage.UUID = NimBLEUUID(ZWIFT_SYNCTX_CHARACTERISTIC_UUID);
+          if (!processZwiftSyncRequest(characteristic->getService(), characteristic, &dirConMessage->AdditionalData)) {
+            returnMessage.Identifier = DIRCON_RESPCODE_CHARACTERISTIC_OPERATION_NOT_SUPPORTED;
+            break;
           }
-          returnMessage.AdditionalData = processZwiftSyncRequest(&dirConMessage->AdditionalData);
           break;
         }
       } else {
@@ -358,7 +357,7 @@ std::map<uint8_t, int64_t> DirConManager::getZwiftDataValues(std::vector<uint8_t
   return returnMap;
 }
 
-std::vector<uint8_t> DirConManager::processZwiftSyncRequest(std::vector<uint8_t> *requestData) {
+bool DirConManager::processZwiftSyncRequest(Service* service, Characteristic* characteristic, std::vector<uint8_t>* requestData) {
   log_i("Processing Zwift Sync request with hex value: %s", Utils::getHexString(requestData).c_str());
   uint8_t checksum = 0;
   std::vector<uint8_t> returnData;
@@ -371,6 +370,7 @@ std::vector<uint8_t> DirConManager::processZwiftSyncRequest(std::vector<uint8_t>
     switch (zwiftCommand) {
       // Status request
       case 0x00:
+        return true;
         break;
 
       // Change request
@@ -434,21 +434,21 @@ std::vector<uint8_t> DirConManager::processZwiftSyncRequest(std::vector<uint8_t>
               break;
           }
         }
+        return true;
         break;
 
       // Unknown request, similar to 0x00
       case 0x41:
+        return true;
         break;
 
       // RideOn request
       case 0x52:
         if (requestData->size() == 8) {
-          for (size_t index = 0; index < (requestData->size() - 1); index++) {
-            returnData.push_back(requestData->at(index));
-          }
-          returnData.push_back(0x00);
+          sendDirConCharacteristicNotification(NimBLEUUID(ZWIFT_SYNCTX_CHARACTERISTIC_UUID), zwiftSyncRideOnAnswer, sizeof(zwiftSyncRideOnAnswer), false);
+          sendDirConCharacteristicNotification(NimBLEUUID(ZWIFT_ASYNC_CHARACTERISTIC_UUID), zwiftAsyncRideOnAnswer, sizeof(zwiftAsyncRideOnAnswer), false);
+          return true;
         }
-        // TODO notifyDirConCharacteristic(NimBLEUUID(ZWIFT_ASYNC_CHARACTERISTIC_UUID), zwiftAsyncRideOnAnswer, 18);
         break;
 
       // Unknown request
@@ -456,9 +456,8 @@ std::vector<uint8_t> DirConManager::processZwiftSyncRequest(std::vector<uint8_t>
         log_e("Unknown Zwift Sync request with hex value: %s", Utils::getHexString(requestData).c_str());
         break;
     }
-  }
-  log_i("Returning data with hex value: %s", Utils::getHexString(returnData).c_str());
-  return returnData;
+  } 
+  return false;
 }
 
 void DirConManager::notifyDirConCharacteristic(const NimBLEUUID &characteristicUUID, uint8_t *pData, size_t length) {
@@ -467,13 +466,8 @@ void DirConManager::notifyDirConCharacteristic(const NimBLEUUID &characteristicU
 
 void DirConManager::notifyDirConCharacteristic(Characteristic *characteristic, uint8_t *pData, size_t length) {
   if (characteristic != nullptr) {
-    if (characteristic->UUID.equals(NimBLEUUID(CYCLING_SPEED_AND_CADENCE_MEASUREMENT_CHARACTERISTIC))) {
-      log_i("NOTIFICATION on Speed and Cadence!");
-      debugMessage = Utils::getHexString(pData, length).c_str();
-    }
     // Fetch current power and cadence data
     if (characteristic->UUID.equals(NimBLEUUID(CYCLING_POWER_MEASUREMENT_CHARACTERISTIC_UUID))) {
-      log_i("NOTIFICATION on Cycling Power Measurement!");
       debugMessage = Utils::getHexString(pData, length).c_str();
       uint16_t flags = 0;
       int16_t power = 0;
@@ -505,32 +499,46 @@ void DirConManager::notifyDirConCharacteristic(Characteristic *characteristic, u
               if (!currentDeviceCrankStaleness) {
                 uint16_t eventTimeDiff = crankLastEventTime - currentDeviceCrankLastEventTime;
                 uint16_t revolutionsDiff = crankRevolutions - currentDeviceCrankRevolutions;
-                currentDeviceCadence = 1024 * 60 * revolutionsDiff / eventTimeDiff;
+                if (eventTimeDiff > 0) {
+                  currentDeviceCadence = 1024 * 60 * revolutionsDiff / eventTimeDiff;
+                } else {
+                  currentDeviceCadence = 0;
+                }
               } else {
                 currentDeviceCrankStaleness = false;
               }
               currentDeviceCrankRevolutions = crankRevolutions;
               currentDeviceCrankLastEventTime = crankLastEventTime;
-              log_i("Extracted CPS data - power: %d, revolutions: %d, lasteventtime: %d, cadence: %d", power, crankRevolutions, crankLastEventTime, currentDeviceCadence);
             }
           }
         }
       }
     }
+    sendDirConCharacteristicNotification(characteristic, pData, length, true);
+  }
+}
 
-    if (characteristic->getSubscriptions().size() > 0) {
-      DirConMessage dirConMessage;
-      dirConMessage.Identifier = DIRCON_MSGID_UNSOLICITED_CHARACTERISTIC_NOTIFICATION;
-      dirConMessage.UUID = characteristic->UUID;
-      for (size_t dataIndex = 0; dataIndex < length; dataIndex++) {
-        dirConMessage.AdditionalData.push_back(pData[dataIndex]);
-      }
-      std::vector<uint8_t> *messageData = dirConMessage.encode(0);
-      for (uint32_t clientIndex : characteristic->getSubscriptions()) {
-        if ((dirConClients[clientIndex] != nullptr) && dirConClients[clientIndex]->connected()) {
-          log_i("Sending DirCon notify to client #%d, hex value: %s", clientIndex, Utils::getHexString(messageData->data(), messageData->size()).c_str());
-          dirConClients[clientIndex]->write((char *)messageData->data(), messageData->size());
-        }
+void DirConManager::sendDirConCharacteristicNotification(const NimBLEUUID &characteristicUUID, uint8_t *pData, size_t length, bool onlySubscribers) {
+  sendDirConCharacteristicNotification(serviceManager->getCharacteristic(characteristicUUID), pData, length, onlySubscribers);
+}
+
+void DirConManager::sendDirConCharacteristicNotification(Characteristic *characteristic, uint8_t *pData, size_t length, bool onlySubscribers) {
+  if (onlySubscribers && (characteristic->getSubscriptions().size() == 0)) {
+    return;
+  }
+  DirConMessage dirConMessage;
+  dirConMessage.Identifier = DIRCON_MSGID_UNSOLICITED_CHARACTERISTIC_NOTIFICATION;
+  dirConMessage.UUID = characteristic->UUID;
+  for (size_t dataIndex = 0; dataIndex < length; dataIndex++) {
+    dirConMessage.AdditionalData.push_back(pData[dataIndex]);
+  }
+  std::vector<uint8_t> *messageData = dirConMessage.encode(0);
+  for (size_t clientIndex = 0; clientIndex < DIRCON_MAX_CLIENTS; clientIndex++)
+  {
+    if ((dirConClients[clientIndex] != nullptr) && dirConClients[clientIndex]->connected()) {
+      if ((onlySubscribers && characteristic->isSubscribed(clientIndex)) || !onlySubscribers) {
+        dirConClients[clientIndex]->write((char *)messageData->data(), messageData->size());
+        log_i("Sending DirCon notification to client #%d with values: %s", clientIndex, Utils::getHexString(messageData->data(), messageData->size()).c_str());
       }
     }
   }
