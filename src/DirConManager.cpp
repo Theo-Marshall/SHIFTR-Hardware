@@ -276,7 +276,7 @@ bool DirConManager::processDirConMessage(DirConMessage *dirConMessage, AsyncClie
       }
       break;
     case DIRCON_MSGID_READ_CHARACTERISTIC:
-      log_i("DirCon read characteristic request for characteristic UUID %s", dirConMessage->UUID.to128().toString().c_str());
+      log_d("DirCon read characteristic request for characteristic UUID %s", dirConMessage->UUID.to128().toString().c_str());
       returnMessage.ResponseCode = DIRCON_RESPCODE_SUCCESS_REQUEST;
       characteristic = serviceManager->getCharacteristic(dirConMessage->UUID);
       if (characteristic == nullptr) {
@@ -358,7 +358,6 @@ std::map<uint8_t, int64_t> DirConManager::getZwiftDataValues(std::vector<uint8_t
 }
 
 bool DirConManager::processZwiftSyncRequest(Service* service, Characteristic* characteristic, std::vector<uint8_t>* requestData) {
-  log_i("Processing Zwift Sync request with hex value: %s", Utils::getHexString(requestData).c_str());
   uint8_t checksum = 0;
   std::vector<uint8_t> returnData;
   if (requestData->size() >= 3) {
@@ -382,7 +381,6 @@ bool DirConManager::processZwiftSyncRequest(Service* service, Characteristic* ch
               if (requestValues.find(0x10) != requestValues.end()) {
                 currentInclination = requestValues.at(0x10);
               }
-              log_i("Inclination %i", currentInclination);
               break;
 
             // Gear ratio change
@@ -390,10 +388,16 @@ bool DirConManager::processZwiftSyncRequest(Service* service, Characteristic* ch
               if (requestValues.find(0x10) != requestValues.end()) {
                 currentGearRatio = requestValues.at(0x10);
                 if (currentGearRatio == 0) {
+                  if (virtualShiftingEnabled) {
+                    log_i("Virtual shifting disabled");
+                  }
                   virtualShiftingEnabled = false;
                   currentDeviceGearRatio = 0;
                   currentDeviceWheelDiameter = 0xFF;
                 } else {
+                  if (!virtualShiftingEnabled) {
+                    log_i("Virtual shifting enabled");
+                  }
                   virtualShiftingEnabled = true;
                   currentDeviceGearRatio = (uint8_t)(currentGearRatio / 300);
                   currentDeviceWheelDiameter = (uint8_t)(currentGearRatio / 340);
@@ -422,7 +426,6 @@ bool DirConManager::processZwiftSyncRequest(Service* service, Characteristic* ch
                 log_e("Error writing TACX FEC characteristic");
               }
               returnData.clear();
-              log_i("Gear ratio %i", currentGearRatio);
               break;
 
             // Unknown
@@ -538,7 +541,6 @@ void DirConManager::sendDirConCharacteristicNotification(Characteristic *charact
     if ((dirConClients[clientIndex] != nullptr) && dirConClients[clientIndex]->connected()) {
       if ((onlySubscribers && characteristic->isSubscribed(clientIndex)) || !onlySubscribers) {
         dirConClients[clientIndex]->write((char *)messageData->data(), messageData->size());
-        log_i("Sending DirCon notification to client #%d with values: %s", clientIndex, Utils::getHexString(messageData->data(), messageData->size()).c_str());
       }
     }
   }
