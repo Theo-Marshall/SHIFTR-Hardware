@@ -5,9 +5,6 @@
     "ethernet_status": "Connected",
     "wifi_status": "Not connected",
     "ble_status": "Failure",
-    "ble_services": [
-        "service",
-        "service2"
-    ],
     "free_heap": 123456
 }
+

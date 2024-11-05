@@ -8,6 +8,9 @@
 #include <Utils.h>
 #include <leb128.h>
 
+uint8_t DirConManager::zwiftAsyncRideOnAnswer[18] = {0x2a, 0x08, 0x03, 0x12, 0x0d, 0x22, 0x0b, 0x52, 0x49, 0x44, 0x45, 0x5f, 0x4f, 0x4e, 0x28, 0x30, 0x29, 0x00};
+uint8_t DirConManager::zwiftSyncRideOnAnswer[8] = {0x52, 0x69, 0x64, 0x65, 0x4f, 0x6e, 0x02, 0x00};
+
 ServiceManager *DirConManager::serviceManager{};
 Timer<> DirConManager::notificationTimer = timer_create_default();
 bool DirConManager::started = false;
@@ -23,8 +26,9 @@ uint16_t DirConManager::currentDeviceCrankLastEventTime = 0;
 bool DirConManager::currentDeviceCrankStaleness = true;
 uint16_t DirConManager::currentDeviceCadence = 0;
 uint8_t DirConManager::currentDeviceGearRatio = 0;
-
+uint8_t DirConManager::currentDeviceWheelDiameter = 0;
 bool DirConManager::virtualShiftingEnabled = false;
+String DirConManager::debugMessage = "";
 
 class DirConServiceManagerCallbacks : public ServiceManagerCallbacks {
   void onServiceAdded(Service *service) {
@@ -52,6 +56,7 @@ class DirConServiceManagerCallbacks : public ServiceManagerCallbacks {
         DirConManager::currentDeviceCadence = 0;
         DirConManager::currentDevicePower = 0;
         DirConManager::currentDeviceGearRatio = 0;
+        DirConManager::currentDeviceWheelDiameter = 0;
       } else {
         if (characteristic->getSubscriptions().size() > 0) {
           DirConManager::currentDeviceCrankStaleness = true;
@@ -68,9 +73,9 @@ void DirConManager::setServiceManager(ServiceManager *serviceManager) {
 bool DirConManager::start() {
   if (!started) {
     if (serviceManager == nullptr) {
-      notificationTimer.every(DIRCON_NOTIFICATION_INTERVAL, DirConManager::doNotifications);
       return false;
     }
+    notificationTimer.every(DIRCON_NOTIFICATION_INTERVAL, DirConManager::doNotifications);
     serviceManager->subscribeCallbacks(new DirConServiceManagerCallbacks);
     MDNS.addService(DIRCON_MDNS_SERVICE_NAME, DIRCON_MDNS_SERVICE_PROTOCOL, DIRCON_TCP_PORT);
     MDNS.addServiceTxt(DIRCON_MDNS_SERVICE_NAME, DIRCON_MDNS_SERVICE_PROTOCOL, "mac-address", Utils::getMacAddressString().c_str());
@@ -78,6 +83,7 @@ bool DirConManager::start() {
     MDNS.addServiceTxt(DIRCON_MDNS_SERVICE_NAME, DIRCON_MDNS_SERVICE_PROTOCOL, "ble-service-uuids", "");
     dirConServer->begin();
     dirConServer->onClient(&handleNewClient, dirConServer);
+    started = true;
     return true;
   }
   return false;
@@ -271,7 +277,7 @@ bool DirConManager::processDirConMessage(DirConMessage *dirConMessage, AsyncClie
       }
       break;
     case DIRCON_MSGID_READ_CHARACTERISTIC:
-      log_d("DirCon read characteristic request for characteristic UUID %s", dirConMessage->UUID.to128().toString().c_str());
+      log_i("DirCon read characteristic request for characteristic UUID %s", dirConMessage->UUID.to128().toString().c_str());
       returnMessage.ResponseCode = DIRCON_RESPCODE_SUCCESS_REQUEST;
       characteristic = serviceManager->getCharacteristic(dirConMessage->UUID);
       if (characteristic == nullptr) {
@@ -376,7 +382,7 @@ std::vector<uint8_t> DirConManager::processZwiftSyncRequest(std::vector<uint8_t>
               if (requestValues.find(0x10) != requestValues.end()) {
                 currentInclination = requestValues.at(0x10);
               }
-              log_i("Inclination change %d, %d", 0, currentInclination);
+              log_i("Inclination %i", currentInclination);
               break;
 
             // Gear ratio change
@@ -386,36 +392,39 @@ std::vector<uint8_t> DirConManager::processZwiftSyncRequest(std::vector<uint8_t>
                 if (currentGearRatio == 0) {
                   virtualShiftingEnabled = false;
                   currentDeviceGearRatio = 0;
+                  currentDeviceWheelDiameter = 0xFF;
                 } else {
                   virtualShiftingEnabled = true;
                   currentDeviceGearRatio = (uint8_t)(currentGearRatio / 300);
+                  currentDeviceWheelDiameter = (uint8_t)(currentGearRatio / 340);
                 }
               }
 
-              returnData.push_back(0xA4); // SYNC
-              returnData.push_back(0x09); // MSG_LEN
-              returnData.push_back(0x4F); // MSG_ID
-              returnData.push_back(0x05); // CONTENT_START
-              returnData.push_back(0x37); // PAGE 55 (0x37)
-              returnData.push_back(0xFF); // USER WEIGHT 
+              returnData.push_back(0xA4);  // SYNC
+              returnData.push_back(0x09);  // MSG_LEN
+              returnData.push_back(0x4F);  // MSG_ID
+              returnData.push_back(0x05);  // CONTENT_START
+              returnData.push_back(0x37);  // PAGE 55 (0x37)
+              returnData.push_back(0xFF);  // USER WEIGHT
               returnData.push_back(0xFF);
-              returnData.push_back(0xFF); // RESERVED
-              returnData.push_back(0xFF); // BICYCLE WEIGHT
+              returnData.push_back(0xFF);  // RESERVED
+              returnData.push_back(0xFF);  // BICYCLE WEIGHT
               returnData.push_back(0xFF);
-              returnData.push_back(0xFF); // BICYCLE WHEEL DIAMETER 0.01m
-              returnData.push_back(currentDeviceGearRatio); // CONTENT_END
+              returnData.push_back(currentDeviceWheelDiameter);  // BICYCLE WHEEL DIAMETER 0.01m
+              returnData.push_back(currentDeviceGearRatio);      // CONTENT_END
               checksum = returnData.at(0);
-              for (size_t checksumIndex = 1; checksumIndex < returnData.size(); checksumIndex++)
-              {
+              for (size_t checksumIndex = 1; checksumIndex < returnData.size(); checksumIndex++) {
                 checksum = (checksum ^ returnData.at(checksumIndex));
               }
-              returnData.push_back(checksum); // CHECKSUM
+              returnData.push_back(checksum);  // CHECKSUM
+
               if (!BTDeviceManager::writeBLECharacteristic(NimBLEUUID(TACX_FEC_PRIMARY_SERVICE_UUID), NimBLEUUID(TACX_FEC_WRITE_CHARACTERISTIC_UUID), &returnData)) {
                 log_e("Error writing TACX FEC characteristic");
               }
               returnData.clear();
+              log_i("Gear ratio %i", currentGearRatio);
               break;
-            
+
             // Unknown
             default:
               log_e("Unknown Zwift Sync change request with hex value: %s", Utils::getHexString(requestData).c_str());
@@ -439,6 +448,7 @@ std::vector<uint8_t> DirConManager::processZwiftSyncRequest(std::vector<uint8_t>
           }
           returnData.push_back(0x00);
         }
+        // TODO notifyDirConCharacteristic(NimBLEUUID(ZWIFT_ASYNC_CHARACTERISTIC_UUID), zwiftAsyncRideOnAnswer, 18);
         break;
 
       // Unknown request
@@ -457,8 +467,14 @@ void DirConManager::notifyDirConCharacteristic(const NimBLEUUID &characteristicU
 
 void DirConManager::notifyDirConCharacteristic(Characteristic *characteristic, uint8_t *pData, size_t length) {
   if (characteristic != nullptr) {
+    if (characteristic->UUID.equals(NimBLEUUID(CYCLING_SPEED_AND_CADENCE_MEASUREMENT_CHARACTERISTIC))) {
+      log_i("NOTIFICATION on Speed and Cadence!");
+      debugMessage = Utils::getHexString(pData, length).c_str();
+    }
     // Fetch current power and cadence data
     if (characteristic->UUID.equals(NimBLEUUID(CYCLING_POWER_MEASUREMENT_CHARACTERISTIC_UUID))) {
+      log_i("NOTIFICATION on Cycling Power Measurement!");
+      debugMessage = Utils::getHexString(pData, length).c_str();
       uint16_t flags = 0;
       int16_t power = 0;
       uint16_t crankRevolutions = 0;
@@ -472,13 +488,13 @@ void DirConManager::notifyDirConCharacteristic(Characteristic *characteristic, u
           currentDevicePower = power;
           currentIndex += 2;
           if ((flags & 1) == 1) {
-            currentIndex += 1; // Skip "Pedal Power Balance"
+            currentIndex += 1;  // Skip "Pedal Power Balance"
           }
           if ((flags & 4) == 4) {
-            currentIndex += 2; // Skip "Accumulated Torque"
+            currentIndex += 2;  // Skip "Accumulated Torque"
           }
           if ((flags & 16) == 16) {
-            currentIndex += 6; // Skip "Wheel Revolution Data"
+            currentIndex += 6;  // Skip "Wheel Revolution Data"
           }
           if ((flags & 32) == 32) {
             if (length >= (currentIndex + 4)) {
@@ -495,7 +511,7 @@ void DirConManager::notifyDirConCharacteristic(Characteristic *characteristic, u
               }
               currentDeviceCrankRevolutions = crankRevolutions;
               currentDeviceCrankLastEventTime = crankLastEventTime;
-              log_d("Extracted CPS data - power: %d, revolutions: %d, lasteventtime: %d, cadence: %d", power, crankRevolutions, crankLastEventTime, currentDeviceCadence);
+              log_i("Extracted CPS data - power: %d, revolutions: %d, lasteventtime: %d, cadence: %d", power, crankRevolutions, crankLastEventTime, currentDeviceCadence);
             }
           }
         }
@@ -511,8 +527,8 @@ void DirConManager::notifyDirConCharacteristic(Characteristic *characteristic, u
       }
       std::vector<uint8_t> *messageData = dirConMessage.encode(0);
       for (uint32_t clientIndex : characteristic->getSubscriptions()) {
-        log_d("Sending DirCon notify to client #%d, hex value: %s", clientIndex, Utils::getHexString(messageData->data(), messageData->size()).c_str());
         if ((dirConClients[clientIndex] != nullptr) && dirConClients[clientIndex]->connected()) {
+          log_i("Sending DirCon notify to client #%d, hex value: %s", clientIndex, Utils::getHexString(messageData->data(), messageData->size()).c_str());
           dirConClients[clientIndex]->write((char *)messageData->data(), messageData->size());
         }
       }
@@ -613,4 +629,8 @@ uint16_t DirConManager::getcurrentDeviceCrankLastEventTime() {
 
 uint16_t DirConManager::getcurrentDeviceCadence() {
   return currentDeviceCadence;
+}
+
+String DirConManager::getDebugMessage() {
+  return debugMessage;
 }

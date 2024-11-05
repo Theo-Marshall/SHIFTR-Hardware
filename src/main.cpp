@@ -15,9 +15,9 @@
 #include <WiFi.h>
 
 void networkEvent(WiFiEvent_t event);
-void handleWebServerRoot();
 void handleWebServerFile(const String& fileName);
 void handleWebServerStatus();
+void handleWebServerDebug();
 
 bool isMDNSStarted = false;
 bool isBLEConnected = false;
@@ -90,6 +90,7 @@ void setup() {
       [](const char* updatePath) { updateServer.setup(&webServer, updatePath); },
       [](const char* userName, char* password) { updateServer.updateCredentials(STR(OTA_USERNAME), STR(OTA_PASSWORD)); });
   iotWebConf.init();
+  webServer.on("/debug", handleWebServerDebug);
   webServer.on("/status", handleWebServerStatus);
   webServer.on("/favicon.ico", [] { handleWebServerFile("favicon.ico"); });
   webServer.on("/style.css", [] { handleWebServerFile("style.css"); });
@@ -260,24 +261,6 @@ void handleWebServerStatus() {
   }
   json += "\",";
 
-  String services_json = "\"ble_services\": [";
-  for (Service* service : serviceManager.getServices()) {
-    services_json += "\"";
-    services_json += service->UUID.to128().toString().c_str();
-    services_json += "\",";
-    for(Characteristic* characteristic : service->getCharacteristics()) {
-      services_json += "\"-- ";
-      services_json += characteristic->UUID.to128().toString().c_str();
-      services_json += "\",";
-    }
-  }
-  if (services_json.endsWith(",")) {
-    services_json.remove(services_json.length() - 1);
-  }
-  services_json += "],";
-
-  json += services_json;
-
   json += "\"free_heap\": ";
   json += ESP.getFreeHeap();
   json += "}";
@@ -285,3 +268,57 @@ void handleWebServerStatus() {
   webServer.send(200, "application/json", json);
 }
   
+void handleWebServerDebug() {
+
+  String json = "{";
+  json += "\"debug\": \"";
+  json += DirConManager::getDebugMessage();
+  json += "\",";
+  json += "\"current_gear_ratio\": ";
+  json += DirConManager::getCurrentGearRatio();
+  json += ",";
+  json += "\"current_power\": ";
+  json += DirConManager::getCurrentPower();
+  json += ",";
+  json += "\"current_inclination\": ";
+  json += DirConManager::getCurrentInclination();
+  json += ",";
+  json += "\"current_cadence\": ";
+  json += DirConManager::getCurrentCadence();
+  json += ",";
+
+  json += "\"device_power\": ";
+  json += DirConManager::getCurrentDevicePower();
+  json += ",";
+  json += "\"device_cadence\": ";
+  json += DirConManager::getcurrentDeviceCadence();
+  json += ",";
+
+  String services_json = "\"ble_services\": {";
+  for (Service* service : serviceManager.getServices()) {
+    services_json += "\"";
+    services_json += service->UUID.to128().toString().c_str();
+    services_json += "\": {";
+    for(Characteristic* characteristic : service->getCharacteristics()) {
+      services_json += "\"";
+      services_json += characteristic->UUID.to128().toString().c_str();
+      services_json += "\": ";
+      services_json += characteristic->getSubscriptions().size();
+      services_json += ",";
+    }
+    if (services_json.endsWith(",")) {
+      services_json.remove(services_json.length() - 1);
+    }
+    services_json += "},";
+  }
+  if (services_json.endsWith(",")) {
+    services_json.remove(services_json.length() - 1);
+  }
+  services_json += "}";
+
+  json += services_json;
+
+  json += "}";
+  
+  webServer.send(200, "application/json", json);
+}

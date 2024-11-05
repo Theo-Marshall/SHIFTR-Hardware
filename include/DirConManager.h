@@ -29,9 +29,12 @@ class DirConManager {
   static bool isVirtualShiftingEnabled();
   static void setCurrentPower(int64_t power);
   static void setCurrentCadence(int64_t cadence);
+  static String getDebugMessage();
 
  private:
  friend class DirConServiceManagerCallbacks;
+  static uint8_t zwiftAsyncRideOnAnswer[];
+  static uint8_t zwiftSyncRideOnAnswer[];
   static bool doNotifications(void* arg);
   static void handleNewClient(void* arg, AsyncClient* client);
   static void handleDirConData(void* arg, AsyncClient* client, void* data, size_t len);
@@ -62,7 +65,9 @@ class DirConManager {
   static bool currentDeviceCrankStaleness;
   static uint16_t currentDeviceCadence;
   static uint8_t currentDeviceGearRatio;
+  static uint8_t currentDeviceWheelDiameter;
   static bool virtualShiftingEnabled;
+  static String debugMessage;
 };
 
 #endif
