@@ -18,6 +18,7 @@
         let ethernet = document.getElementById('ethernet');
         let wifi = document.getElementById('wifi');
         let ble = document.getElementById('ble');
+        let mode = document.getElementById('mode');
         let freeheap = document.getElementById('freeheap');
 
         fetch('/status', {
@@ -40,6 +41,7 @@
                 ethernet.innerHTML = response.ethernet_status;
                 wifi.innerHTML = response.wifi_status;
                 ble.innerHTML = response.ble_status;
+                mode.innerHTML = response.mode;
                 freeheap.innerHTML = response.free_heap;
                 statusContainer.style = '';
             })
@@ -54,8 +56,6 @@
     function setup() {
         let settings = document.getElementById('settings_btn');
         settings.onclick = function () { location.href = '/settings'; };
-        let config = document.getElementById('config_btn');
-        config.onclick = function () { location.href = '/config'; };
         let firmware = document.getElementById('firmware_btn');
         firmware.onclick = function () { location.href = '/firmware'; };
         updateStatus();
@@ -98,6 +98,10 @@
                     <span id="ble"></span>
                 </div>
                 <div class="form-control">
+                    <label>Mode:</label>
+                    <span id="mode"></span>
+                </div>
+                <div class="form-control">
                     <label>Free heap:</label>
                     <span id="freeheap"></span>&nbsp;<span>bytes</span>
                 </div>
@@ -105,11 +109,6 @@
                     <button class="btn" id="settings_btn">
                         <label>Device settings</label>
                     </button>
-                     <button class="btn" id="config_btn">
-                        <label>Configuration</label>
-                    </button>
-                </div>
-                <div class="button-container">
                     <button class="btn" id="firmware_btn">
                         <label>Firmware update</label>
                     </button>

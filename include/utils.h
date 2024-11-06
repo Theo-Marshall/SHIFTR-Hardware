@@ -13,6 +13,7 @@ class Utils {
   static std::string getSerialNumberString();
   static std::string getDeviceName();
   static std::string getHostName();
+  static std::string getFQDN();
 
  private:
   static uint64_t macAddress;

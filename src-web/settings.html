@@ -10,8 +10,7 @@
 
 <script type="text/javascript">
     function setup() {
-        let cancel = document.getElementById('cancel_btn');
-        cancel.onclick = function () { location.href = '/'; };
+        let save = document.getElementById('save_btn');
         let settingsContainer = document.getElementById('settings_container');
         let deviceName = document.getElementById('device_name');
         let trainerDevice = document.getElementById('trainer_device');
@@ -42,40 +41,55 @@
                     trainerDevice.add(element);
                 }
                 settingsContainer.style = '';
+                save.disabled = true;
             })
 
+    }
+    function enableSave() {
+        let save = document.getElementById('save_btn');
+        save.disabled = false;
+    }
+    function waitForReboot() {
+        let settingsContainer = document.getElementById('settings_container');
+        let rebootContainer = document.getElementById('reboot_container');
+        settingsContainer.style = 'display: none';
+        rebootContainer.style = '';
+        setTimeout(function () {window.location.href = '/'}, 5000)
     }
 
 </script>
 
 <body onLoad="setup()">
+    <div class="container" id="reboot_container" style="display: none">
+        <h1>Reboot in progress...</h1>
+    </div>
     <div class="container" id="settings_container" style="display: none">
         <h1>Settings</h1>
         <div class="form">
             <div>
-                <div class="form-control" style="display: none">
-                    <label>Devicename:</label>
-                    <input type="text" id="device_name" placeholder="(mandatory)">
-                </div>
                 <form id="settings_form" action="/settings" method="POST">
+                    <div class="form-control" style="display: none">
+                        <label>Devicename:</label>
+                        <input type="text" id="device_name" name="device_name" placeholder="(mandatory)">
+                    </div>
                     <div class="form-control">
                         <label>Trainer device:</label>
-                        <select id="trainer_device">
+                        <select id="trainer_device" name="trainer_device" onchange="enableSave()">
                             <option id="-1" value=""></option>
                         </select>
                     </div>
                     <div class="form-control">
                         <label>Virtual shifting:</label>
                         <label class="switch">
-                            <input type="checkbox" id="virtual_shifting">
+                            <input type="checkbox" id="virtual_shifting" name="virtual_shifting" onchange="enableSave()">
                             <span class="slider round"></span>
                         </label>
                     </div>
                     <div class="button-container">
-                        <button type="submit" class="btn" id="save_btn">
+                        <button type="submit" class="btn" id="save_btn" onclick="waitForReboot()">
                             <label>Save</label>
                         </button>
-                        <button class="btn" id="cancel_btn">
+                        <button class="btn" id="cancel_btn" formaction="/">
                             <label>Cancel</label>
                         </button>
                     </div>

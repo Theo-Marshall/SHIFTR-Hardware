@@ -100,7 +100,7 @@ select {
 input[type=number],
 input[type=password],
 input[type=text] {
-    min-width: 240px;
+    min-width: 158px;
     padding: 3px 10px;
 }
 
@@ -110,7 +110,7 @@ select.short {
 }
 
 select {
-    min-width: 260px;
+    min-width: 180px;
     max-width: 270px;
     padding: 5px 6px;
 }

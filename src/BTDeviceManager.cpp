@@ -32,7 +32,6 @@ class BTDeviceServiceManagerCallbacks : public ServiceManagerCallbacks {
 };
 
 void BTDeviceManager::onBLENotify(BLERemoteCharacteristic* pBLERemoteCharacteristic, uint8_t* pData, size_t length, bool isNotify) {
-  log_d("Notify for characteristic %s, length %d", pBLERemoteCharacteristic->getUUID().toString().c_str(), length);
   DirConManager::notifyDirConCharacteristic(pBLERemoteCharacteristic->getUUID(), pData, length);
 }
 
@@ -118,11 +117,13 @@ void BTDeviceManager::addRemoteDeviceFilter(const NimBLEUUID& serviceUUID) {
 }
 
 NimBLEAdvertisedDevice* BTDeviceManager::getRemoteDevice() {
-  for (size_t deviceIndex = 0; deviceIndex < scannedDevices.size(); deviceIndex++) {
-    NimBLEAdvertisedDevice* scannedDevice = &scannedDevices.at(deviceIndex);
-    if (scannedDevice->haveName()) {
-      if (scannedDevice->getName().rfind(remoteDeviceName, 0) == 0) {
-        return &scannedDevices.at(deviceIndex);
+  if (remoteDeviceName != "") {
+    for (size_t deviceIndex = 0; deviceIndex < scannedDevices.size(); deviceIndex++) {
+      NimBLEAdvertisedDevice* scannedDevice = &scannedDevices.at(deviceIndex);
+      if (scannedDevice->haveName()) {
+        if (scannedDevice->getName().rfind(remoteDeviceName, 0) == 0) {
+          return &scannedDevices.at(deviceIndex);
+        }
       }
     }
   }
@@ -151,6 +152,12 @@ bool BTDeviceManager::connectRemoteDevice(NimBLEAdvertisedDevice* remoteDevice) 
       log_i("Found service %s, iterating through characteristics...", (*remoteService)->getUUID().to128().toString().c_str());
       Service* service = serviceManager->getService((*remoteService)->getUUID());
       bool isAdvertising = remoteDevice->isAdvertisingService((*remoteService)->getUUID());
+      // little hack for service advertising that gets truncated
+      if (!isAdvertising) {
+        if ((*remoteService)->getUUID().equals(NimBLEUUID(TACX_FEC_PRIMARY_SERVICE_UUID))) {
+          isAdvertising = true;
+        }
+      }
       if (service == nullptr) {
         service = new Service((*remoteService)->getUUID(), isAdvertising, false);
         serviceManager->addService(service);
@@ -198,24 +205,29 @@ void BTDeviceManager::stopScan() {
 
 bool BTDeviceManager::doScan(void* argument) {
   if (started) {
-    log_i("Starting BLE scan...");
-    if (nimBLEClient != nullptr) {
-      if (nimBLEClient->isConnected()) {
-        nimBLEClient->disconnect();
-        connectedDeviceName = "";
-        connected = false;
-      }
-    }
     NimBLEScan* nimBLEScanner = NimBLEDevice::getScan();
-    nimBLEScanner->setAdvertisedDeviceCallbacks(new BTAdvertisedDeviceCallbacks(), false);
-    nimBLEScanner->setActiveScan(true);
-    nimBLEScanner->setInterval(97);
-    nimBLEScanner->setWindow(37);
-    nimBLEScanner->setMaxResults(0);
-    scannedDevices.clear();
-    if (nimBLEScanner->start(0, BTDeviceManager::onScanEnd, false)) {
-      log_e("BLE scan started");
-      return false;
+    if (!nimBLEScanner->isScanning()) {
+      log_i("Starting BLE scan...");
+      if (nimBLEClient != nullptr) {
+        if (nimBLEClient->isConnected()) {
+          nimBLEClient->disconnect();
+          connectedDeviceName = "";
+          connected = false;
+        }
+      }
+      nimBLEScanner->setAdvertisedDeviceCallbacks(new BTAdvertisedDeviceCallbacks(), false);
+      nimBLEScanner->setActiveScan(true);
+      nimBLEScanner->setInterval(97);
+      nimBLEScanner->setWindow(37);
+      nimBLEScanner->setMaxResults(0);
+      scannedDevices.clear();
+      if (nimBLEScanner->start(0, BTDeviceManager::onScanEnd, false)) {
+        log_e("BLE scan started");
+        return false;
+      }
+    } else {
+        log_e("BLE scan already running");
+        return false;
     }
   }
   log_e("BLE scan start failed");

@@ -8,8 +8,6 @@
 
 #define ZWIFT_MAGIC_WORD "RideOn"
 
-#define DEFAULT_BLE_REMOTE_DEVICE_NAME_PREFIX "Tacx"
-
 #define WEB_SERVER_PORT 80
 
 // -- Configuration specific key. The value should be modified if config structure was changed.

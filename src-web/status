@@ -5,6 +5,7 @@
     "ethernet_status": "Connected",
     "wifi_status": "Not connected",
     "ble_status": "Failure",
+    "mode": "Pass-through",
     "free_heap": 123456
 }
 

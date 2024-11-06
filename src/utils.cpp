@@ -32,6 +32,12 @@ std::string Utils::getHostName() {
   return returnString;
 }
 
+std::string Utils::getFQDN() {
+  std::string returnString = Utils::getHostName();
+  returnString.append(".local");
+  return returnString;
+}
+
 std::string Utils::getHexString(uint8_t* data, size_t length) {
   static char hexNumber[3];
   std::string hexString = "[";

@@ -13,6 +13,7 @@
 #include <Utils.h>
 #include <Version.h>
 #include <WiFi.h>
+#include <IotWebConfUsing.h>
 
 void networkEvent(WiFiEvent_t event);
 void handleWebServerFile(const String& fileName);
@@ -30,24 +31,22 @@ bool isOTAInProgress = false;
 DNSServer dnsServer;
 WebServer webServer(WEB_SERVER_PORT);
 HTTPUpdateServer updateServer;
+char iotWebConfVSParameterValue[16];
+char iotWebConfTrainerDeviceParameterValue[128];
 IotWebConf iotWebConf(Utils::getDeviceName().c_str(), &dnsServer, &webServer, Utils::getHostName().c_str(), WIFI_CONFIG_VERSION);
+IotWebConfParameterGroup iotWebConfSettingsGroup = IotWebConfParameterGroup("settings", "Device settings");
+IotWebConfCheckboxParameter iotWebConfVSParameter = IotWebConfCheckboxParameter("Virtual shifting", "virtual_shifting", iotWebConfVSParameterValue, 16,  true);
+IotWebConfTextParameter iotWebConfTrainerDeviceParameter = IotWebConfTextParameter("Trainer device", "trainer_device", iotWebConfTrainerDeviceParameterValue, 128, "");
+
 ServiceManager serviceManager;
 
 void setup() {
   log_i(DEVICE_NAME_PREFIX " " VERSION " starting...");
-  log_i("Device name: %s, host name: %s", Utils::getDeviceName().c_str(), Utils::getHostName().c_str());
-  // initialize service manager
-  Service* zwiftCustomService = new Service(NimBLEUUID(ZWIFT_CUSTOM_SERVICE_UUID), true, true);
-  zwiftCustomService->addCharacteristic(new Characteristic(NimBLEUUID(ZWIFT_ASYNC_CHARACTERISTIC_UUID), NOTIFY));
-  zwiftCustomService->addCharacteristic(new Characteristic(NimBLEUUID(ZWIFT_SYNCRX_CHARACTERISTIC_UUID), WRITE));
-  zwiftCustomService->addCharacteristic(new Characteristic(NimBLEUUID(ZWIFT_SYNCTX_CHARACTERISTIC_UUID), INDICATE));
-  serviceManager.addService(zwiftCustomService);
-  log_i("Service manager initialized");
+  log_i("Device name: %s, host name: %s", Utils::getDeviceName().c_str(), Utils::getFQDN().c_str());
 
   // initialize bluetooth device manager
   BTDeviceManager::setLocalDeviceName(Utils::getDeviceName());
   BTDeviceManager::setServiceManager(&serviceManager);
-  BTDeviceManager::setRemoteDeviceNameFilter(DEFAULT_BLE_REMOTE_DEVICE_NAME_PREFIX);
   if (!BTDeviceManager::start()) {
     log_e("Startup failed: Unable to start bluetooth device manager");
     ESP.restart();
@@ -88,6 +87,9 @@ void setup() {
   // initialize wifi manager and web server
   iotWebConf.setStatusPin(WIFI_STATUS_PIN);
   iotWebConf.setConfigPin(WIFI_CONFIG_PIN);
+  iotWebConfSettingsGroup.addItem(&iotWebConfTrainerDeviceParameter);
+  iotWebConfSettingsGroup.addItem(&iotWebConfVSParameter);
+  iotWebConf.addParameterGroup(&iotWebConfSettingsGroup);
   iotWebConf.setupUpdateServer(
       [](const char* updatePath) { updateServer.setup(&webServer, updatePath); },
       [](const char* userName, char* password) { updateServer.updateCredentials(STR(OTA_USERNAME), STR(OTA_PASSWORD)); });
@@ -103,6 +105,19 @@ void setup() {
   webServer.on("/config", [] { iotWebConf.handleConfig(); });
   webServer.onNotFound([]() { iotWebConf.handleNotFound(); });
   log_i("WiFi manager and web server initialized");
+
+  // initialize service manager internal service if enabled
+  if (strncmp(iotWebConfVSParameterValue, "selected", sizeof(iotWebConfVSParameterValue)) == 0) {
+    Service* zwiftCustomService = new Service(NimBLEUUID(ZWIFT_CUSTOM_SERVICE_UUID), true, true);
+    zwiftCustomService->addCharacteristic(new Characteristic(NimBLEUUID(ZWIFT_ASYNC_CHARACTERISTIC_UUID), NOTIFY));
+    zwiftCustomService->addCharacteristic(new Characteristic(NimBLEUUID(ZWIFT_SYNCRX_CHARACTERISTIC_UUID), WRITE));
+    zwiftCustomService->addCharacteristic(new Characteristic(NimBLEUUID(ZWIFT_SYNCTX_CHARACTERISTIC_UUID), INDICATE));
+    serviceManager.addService(zwiftCustomService);
+  } 
+  log_i("Service manager initialized");
+
+  // set BTDeviceManager selected trainer device
+  BTDeviceManager::setRemoteDeviceNameFilter(iotWebConfTrainerDeviceParameterValue);
 
   // initialize MDNS
   if (!MDNS.begin(Utils::getHostName().c_str())) {
@@ -182,6 +197,9 @@ extern const uint8_t favicon_ico_end[] asm("_binary_src_web_favicon_ico_end");
 extern const uint8_t index_html_start[] asm("_binary_src_web_index_html_start");
 extern const uint8_t index_html_end[] asm("_binary_src_web_index_html_end");
 
+extern const uint8_t settings_html_start[] asm("_binary_src_web_settings_html_start");
+extern const uint8_t settings_html_end[] asm("_binary_src_web_settings_html_end");
+
 extern const uint8_t style_css_start[] asm("_binary_src_web_style_css_start");
 extern const uint8_t style_css_end[] asm("_binary_src_web_style_css_end");
 
@@ -192,6 +210,9 @@ void handleWebServerFile(const String& fileName) {
 
   if (fileName.equals("index.html")) {
     webServer.send_P(200, "text/html", (char*)index_html_start, (index_html_end - index_html_start));
+  }
+  if (fileName.equals("settings.html")) {
+    webServer.send_P(200, "text/html", (char*)settings_html_start, (settings_html_end - settings_html_start));
   }
   if (fileName.equals("style.css")) {
     webServer.send_P(200, "text/css", (char*)style_css_start, (style_css_end - style_css_start));
@@ -209,24 +230,18 @@ void handleWebServerSettings() {
   json += "\",";
 
   json += "\"trainer_device\": \"";
-  json += Utils::getDeviceName().c_str();
+  json += iotWebConfTrainerDeviceParameterValue;
   json += "\",";
 
   String devices_json = "\"trainer_devices\": [";
-  bool selectedDeviceFound = false;
+  devices_json += "\"\",";
   for (size_t deviceIndex = 0; deviceIndex < BTDeviceManager::getScannedDevices()->size(); deviceIndex++)
   {
-    devices_json += "\"";
-    devices_json += BTDeviceManager::getScannedDevices()->at(deviceIndex).getName().c_str();
-    devices_json += "\",";
-    if (BTDeviceManager::getScannedDevices()->at(deviceIndex).getName().c_str() == DEFAULT_BLE_REMOTE_DEVICE_NAME_PREFIX) {
-      selectedDeviceFound = true;
+    if (BTDeviceManager::getScannedDevices()->at(deviceIndex).haveName()) {
+      devices_json += "\"";
+      devices_json += BTDeviceManager::getScannedDevices()->at(deviceIndex).getName().c_str();
+      devices_json += "\",";
     }
-  }
-  if (!selectedDeviceFound) {
-    devices_json += "\"";
-    devices_json += DEFAULT_BLE_REMOTE_DEVICE_NAME_PREFIX;
-    devices_json += "\",";
   }
 
   if (devices_json.endsWith(",")) {
@@ -237,24 +252,31 @@ void handleWebServerSettings() {
   json += devices_json;
   
   json += "\"virtual_shifting\": ";
-  json += "true";
+  if (strncmp(iotWebConfVSParameterValue, "selected", sizeof(iotWebConfVSParameterValue)) == 0) {
+    json += "true";
+  } else {
+    json += "false";
+  }
+  json += "}";
 
   webServer.send(200, "application/json", json);
 }
 
 void handleWebServerSettingsPost() {
   if (webServer.args() > 0) {
-    if (webServer.hasArg("device_name")) {
-      log_i("Device name: %s", webServer.arg("device_name").c_str());
-    }
     if (webServer.hasArg("trainer_device")) {
-      log_i("Trainer device: %s", webServer.arg("trainer_device").c_str());
+      String trainerDevice = webServer.arg("trainer_device");
+      strncpy(iotWebConfTrainerDeviceParameterValue, trainerDevice.c_str(), sizeof(iotWebConfTrainerDeviceParameterValue));
     }
+    String virtualShifting = "";
     if (webServer.hasArg("virtual_shifting")) {
-      log_i("Virtual shifting: %s", webServer.arg("virtual_shifting").c_str());
-    }
+      virtualShifting = "selected";
+    } 
+    strncpy(iotWebConfVSParameterValue, virtualShifting.c_str(), sizeof(iotWebConfVSParameterValue));
+    iotWebConf.saveConfig();
+    delay(500);
+    ESP.restart();
   }
-  handleWebServerFile("settings.html");
 }
 
 void handleWebServerStatus() {
@@ -269,7 +291,7 @@ void handleWebServerStatus() {
   json += "\",";
 
   json += "\"hostname\": \"";
-  json += Utils::getHostName().c_str();
+  json += Utils::getFQDN().c_str();
   json += "\",";
 
   json += "\"ethernet_status\": \"";
@@ -319,6 +341,13 @@ void handleWebServerStatus() {
     json += BTDeviceManager::getConnecedDeviceName().c_str();
   } else {
     json += "Not connected";
+  }
+  json += "\",";
+
+  json += "\"mode\": \"";
+  json += "Pass-through";
+  if (strncmp(iotWebConfVSParameterValue, "selected", sizeof(iotWebConfVSParameterValue)) == 0) {
+    json += " + virtual shifting";
   }
   json += "\",";
 
