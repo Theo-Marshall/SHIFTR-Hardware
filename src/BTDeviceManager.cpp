@@ -337,3 +337,52 @@ bool BTDeviceManager::changeBLENotify(Characteristic* characteristic, bool remov
   }
   return false;
 }
+
+bool BTDeviceManager::writeFECTargetPower(uint16_t targetPower) {
+  std::vector<uint8_t> fecData;
+  fecData.push_back(0xA4);  // SYNC
+  fecData.push_back(0x09);  // MSG_LEN
+  fecData.push_back(0x4E);  // MSG_ID
+  fecData.push_back(0x05);  // CONTENT_START
+  fecData.push_back(0x31);  // PAGE 49 (0x31)
+  fecData.push_back(0xFF);
+  fecData.push_back(0xFF);
+  fecData.push_back(0xFF);
+  fecData.push_back(0xFF);
+  fecData.push_back(0xFF);
+  fecData.push_back((uint8_t)targetPower);
+  fecData.push_back((uint8_t)(targetPower >> 8));
+  fecData.push_back(getFECChecksum(&fecData));  // CHECKSUM
+  return writeBLECharacteristic(NimBLEUUID(TACX_FEC_PRIMARY_SERVICE_UUID), NimBLEUUID(TACX_FEC_WRITE_CHARACTERISTIC_UUID), &fecData);
+}
+
+bool BTDeviceManager::writeFECTrackResistance(uint16_t grade, uint8_t rollingResistance) {
+  std::vector<uint8_t> fecData;
+  fecData.push_back(0xA4);  // SYNC
+  fecData.push_back(0x09);  // MSG_LEN
+  fecData.push_back(0x4E);  // MSG_ID
+  fecData.push_back(0x05);  // CONTENT_START
+  fecData.push_back(0x33);  // PAGE 51 (0x33)
+  fecData.push_back(0xFF);
+  fecData.push_back(0xFF);
+  fecData.push_back(0xFF);
+  fecData.push_back(0xFF);
+  fecData.push_back((uint8_t)grade);
+  fecData.push_back((uint8_t)(grade >> 8));
+  fecData.push_back(rollingResistance);
+  fecData.push_back(getFECChecksum(&fecData));  // CHECKSUM
+  return writeBLECharacteristic(NimBLEUUID(TACX_FEC_PRIMARY_SERVICE_UUID), NimBLEUUID(TACX_FEC_WRITE_CHARACTERISTIC_UUID), &fecData);
+}
+
+uint8_t BTDeviceManager::getFECChecksum(std::vector<uint8_t>* fecData) {
+  uint8_t checksum = 0;
+  if (fecData->size() > 0) {
+    checksum = fecData->at(0);
+    if (fecData->size() > 1) {
+      for (size_t checksumIndex = 1; checksumIndex < fecData->size(); checksumIndex++) {
+        checksum = (checksum ^ fecData->at(checksumIndex));
+      }
+    }
+  }
+  return checksum;
+}

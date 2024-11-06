@@ -20,6 +20,7 @@ int64_t DirConManager::currentPower = 0;
 int64_t DirConManager::currentCadence = 0;
 int64_t DirConManager::currentInclination = 0;
 int64_t DirConManager::currentGearRatio = 0;
+int64_t DirConManager::currentRequestedPower = 0;
 int16_t DirConManager::currentDevicePower = 0;
 uint16_t DirConManager::currentDeviceCrankRevolutions = 0;
 uint16_t DirConManager::currentDeviceCrankLastEventTime = 0;
@@ -27,6 +28,7 @@ bool DirConManager::currentDeviceCrankStaleness = true;
 uint16_t DirConManager::currentDeviceCadence = 0;
 uint8_t DirConManager::currentDeviceGearRatio = 0;
 uint8_t DirConManager::currentDeviceWheelDiameter = 0;
+uint16_t DirConManager::currentDeviceGrade = 0;
 bool DirConManager::virtualShiftingEnabled = false;
 String DirConManager::debugMessage = "";
 
@@ -259,6 +261,7 @@ bool DirConManager::processDirConMessage(DirConMessage *dirConMessage, AsyncClie
       }
       if (characteristic->getService() != nullptr) {
         if (!characteristic->getService()->isInternal()) {
+          log_i("BLE write characteristic %s with data %s", characteristic->UUID.toString().c_str(), Utils::getHexString(dirConMessage->AdditionalData).c_str());
           if (!BTDeviceManager::writeBLECharacteristic(characteristic->getService()->UUID, characteristic->UUID, &(dirConMessage->AdditionalData))) {
             returnMessage.Identifier = DIRCON_RESPCODE_CHARACTERISTIC_OPERATION_NOT_SUPPORTED;
             break;
@@ -307,7 +310,7 @@ bool DirConManager::processDirConMessage(DirConMessage *dirConMessage, AsyncClie
   }
   returnData = returnMessage.encode(dirConMessage->SequenceNumber);
   if (returnData->size() > 0) {
-    log_d("Sending data to DirCon client #%d with IP %s, length: %d, hex value: %s", clientIndex, client->remoteIP().toString().c_str(), returnData->size(), Utils::getHexString(returnData->data(), returnData->size()).c_str());
+    // log_i("Sending data to DirCon client #%d with IP %s, length: %d, hex value: %s", clientIndex, client->remoteIP().toString().c_str(), returnData->size(), Utils::getHexString(returnData->data(), returnData->size()).c_str());
     client->write((char *)returnData->data(), returnData->size());
   } else {
     log_e("Error encoding DirCon message, aborting");
@@ -333,22 +336,35 @@ uint8_t DirConManager::getDirConProperties(uint32_t characteristicProperties) {
 
 std::map<uint8_t, int64_t> DirConManager::getZwiftDataValues(std::vector<uint8_t> *requestData) {
   std::map<uint8_t, int64_t> returnMap;
-  if (requestData->size() > 4) {
+  if (requestData->size() > 2) {
     if (requestData->at(0) == 0x04) {
       size_t processedBytes = 0;
-      size_t dataIndex = 3;
-      if (requestData->size() == (requestData->at(2) + dataIndex)) {
-        uint8_t currentKey = 0;
-        int64_t currentValue = 0;
-        while (dataIndex < requestData->size()) {
-          currentKey = requestData->at(dataIndex);
-          dataIndex++;
-          processedBytes = bfs::DecodeLeb128(requestData->data() + dataIndex, requestData->size() - dataIndex, &currentValue);
-          dataIndex = dataIndex + processedBytes;
-          if (processedBytes == 0) {
-            log_e("Error parsing Zwift data values, hex: ", Utils::getHexString(requestData).c_str());
+      size_t dataIndex = 0;
+      uint8_t currentKey = 0;
+      int64_t currentValue = 0;
+      if (((requestData->at(1) == 0x22) || (requestData->at(1) == 0x2A)) && requestData->size() > 4) {
+        dataIndex = 3;
+        if (requestData->size() == (requestData->at(2) + dataIndex)) {
+          while (dataIndex < requestData->size()) {
+            currentKey = requestData->at(dataIndex);
             dataIndex++;
+            processedBytes = bfs::DecodeLeb128(requestData->data() + dataIndex, requestData->size() - dataIndex, &currentValue);
+            dataIndex = dataIndex + processedBytes;
+            if (processedBytes == 0) {
+              log_e("Error parsing Zwift data values, hex: ", Utils::getHexString(requestData).c_str());
+              dataIndex++;
+            }
+            returnMap.emplace(currentKey, currentValue);
           }
+        } else {
+          log_e("Error parsing Zwift data values, length mismatch");
+        }
+      } else if (requestData->at(1) == 0x18) {
+        dataIndex = 2;
+        processedBytes = bfs::DecodeLeb128(requestData->data() + dataIndex, requestData->size() - dataIndex, &currentValue);
+        if (processedBytes == 0) {
+          log_e("Error parsing Zwift data value, hex: ", Utils::getHexString(requestData).c_str());
+        } else {
           returnMap.emplace(currentKey, currentValue);
         }
       }
@@ -357,7 +373,7 @@ std::map<uint8_t, int64_t> DirConManager::getZwiftDataValues(std::vector<uint8_t
   return returnMap;
 }
 
-bool DirConManager::processZwiftSyncRequest(Service* service, Characteristic* characteristic, std::vector<uint8_t>* requestData) {
+bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *characteristic, std::vector<uint8_t> *requestData) {
   uint8_t checksum = 0;
   std::vector<uint8_t> returnData;
   if (requestData->size() >= 3) {
@@ -366,77 +382,97 @@ bool DirConManager::processZwiftSyncRequest(Service* service, Characteristic* ch
     uint8_t zwiftCommandLength = requestData->at(2);
     std::map<uint8_t, int64_t> requestValues = getZwiftDataValues(requestData);
 
+    log_i("Zwift command: %d, commandsubtype: %d", zwiftCommand, zwiftCommandSubtype);
+    for (auto requestValue = requestValues.begin(); requestValue != requestValues.end(); requestValue++) {
+      log_i("Zwift sync data key: %d, value %d", requestValue->first, requestValue->second);
+    }
+
     switch (zwiftCommand) {
       // Status request
       case 0x00:
         return true;
         break;
 
+        /*
+
+
+        [285003][I][DirConManager.cpp:371] processZwiftSyncRequest(): Zwift command: 4, commandsubtype: 24
+        [285012][I][DirConManager.cpp:387] processZwiftSyncRequest(): Hex: [04 18 73]
+        [286111][I][DirConManager.cpp:371] processZwiftSyncRequest(): Zwift command: 4, commandsubtype: 24
+        [286120][I][DirConManager.cpp:387] processZwiftSyncRequest(): Hex: [04 18 73]
+        [286212][I][DirConManager.cpp:371] processZwiftSyncRequest(): Zwift command: 4, commandsubtype: 42
+        [286221][I][DirConManager.cpp:373] processZwiftSyncRequest(): Zwift sync data key: 16, value 16800
+        [286232][I][DirConManager.cpp:373] processZwiftSyncRequest(): Zwift sync data key: 32, value 616
+        [286243][I][DirConManager.cpp:373] processZwiftSyncRequest(): Zwift sync data key: 40, value -5598
+        [286254][I][DirConManager.cpp:456] processZwiftSyncRequest(): TACX Hex: [A4 09 4F 05 33 FF FF FF FF A0 41 53 66]
+        [287018][I][DirConManager.cpp:371] processZwiftSyncRequest(): Zwift command: 4, commandsubtype: 34
+        [287027][I][DirConManager.cpp:373] processZwiftSyncRequest(): Zwift sync data key: 16, value 200
+        [287825][I][DirConManager.cpp:371] processZwiftSyncRequest(): Zwift command: 4, commandsubtype: 34
+        [287834][I][DirConManager.cpp:373] processZwiftSyncRequest(): Zwift sync data key: 16, value 200
+
+        */
+
       // Change request
       case 0x04:
-        if (requestValues.size() > 0) {
-          switch (zwiftCommandSubtype) {
-            // Inclination change
-            case 0x22:
-              if (requestValues.find(0x10) != requestValues.end()) {
-                currentInclination = requestValues.at(0x10);
+        switch (zwiftCommandSubtype) {
+          // ERG Mode
+          case 0x18:
+            log_i("ERG mode enabled");
+            log_i("Hex: %s", Utils::getHexString(requestData).c_str());
+            if (requestValues.find(0x00) != requestValues.end()) {
+              currentRequestedPower = requestValues.at(0x00);
+              if (!BTDeviceManager::writeFECTargetPower(currentRequestedPower)) {
+                log_e("Error writing FEC target power");
               }
-              break;
+            }
+            break;
+          // Inclination information
+          case 0x22:
+            if (requestValues.find(0x10) != requestValues.end()) {
+              currentInclination = requestValues.at(0x10);
+            }
+            break;
 
-            // Gear ratio change
-            case 0x2A:
-              if (requestValues.find(0x10) != requestValues.end()) {
-                currentGearRatio = requestValues.at(0x10);
-                if (currentGearRatio == 0) {
-                  if (virtualShiftingEnabled) {
-                    log_i("Virtual shifting disabled");
-                  }
-                  virtualShiftingEnabled = false;
-                  currentDeviceGearRatio = 0;
-                  currentDeviceWheelDiameter = 0xFF;
-                } else {
-                  if (!virtualShiftingEnabled) {
-                    log_i("Virtual shifting enabled");
-                  }
-                  virtualShiftingEnabled = true;
-                  currentDeviceGearRatio = (uint8_t)(currentGearRatio / 300);
-                  currentDeviceWheelDiameter = (uint8_t)(currentGearRatio / 340);
+          // SIM Mode
+          case 0x2A:
+            if (requestValues.find(0x10) != requestValues.end()) {
+              currentGearRatio = requestValues.at(0x10);
+              if (currentGearRatio == 0) {
+                if (virtualShiftingEnabled) {
+                  log_i("Virtual shifting disabled");
                 }
+                virtualShiftingEnabled = false;
+                currentDeviceGearRatio = 0;
+                currentDeviceWheelDiameter = 0xFF;
+              } else {
+                if (!virtualShiftingEnabled) {
+                  log_i("Virtual shifting enabled");
+                }
+                virtualShiftingEnabled = true;
+                currentDeviceGearRatio = (uint8_t)(currentGearRatio / 300);
+                currentDeviceWheelDiameter = (uint8_t)(currentGearRatio / 340);
               }
+            }
 
-              returnData.push_back(0xA4);  // SYNC
-              returnData.push_back(0x09);  // MSG_LEN
-              returnData.push_back(0x4F);  // MSG_ID
-              returnData.push_back(0x05);  // CONTENT_START
-              returnData.push_back(0x37);  // PAGE 55 (0x37)
-              returnData.push_back(0xFF);  // USER WEIGHT
-              returnData.push_back(0xFF);
-              returnData.push_back(0xFF);  // RESERVED
-              returnData.push_back(0xFF);  // BICYCLE WEIGHT
-              returnData.push_back(0xFF);
-              returnData.push_back(currentDeviceWheelDiameter);  // BICYCLE WHEEL DIAMETER 0.01m
-              returnData.push_back(currentDeviceGearRatio);      // CONTENT_END
-              checksum = returnData.at(0);
-              for (size_t checksumIndex = 1; checksumIndex < returnData.size(); checksumIndex++) {
-                checksum = (checksum ^ returnData.at(checksumIndex));
-              }
-              returnData.push_back(checksum);  // CHECKSUM
+            currentDeviceGrade = 0x4e20;
+            if (currentGearRatio != 0) {
+              currentDeviceGrade = (uint16_t)currentGearRatio;
+            }
 
-              if (!BTDeviceManager::writeBLECharacteristic(NimBLEUUID(TACX_FEC_PRIMARY_SERVICE_UUID), NimBLEUUID(TACX_FEC_WRITE_CHARACTERISTIC_UUID), &returnData)) {
-                log_e("Error writing TACX FEC characteristic");
-              }
-              returnData.clear();
-              break;
+            if (!BTDeviceManager::writeFECTrackResistance(currentDeviceGrade)) {
+              log_e("Error writing FEC track resistance");
+            }
+            break;
 
-            // Unknown
-            default:
-              log_e("Unknown Zwift Sync change request with hex value: %s", Utils::getHexString(requestData).c_str());
-              for (auto requestValue = requestValues.begin(); requestValue != requestValues.end(); requestValue++) {
-                log_i("Zwift sync data key: %d, value %d", requestValue->first, requestValue->second);
-              }
-              break;
-          }
+          // Unknown
+          default:
+            log_e("Unknown Zwift Sync change request with hex value: %s", Utils::getHexString(requestData).c_str());
+            for (auto requestValue = requestValues.begin(); requestValue != requestValues.end(); requestValue++) {
+              log_i("Zwift sync data key: %d, value %d", requestValue->first, requestValue->second);
+            }
+            break;
         }
+
         return true;
         break;
 
@@ -459,7 +495,7 @@ bool DirConManager::processZwiftSyncRequest(Service* service, Characteristic* ch
         log_e("Unknown Zwift Sync request with hex value: %s", Utils::getHexString(requestData).c_str());
         break;
     }
-  } 
+  }
   return false;
 }
 
@@ -536,8 +572,7 @@ void DirConManager::sendDirConCharacteristicNotification(Characteristic *charact
     dirConMessage.AdditionalData.push_back(pData[dataIndex]);
   }
   std::vector<uint8_t> *messageData = dirConMessage.encode(0);
-  for (size_t clientIndex = 0; clientIndex < DIRCON_MAX_CLIENTS; clientIndex++)
-  {
+  for (size_t clientIndex = 0; clientIndex < DIRCON_MAX_CLIENTS; clientIndex++) {
     if ((dirConClients[clientIndex] != nullptr) && dirConClients[clientIndex]->connected()) {
       if ((onlySubscribers && characteristic->isSubscribed(clientIndex)) || !onlySubscribers) {
         dirConClients[clientIndex]->write((char *)messageData->data(), messageData->size());
@@ -613,6 +648,10 @@ int64_t DirConManager::getCurrentGearRatio() {
   return currentGearRatio;
 }
 
+int64_t DirConManager::getCurrentRequestedPower() {
+  return currentRequestedPower;
+}
+
 bool DirConManager::isVirtualShiftingEnabled() {
   return virtualShiftingEnabled;
 }
@@ -629,18 +668,18 @@ int16_t DirConManager::getCurrentDevicePower() {
   return currentDevicePower;
 }
 
-uint16_t DirConManager::getcurrentDeviceCrankRevolutions() {
+uint16_t DirConManager::getCurrentDeviceCrankRevolutions() {
   return currentDeviceCrankRevolutions;
 }
 
-uint16_t DirConManager::getcurrentDeviceCrankLastEventTime() {
+uint16_t DirConManager::getCurrentDeviceCrankLastEventTime() {
   return currentDeviceCrankLastEventTime;
 }
 
-uint16_t DirConManager::getcurrentDeviceCadence() {
+uint16_t DirConManager::getCurrentDeviceCadence() {
   return currentDeviceCadence;
 }
 
-String DirConManager::getDebugMessage() {
-  return debugMessage;
+uint16_t DirConManager::getCurrentDeviceGrade() {
+  return currentDeviceGrade;
 }

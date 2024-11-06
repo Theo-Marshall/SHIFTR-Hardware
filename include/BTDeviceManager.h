@@ -20,6 +20,8 @@ class BTDeviceManager {
   static std::string getConnecedDeviceName();
   static bool writeBLECharacteristic(const NimBLEUUID& serviceUUID, const NimBLEUUID& characteristicUUID, std::vector<uint8_t>* data);
   static std::vector<uint8_t> readBLECharacteristic(const NimBLEUUID& serviceUUID, const NimBLEUUID& characteristicUUID);
+  static bool writeFECTargetPower(uint16_t targetPower);
+  static bool writeFECTrackResistance(uint16_t grade, uint8_t rollingResistance = 0xFF);
 
  private:
   friend class BTAdvertisedDeviceCallbacks;
@@ -46,6 +48,7 @@ class BTDeviceManager {
   static uint32_t getProperties(NimBLERemoteCharacteristic* remoteCharacteristic);
   static void onBLENotify(BLERemoteCharacteristic* pBLERemoteCharacteristic, uint8_t* pData, size_t length, bool isNotify);
   static bool changeBLENotify(Characteristic* characteristic, bool remove);
+  static uint8_t getFECChecksum(std::vector<uint8_t>* fecData);
 };
 
 #endif

@@ -271,9 +271,6 @@ void handleWebServerStatus() {
 void handleWebServerDebug() {
 
   String json = "{";
-  json += "\"debug\": \"";
-  json += DirConManager::getDebugMessage();
-  json += "\",";
   json += "\"current_gear_ratio\": ";
   json += DirConManager::getCurrentGearRatio();
   json += ",";
@@ -286,12 +283,18 @@ void handleWebServerDebug() {
   json += "\"current_cadence\": ";
   json += DirConManager::getCurrentCadence();
   json += ",";
+  json += "\"current_requested_power\": ";
+  json += DirConManager::getCurrentRequestedPower();
+  json += ",";
 
   json += "\"device_power\": ";
   json += DirConManager::getCurrentDevicePower();
   json += ",";
   json += "\"device_cadence\": ";
-  json += DirConManager::getcurrentDeviceCadence();
+  json += DirConManager::getCurrentDeviceCadence();
+  json += ",";
+  json += "\"device_grade\": ";
+  json += DirConManager::getCurrentDeviceGrade();
   json += ",";
 
   String services_json = "\"ble_services\": {";

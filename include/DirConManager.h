@@ -22,14 +22,15 @@ class DirConManager {
   static int64_t getCurrentCadence();
   static int64_t getCurrentInclination();
   static int64_t getCurrentGearRatio();
+  static int64_t getCurrentRequestedPower();
   static int16_t getCurrentDevicePower();
-  static uint16_t getcurrentDeviceCrankRevolutions();
-  static uint16_t getcurrentDeviceCrankLastEventTime();
-  static uint16_t getcurrentDeviceCadence();
+  static uint16_t getCurrentDeviceCrankRevolutions();
+  static uint16_t getCurrentDeviceCrankLastEventTime();
+  static uint16_t getCurrentDeviceCadence();
+  static uint16_t getCurrentDeviceGrade();
   static bool isVirtualShiftingEnabled();
   static void setCurrentPower(int64_t power);
   static void setCurrentCadence(int64_t cadence);
-  static String getDebugMessage();
 
  private:
  friend class DirConServiceManagerCallbacks;
@@ -61,6 +62,7 @@ class DirConManager {
   static int64_t currentCadence;
   static int64_t currentInclination;
   static int64_t currentGearRatio;
+  static int64_t currentRequestedPower;
   static int16_t currentDevicePower;
   static uint16_t currentDeviceCrankRevolutions;
   static uint16_t currentDeviceCrankLastEventTime;
@@ -68,6 +70,7 @@ class DirConManager {
   static uint16_t currentDeviceCadence;
   static uint8_t currentDeviceGearRatio;
   static uint8_t currentDeviceWheelDiameter;
+  static uint16_t currentDeviceGrade;
   static bool virtualShiftingEnabled;
   static String debugMessage;
 };
