@@ -36,6 +36,10 @@ void BTDeviceManager::onBLENotify(BLERemoteCharacteristic* pBLERemoteCharacteris
   DirConManager::notifyDirConCharacteristic(pBLERemoteCharacteristic->getUUID(), pData, length);
 }
 
+std::vector<NimBLEAdvertisedDevice>* BTDeviceManager::getScannedDevices() {
+  return &scannedDevices;
+}
+
 bool BTDeviceManager::start() {
   if (!started) {
     scannedDevices.clear();

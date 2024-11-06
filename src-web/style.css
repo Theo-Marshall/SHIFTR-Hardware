@@ -100,7 +100,7 @@ select {
 input[type=number],
 input[type=password],
 input[type=text] {
-    min-width: 158px;
+    min-width: 240px;
     padding: 3px 10px;
 }
 
@@ -110,7 +110,7 @@ select.short {
 }
 
 select {
-    min-width: 180px;
+    min-width: 260px;
     max-width: 270px;
     padding: 5px 6px;
 }
@@ -143,8 +143,8 @@ h1 {
 }
 
 .form label {
-    min-width: 100px;
-    max-width: 100px;
+    min-width: 125px;
+    max-width: 125px;
     display: inline-block;
 }
 

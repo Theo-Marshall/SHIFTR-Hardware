@@ -22,7 +22,8 @@ class BTDeviceManager {
   static std::vector<uint8_t> readBLECharacteristic(const NimBLEUUID& serviceUUID, const NimBLEUUID& characteristicUUID);
   static bool writeFECTargetPower(uint16_t targetPower);
   static bool writeFECTrackResistance(uint16_t grade, uint8_t rollingResistance = 0xFF);
-
+  static std::vector<NimBLEAdvertisedDevice>* getScannedDevices();
+  
  private:
   friend class BTAdvertisedDeviceCallbacks;
   friend class BTClientCallbacks;

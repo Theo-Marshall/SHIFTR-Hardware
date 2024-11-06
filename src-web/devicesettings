@@ -1,0 +1,7 @@
+{
+    "device_name": "SHIFTR 123456",
+    "trainer_device": "Tacx Neo 54321",
+    "trainer_devices": ["Tacx Vortex 12345", "Tacx Neo 54321"],
+    "virtual_shifting": true
+}
+

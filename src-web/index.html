@@ -20,11 +20,6 @@
         let ble = document.getElementById('ble');
         let freeheap = document.getElementById('freeheap');
 
-        let config = document.getElementById('config_btn');
-        config.onclick = function () { location.href = '/config'; };
-        let firmware = document.getElementById('firmware_btn');
-        firmware.onclick = function () { location.href = '/firmware'; };
-
         fetch('/status', {
             method: 'GET',
             cache: 'no-store',
@@ -40,8 +35,8 @@
                 version.style = '';
                 version.innerHTML = response.version;
                 deviceName.style = '';
-                deviceName.innerHTML = response.devicename;
-                hostName.innerHTML = response.hostname + '.local';
+                deviceName.innerHTML = response.device_name;
+                hostName.innerHTML = response.hostname;
                 ethernet.innerHTML = response.ethernet_status;
                 wifi.innerHTML = response.wifi_status;
                 ble.innerHTML = response.ble_status;
@@ -55,9 +50,19 @@
             .finally(setTimeout('updateStatus()', 5000));
 
     }
+
+    function setup() {
+        let settings = document.getElementById('settings_btn');
+        settings.onclick = function () { location.href = '/settings'; };
+        let config = document.getElementById('config_btn');
+        config.onclick = function () { location.href = '/config'; };
+        let firmware = document.getElementById('firmware_btn');
+        firmware.onclick = function () { location.href = '/firmware'; };
+        updateStatus();
+    }
 </script>
 
-<body onLoad="updateStatus()">
+<body onLoad="setup()">
 
     <div class="container" id="header_container">
         <a class="helpbadge" href="https://github.com/JuergenLeber/SHIFTR" target="_blank">?</a>
@@ -97,11 +102,16 @@
                     <span id="freeheap"></span>&nbsp;<span>bytes</span>
                 </div>
                 <div class="button-container">
-                    <button class="btn" id="config_btn">
+                    <button class="btn" id="settings_btn">
+                        <label>Device settings</label>
+                    </button>
+                     <button class="btn" id="config_btn">
                         <label>Configuration</label>
                     </button>
+                </div>
+                <div class="button-container">
                     <button class="btn" id="firmware_btn">
-                        <label>Firmware</label>
+                        <label>Firmware update</label>
                     </button>
                 </div>
             </div>

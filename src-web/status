@@ -1,5 +1,5 @@
 {
-    "devicename": "SHIFTR-123456",
+    "device_name": "SHIFTR 123456",
     "version": "1.2.3+456",
     "hostname": "SHIFTR-123456.local",
     "ethernet_status": "Connected",

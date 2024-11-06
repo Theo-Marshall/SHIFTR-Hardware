@@ -17,6 +17,8 @@
 void networkEvent(WiFiEvent_t event);
 void handleWebServerFile(const String& fileName);
 void handleWebServerStatus();
+void handleWebServerSettings();
+void handleWebServerSettingsPost();
 void handleWebServerDebug();
 
 bool isMDNSStarted = false;
@@ -95,6 +97,9 @@ void setup() {
   webServer.on("/favicon.ico", [] { handleWebServerFile("favicon.ico"); });
   webServer.on("/style.css", [] { handleWebServerFile("style.css"); });
   webServer.on("/", [] { handleWebServerFile("index.html"); });
+  webServer.on("/settings", HTTP_GET,[] { handleWebServerFile("settings.html"); });
+  webServer.on("/settings", HTTP_POST,[] { handleWebServerSettingsPost(); });
+  webServer.on("/devicesettings", [] { handleWebServerSettings(); });
   webServer.on("/config", [] { iotWebConf.handleConfig(); });
   webServer.onNotFound([]() { iotWebConf.handleNotFound(); });
   log_i("WiFi manager and web server initialized");
@@ -196,10 +201,66 @@ void handleWebServerFile(const String& fileName) {
   }
 }
 
+void handleWebServerSettings() {
+
+  String json = "{";
+  json += "\"device_name\": \"";
+  json += Utils::getDeviceName().c_str();
+  json += "\",";
+
+  json += "\"trainer_device\": \"";
+  json += Utils::getDeviceName().c_str();
+  json += "\",";
+
+  String devices_json = "\"trainer_devices\": [";
+  bool selectedDeviceFound = false;
+  for (size_t deviceIndex = 0; deviceIndex < BTDeviceManager::getScannedDevices()->size(); deviceIndex++)
+  {
+    devices_json += "\"";
+    devices_json += BTDeviceManager::getScannedDevices()->at(deviceIndex).getName().c_str();
+    devices_json += "\",";
+    if (BTDeviceManager::getScannedDevices()->at(deviceIndex).getName().c_str() == DEFAULT_BLE_REMOTE_DEVICE_NAME_PREFIX) {
+      selectedDeviceFound = true;
+    }
+  }
+  if (!selectedDeviceFound) {
+    devices_json += "\"";
+    devices_json += DEFAULT_BLE_REMOTE_DEVICE_NAME_PREFIX;
+    devices_json += "\",";
+  }
+
+  if (devices_json.endsWith(",")) {
+    devices_json.remove(devices_json.length() - 1);
+  }
+  devices_json += "],";
+
+  json += devices_json;
+  
+  json += "\"virtual_shifting\": ";
+  json += "true";
+
+  webServer.send(200, "application/json", json);
+}
+
+void handleWebServerSettingsPost() {
+  if (webServer.args() > 0) {
+    if (webServer.hasArg("device_name")) {
+      log_i("Device name: %s", webServer.arg("device_name").c_str());
+    }
+    if (webServer.hasArg("trainer_device")) {
+      log_i("Trainer device: %s", webServer.arg("trainer_device").c_str());
+    }
+    if (webServer.hasArg("virtual_shifting")) {
+      log_i("Virtual shifting: %s", webServer.arg("virtual_shifting").c_str());
+    }
+  }
+  handleWebServerFile("settings.html");
+}
+
 void handleWebServerStatus() {
 
   String json = "{";
-  json += "\"devicename\": \"";
+  json += "\"device_name\": \"";
   json += Utils::getDeviceName().c_str();
   json += "\",";
 

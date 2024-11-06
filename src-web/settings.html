@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark light">
+    <link rel="shortcut icon" type="image/x-icon" href="favicon.ico">
+    <link rel="stylesheet" type="text/css" href="style.css">
+</head>
+
+<script type="text/javascript">
+    function setup() {
+        let cancel = document.getElementById('cancel_btn');
+        cancel.onclick = function () { location.href = '/'; };
+        let settingsContainer = document.getElementById('settings_container');
+        let deviceName = document.getElementById('device_name');
+        let trainerDevice = document.getElementById('trainer_device');
+        let virtualShifting = document.getElementById('virtual_shifting');
+
+        fetch('/devicesettings', {
+            method: 'GET',
+            cache: 'no-store',
+            headers: {
+                'Accept': 'application/json',
+                'Cache-Control': 'no-cache',
+            },
+        })
+            .then(response => response.json())
+            .then(response => {
+                deviceName.value = response.device_name;
+                virtualShifting.checked = response.virtual_shifting;
+                while (trainerDevice.options.length > 0) {
+                    trainerDevice.remove(0);
+                }
+                for (var index = 0; index < response.trainer_devices.length; index++) {
+                    var element = document.createElement("option");
+                    element.textContent = response.trainer_devices[index];
+                    element.value = response.trainer_devices[index];
+                    if (response.trainer_devices[index] == response.trainer_device) {
+                        element.selected = true;
+                    }
+                    trainerDevice.add(element);
+                }
+                settingsContainer.style = '';
+            })
+
+    }
+
+</script>
+
+<body onLoad="setup()">
+    <div class="container" id="settings_container" style="display: none">
+        <h1>Settings</h1>
+        <div class="form">
+            <div>
+                <div class="form-control" style="display: none">
+                    <label>Devicename:</label>
+                    <input type="text" id="device_name" placeholder="(mandatory)">
+                </div>
+                <form id="settings_form" action="/settings" method="POST">
+                    <div class="form-control">
+                        <label>Trainer device:</label>
+                        <select id="trainer_device">
+                            <option id="-1" value=""></option>
+                        </select>
+                    </div>
+                    <div class="form-control">
+                        <label>Virtual shifting:</label>
+                        <label class="switch">
+                            <input type="checkbox" id="virtual_shifting">
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                    <div class="button-container">
+                        <button type="submit" class="btn" id="save_btn">
+                            <label>Save</label>
+                        </button>
+                        <button class="btn" id="cancel_btn">
+                            <label>Cancel</label>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+</body>
+
+</html>
