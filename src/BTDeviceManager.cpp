@@ -4,6 +4,7 @@
 #include <Config.h>
 #include <arduino-timer.h>
 #include <DirConManager.h>
+#include <Utils.h>
 
 std::vector<NimBLEUUID> BTDeviceManager::remoteDeviceFilterUUIDs{};
 std::vector<NimBLEAdvertisedDevice> BTDeviceManager::scannedDevices{};
@@ -32,6 +33,7 @@ class BTDeviceServiceManagerCallbacks : public ServiceManagerCallbacks {
 };
 
 void BTDeviceManager::onBLENotify(BLERemoteCharacteristic* pBLERemoteCharacteristic, uint8_t* pData, size_t length, bool isNotify) {
+  //log_i("BLE forward notification characteristic %s with data %s", pBLERemoteCharacteristic->getUUID().toString().c_str(), Utils::getHexString(pData, length).c_str());
   DirConManager::notifyDirConCharacteristic(pBLERemoteCharacteristic->getUUID(), pData, length);
 }
 
@@ -354,6 +356,9 @@ bool BTDeviceManager::changeBLENotify(Characteristic* characteristic, bool remov
   return false;
 }
 
+// BLE write characteristic 6e40fec3-b5a3-f393-e0a9-e50e24dcca9e with data [A4 09 4E 05 31 FF FF FF FF FF B8 01 40] =110W
+// BLE write characteristic 6e40fec3-b5a3-f393-e0a9-e50e24dcca9e with data [A4 09 4E 05 31 FF FF FF FF FF CC 01 54] =115W
+
 bool BTDeviceManager::writeFECTargetPower(uint16_t targetPower) {
   std::vector<uint8_t> fecData;
   fecData.push_back(0xA4);  // SYNC
@@ -371,6 +376,8 @@ bool BTDeviceManager::writeFECTargetPower(uint16_t targetPower) {
   fecData.push_back(getFECChecksum(&fecData));  // CHECKSUM
   return writeBLECharacteristic(NimBLEUUID(TACX_FEC_PRIMARY_SERVICE_UUID), NimBLEUUID(TACX_FEC_WRITE_CHARACTERISTIC_UUID), &fecData);
 }
+
+// BLE write characteristic 6e40fec3-b5a3-f393-e0a9-e50e24dcca9e with data [A4 09 4E 05 33 FF FF FF FF 20 4E FF F9]
 
 bool BTDeviceManager::writeFECTrackResistance(uint16_t grade, uint8_t rollingResistance) {
   std::vector<uint8_t> fecData;

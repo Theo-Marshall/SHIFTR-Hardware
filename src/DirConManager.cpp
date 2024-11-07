@@ -135,7 +135,8 @@ void DirConManager::handleNewClient(void *arg, AsyncClient *client) {
 void DirConManager::handleDirConData(void *arg, AsyncClient *client, void *data, size_t len) {
   size_t clientIndex = DirConManager::getDirConClientIndex(client);
   if (clientIndex != (DIRCON_MAX_CLIENTS + 1)) {
-    log_d("DirCon client #%d with IP %s sent data, length: %d, hex value: %s", clientIndex, client->remoteIP().toString().c_str(), len, Utils::getHexString((uint8_t *)data, len).c_str());
+    //log_d("DirCon client #%d with IP %s sent data, length: %d, hex value: %s", clientIndex, client->remoteIP().toString().c_str(), len, Utils::getHexString((uint8_t *)data, len).c_str());
+    //log_i("DirCon client sent data, length: %d, hex value: %s", len, Utils::getHexString((uint8_t*)data, len).c_str());
     DirConMessage currentMessage;
     size_t parsedBytes = 0;
     while (parsedBytes < len) {
@@ -261,7 +262,7 @@ bool DirConManager::processDirConMessage(DirConMessage *dirConMessage, AsyncClie
       }
       if (characteristic->getService() != nullptr) {
         if (!characteristic->getService()->isInternal()) {
-          log_i("BLE write characteristic %s with data %s", characteristic->UUID.toString().c_str(), Utils::getHexString(dirConMessage->AdditionalData).c_str());
+          log_i("BLE forward write characteristic %s with data %s", characteristic->UUID.toString().c_str(), Utils::getHexString(dirConMessage->AdditionalData).c_str());
           if (!BTDeviceManager::writeBLECharacteristic(characteristic->getService()->UUID, characteristic->UUID, &(dirConMessage->AdditionalData))) {
             returnMessage.Identifier = DIRCON_RESPCODE_CHARACTERISTIC_OPERATION_NOT_SUPPORTED;
             break;
@@ -289,6 +290,7 @@ bool DirConManager::processDirConMessage(DirConMessage *dirConMessage, AsyncClie
       if (characteristic->getService() != nullptr) {
         if (!characteristic->getService()->isInternal()) {
           returnMessage.AdditionalData = BTDeviceManager::readBLECharacteristic(characteristic->getService()->UUID, characteristic->UUID);
+          log_i("BLE forward read characteristic %s with data %s", characteristic->UUID.toString().c_str(), Utils::getHexString(returnMessage.AdditionalData).c_str());
           if (returnMessage.AdditionalData.size() == 0) {
             returnMessage.Identifier = DIRCON_RESPCODE_CHARACTERISTIC_OPERATION_NOT_SUPPORTED;
             break;
@@ -382,9 +384,12 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
     uint8_t zwiftCommandLength = requestData->at(2);
     std::map<uint8_t, int64_t> requestValues = getZwiftDataValues(requestData);
 
-    log_i("Zwift command: %d, commandsubtype: %d", zwiftCommand, zwiftCommandSubtype);
-    for (auto requestValue = requestValues.begin(); requestValue != requestValues.end(); requestValue++) {
-      log_i("Zwift sync data key: %d, value %d", requestValue->first, requestValue->second);
+    if (zwiftCommandSubtype != 0x22) {
+      log_i("Zwift command: %d, commandsubtype: %d", zwiftCommand, zwiftCommandSubtype);
+      for (auto requestValue = requestValues.begin(); requestValue != requestValues.end(); requestValue++) {
+        log_i("Zwift sync data key: %d, value %d", requestValue->first, requestValue->second);
+      }
+
     }
 
     switch (zwiftCommand) {
@@ -426,7 +431,7 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
               }
             }
             break;
-          // Inclination information
+          // Information with inclination
           case 0x22:
             if (requestValues.find(0x10) != requestValues.end()) {
               currentInclination = requestValues.at(0x10);
