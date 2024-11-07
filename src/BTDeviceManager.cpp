@@ -286,7 +286,12 @@ bool BTDeviceManager::writeBLECharacteristic(const NimBLEUUID& serviceUUID, cons
     remoteCharacteristic = remoteService->getCharacteristic(characteristicUUID);
     if (remoteCharacteristic) {
       if (remoteCharacteristic->canWrite()) {
-        if (remoteCharacteristic->writeValue(data)) {
+        // value needs to be copied to this scope as it will be handled asynchronously by another core and NimBLE will only write garbage
+        std::vector<uint8_t> valueData;
+        for (auto currentByte = data->begin(); currentByte != data->end(); currentByte++) {
+          valueData.push_back(*currentByte);
+        }
+        if (remoteCharacteristic->writeValue(valueData)) {
           return true;
         }
       } else {

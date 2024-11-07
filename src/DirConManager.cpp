@@ -245,7 +245,7 @@ bool DirConManager::processDirConMessage(DirConMessage *dirConMessage, AsyncClie
       } else {
         if (!characteristic->isSubscribed(clientIndex)) {
           characteristic->addSubscription(clientIndex);
-        }
+         }
       }
       break;
     case DIRCON_MSGID_WRITE_CHARACTERISTIC:
@@ -262,7 +262,6 @@ bool DirConManager::processDirConMessage(DirConMessage *dirConMessage, AsyncClie
       }
       if (characteristic->getService() != nullptr) {
         if (!characteristic->getService()->isInternal()) {
-          log_i("BLE forward write characteristic %s with data %s", characteristic->UUID.toString().c_str(), Utils::getHexString(dirConMessage->AdditionalData).c_str());
           if (!BTDeviceManager::writeBLECharacteristic(characteristic->getService()->UUID, characteristic->UUID, &(dirConMessage->AdditionalData))) {
             returnMessage.Identifier = DIRCON_RESPCODE_CHARACTERISTIC_OPERATION_NOT_SUPPORTED;
             break;
@@ -290,7 +289,6 @@ bool DirConManager::processDirConMessage(DirConMessage *dirConMessage, AsyncClie
       if (characteristic->getService() != nullptr) {
         if (!characteristic->getService()->isInternal()) {
           returnMessage.AdditionalData = BTDeviceManager::readBLECharacteristic(characteristic->getService()->UUID, characteristic->UUID);
-          log_i("BLE forward read characteristic %s with data %s", characteristic->UUID.toString().c_str(), Utils::getHexString(returnMessage.AdditionalData).c_str());
           if (returnMessage.AdditionalData.size() == 0) {
             returnMessage.Identifier = DIRCON_RESPCODE_CHARACTERISTIC_OPERATION_NOT_SUPPORTED;
             break;
