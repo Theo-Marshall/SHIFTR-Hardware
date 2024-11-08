@@ -315,10 +315,10 @@ void handleWebServerStatus() {
       json += "Not configured";
       break;
     case iotwebconf::NetworkState::OffLine:
-      json += "Offline";
+      json += "Disconnected";
       break;
     case iotwebconf::NetworkState::OnLine:
-      json += "Online";
+      json += "Connected";
       json += ", SSID: ";
       json += WiFi.SSID();
       json += ", IP: ";
@@ -330,14 +330,16 @@ void handleWebServerStatus() {
   }
   json += "\",";
 
+  json += "\"service_status\": \"";
+  json += serviceManager.getStatusMessage().c_str();
+  json += "\",";
+
+  json += "\"dircon_status\": \"";
+  json += DirConManager::getStatusMessage().c_str();
+  json += "\",";
+
   json += "\"ble_status\": \"";
-  if (BTDeviceManager::isConnected()) {
-    json += "Connected";
-    json += ", ";
-    json += BTDeviceManager::getConnecedDeviceName().c_str();
-  } else {
-    json += "Not connected";
-  }
+  json += BTDeviceManager::getStatusMessage().c_str();
   json += "\",";
 
   json += "\"mode\": \"";

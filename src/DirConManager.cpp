@@ -702,7 +702,7 @@ void DirConManager::updateStatusMessage() {
     }
   }
   statusMessage += advertisedServices;
-  statusMessage += " advertisements, ";
+  statusMessage += " adv. services, ";
 
   size_t connectedClients = 0;
   for (size_t clientIndex = 0; clientIndex < DIRCON_MAX_CLIENTS; clientIndex++) {

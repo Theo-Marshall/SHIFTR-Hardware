@@ -2,9 +2,11 @@
     "device_name": "SHIFTR 123456",
     "version": "1.2.3+456",
     "hostname": "SHIFTR-123456.local",
-    "ethernet_status": "Connected",
-    "wifi_status": "Not connected",
-    "ble_status": "Failure",
+    "ethernet_status": "Connected, IP 1.2.3.4",
+    "wifi_status": "Disconnected",
+    "service_status": "12 services registered",
+    "dircon_status": "8 adv. services, 2/3 clients",
+    "ble_status": "Scanning...",
     "mode": "Pass-through",
     "free_heap": 123456
 }

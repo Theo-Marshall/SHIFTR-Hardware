@@ -18,6 +18,8 @@
         let ethernet = document.getElementById('ethernet');
         let wifi = document.getElementById('wifi');
         let ble = document.getElementById('ble');
+        let service = document.getElementById('service');
+        let dircon = document.getElementById('dircon');
         let mode = document.getElementById('mode');
         let freeheap = document.getElementById('freeheap');
 
@@ -41,6 +43,8 @@
                 ethernet.innerHTML = response.ethernet_status;
                 wifi.innerHTML = response.wifi_status;
                 ble.innerHTML = response.ble_status;
+                service.innerHTML = response.service_status;
+                dircon.innerHTML = response.dircon_status;
                 mode.innerHTML = response.mode;
                 freeheap.innerHTML = response.free_heap;
                 statusContainer.style = '';
@@ -96,6 +100,14 @@
                 <div class="form-control">
                     <label>BLE:</label>
                     <span id="ble"></span>
+                </div>
+                <div class="form-control">
+                    <label>Service:</label>
+                    <span id="service"></span>
+                </div>
+                <div class="form-control">
+                    <label>DirCon:</label>
+                    <span id="dircon"></span>
                 </div>
                 <div class="form-control">
                     <label>Mode:</label>

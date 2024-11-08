@@ -153,10 +153,8 @@ bool BTDeviceManager::connectRemoteDevice(NimBLEAdvertisedDevice* remoteDevice) 
   statusMessage = "'";
 
   if (serviceManager != nullptr) {
-    log_d("Iterating through remote BLE services and characteristics...");
     std::vector<NimBLERemoteService*>* remoteServices = nimBLEClient->getServices(true);
     for (auto remoteService = remoteServices->begin(); remoteService != remoteServices->end(); remoteService++) {
-      log_i("Found service %s, iterating through characteristics...", (*remoteService)->getUUID().to128().toString().c_str());
       Service* service = serviceManager->getService((*remoteService)->getUUID());
       bool isAdvertising = remoteDevice->isAdvertisingService((*remoteService)->getUUID());
       // little hack for service advertising that gets truncated
@@ -172,7 +170,6 @@ bool BTDeviceManager::connectRemoteDevice(NimBLEAdvertisedDevice* remoteDevice) 
       service->Advertise = isAdvertising;
       std::vector<NimBLERemoteCharacteristic*>* remoteCharacteristics = (*remoteService)->getCharacteristics(true);
       for (auto remoteCharacterisic = remoteCharacteristics->begin(); remoteCharacterisic != remoteCharacteristics->end(); remoteCharacterisic++) {
-        log_i("Found characteristic %s", (*remoteCharacterisic)->getUUID().to128().toString().c_str());
         Characteristic* characteristic = service->getCharacteristic((*remoteCharacterisic)->getUUID());
         uint32_t properties = 0;
         if (characteristic == nullptr) {
@@ -194,18 +191,16 @@ bool BTDeviceManager::connectRemoteDevice(NimBLEAdvertisedDevice* remoteDevice) 
 
 void BTDeviceManager::startScan() {
   if (started) {
-    log_d("Deactivating BLE connect timer");
     connectTimer.cancel();
-    log_d("Activating BLE scan timer");
     scanTimer.every(BLE_SCAN_INTERVAL, BTDeviceManager::doScan);
   } else {
-    log_d("Deactivating BLE scan timer");
     scanTimer.cancel();
   }
 }
 
 void BTDeviceManager::stopScan() {
-  log_d("Deactivating BLE scan timer");
+  log_i("Stopping BLE scan...");
+  statusMessage = "Disconnected";
   scanTimer.cancel();
   NimBLEDevice::getScan()->stop();
 }
@@ -229,8 +224,8 @@ bool BTDeviceManager::doScan(void* argument) {
       nimBLEScanner->setMaxResults(0);
       scannedDevices.clear();
       if (nimBLEScanner->start(0, BTDeviceManager::onScanEnd, false)) {
-        statusMessage = "Scanning";
-        log_e("BLE scan started");
+        statusMessage = "Scanning...";
+        log_i("BLE scan started successfully");
         return false;
       }
     } else {
@@ -243,7 +238,7 @@ bool BTDeviceManager::doScan(void* argument) {
 }
 
 void BTDeviceManager::onScanEnd(NimBLEScanResults scanResults) {
-  log_i("BLE scan ended with %d devices", scannedDevices.size());
+  log_i("BLE scan finished with %d devices", scannedDevices.size());
   if (scannedDevices.size() <= 0) {
     if (!connected) {
       startScan();
