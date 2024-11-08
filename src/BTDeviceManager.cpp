@@ -2,9 +2,9 @@
 #include <BTClientCallbacks.h>
 #include <BTDeviceManager.h>
 #include <Config.h>
-#include <arduino-timer.h>
 #include <DirConManager.h>
 #include <Utils.h>
+#include <arduino-timer.h>
 
 std::vector<NimBLEUUID> BTDeviceManager::remoteDeviceFilterUUIDs{};
 std::vector<NimBLEAdvertisedDevice> BTDeviceManager::scannedDevices{};
@@ -229,8 +229,8 @@ bool BTDeviceManager::doScan(void* argument) {
         return false;
       }
     } else {
-        log_e("BLE scan already running");
-        return false;
+      log_e("BLE scan already running");
+      return false;
     }
   }
   log_e("BLE scan start failed");

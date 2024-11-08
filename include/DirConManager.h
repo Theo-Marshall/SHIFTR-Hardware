@@ -6,10 +6,10 @@
 
 #include <AsyncTCP.h>
 #include <Config.h>
-#include <ServiceManager.h>
-#include <arduino-timer.h>
 #include <DirConMessage.h>
+#include <ServiceManager.h>
 #include <UUIDs.h>
+#include <arduino-timer.h>
 
 class DirConManager {
  public:
@@ -34,7 +34,7 @@ class DirConManager {
   static String getStatusMessage();
 
  private:
- friend class DirConServiceManagerCallbacks;
+  friend class DirConServiceManagerCallbacks;
   static uint8_t zwiftAsyncRideOnAnswer[];
   static uint8_t zwiftSyncRideOnAnswer[];
   static bool doNotifications(void* arg);
@@ -51,9 +51,9 @@ class DirConManager {
   static void notifyDirConCharacteristic(Characteristic* characteristic, uint8_t* pData, size_t length);
   static void notifyInternalCharacteristics();
   static std::vector<uint8_t> generateZwiftAsyncNotificationData(int64_t power, int64_t cadence, int64_t unknown1, int64_t unknown2, int64_t unknown3, int64_t unknown4 = 25714LL);
-  static std::map<uint8_t, int64_t> getZwiftDataValues(std::vector<uint8_t> *requestData);
-  static void sendDirConCharacteristicNotification(const NimBLEUUID &characteristicUUID, uint8_t *pData, size_t length, bool onlySubscribers);
-  static void sendDirConCharacteristicNotification(Characteristic *characteristic, uint8_t *pData, size_t length, bool onlySubscribers);
+  static std::map<uint8_t, int64_t> getZwiftDataValues(std::vector<uint8_t>* requestData);
+  static void sendDirConCharacteristicNotification(const NimBLEUUID& characteristicUUID, uint8_t* pData, size_t length, bool onlySubscribers);
+  static void sendDirConCharacteristicNotification(Characteristic* characteristic, uint8_t* pData, size_t length, bool onlySubscribers);
   static void updateStatusMessage();
   static ServiceManager* serviceManager;
   static Timer<> notificationTimer;

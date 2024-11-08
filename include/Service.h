@@ -2,9 +2,10 @@
 #define SERVICE_H
 
 #include <Characteristic.h>
-#include <NimBLEUUID.h>
-#include <vector>
 #include <CharacteristicCallbacks.h>
+#include <NimBLEUUID.h>
+
+#include <vector>
 
 class ServiceManager;
 
@@ -13,14 +14,14 @@ class Service {
   friend class Characteristic;
   friend class ServiceCharacteristicCallbacks;
   friend class ServiceManager;
-  Service(const NimBLEUUID &uuid);
-  Service(const NimBLEUUID &uuid, bool advertise, bool internal);
+  Service(const NimBLEUUID& uuid);
+  Service(const NimBLEUUID& uuid, bool advertise, bool internal);
   ~Service();
   void addCharacteristic(Characteristic* characteristic);
   std::vector<Characteristic*> getCharacteristics();
   bool isAdvertised();
   bool isInternal();
-  Characteristic* getCharacteristic(const NimBLEUUID &characteristicUUID);
+  Characteristic* getCharacteristic(const NimBLEUUID& characteristicUUID);
   ServiceManager* getServiceManager();
   void subscribeCallbacks(CharacteristicCallbacks* callbacks);
   NimBLEUUID UUID;
@@ -31,7 +32,6 @@ class Service {
   std::vector<Characteristic*> characteristics;
   ServiceManager* serviceManager;
   std::vector<CharacteristicCallbacks*> characteristicCallbacks;
-
 };
 
 #endif

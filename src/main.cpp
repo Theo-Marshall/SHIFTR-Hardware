@@ -8,13 +8,13 @@
 #include <ETH.h>
 #include <IotWebConf.h>
 #include <IotWebConfESP32HTTPUpdateServer.h>
+#include <IotWebConfUsing.h>
 #include <NimBLEDevice.h>
+#include <SettingsManager.h>
 #include <UUIDs.h>
 #include <Utils.h>
 #include <Version.h>
 #include <WiFi.h>
-#include <IotWebConfUsing.h>
-#include <SettingsManager.h>
 
 void networkEvent(WiFiEvent_t event);
 void handleWebServerFile(const String& fileName);
@@ -82,7 +82,7 @@ void setup() {
 
   // initialize settings manager
   SettingsManager::initialize();
-  
+
   // initialize wifi manager and web server
   iotWebConf.setStatusPin(WIFI_STATUS_PIN);
   iotWebConf.setConfigPin(WIFI_CONFIG_PIN);
@@ -96,8 +96,8 @@ void setup() {
   webServer.on("/favicon.ico", [] { handleWebServerFile("favicon.ico"); });
   webServer.on("/style.css", [] { handleWebServerFile("style.css"); });
   webServer.on("/", [] { handleWebServerFile("index.html"); });
-  webServer.on("/settings", HTTP_GET,[] { handleWebServerFile("settings.html"); });
-  webServer.on("/settings", HTTP_POST,[] { handleWebServerSettingsPost(); });
+  webServer.on("/settings", HTTP_GET, [] { handleWebServerFile("settings.html"); });
+  webServer.on("/settings", HTTP_POST, [] { handleWebServerSettingsPost(); });
   webServer.on("/devicesettings", [] { handleWebServerSettings(); });
   webServer.on("/config", [] { iotWebConf.handleConfig(); });
   webServer.onNotFound([]() { iotWebConf.handleNotFound(); });
@@ -220,7 +220,6 @@ void handleWebServerFile(const String& fileName) {
 }
 
 void handleWebServerSettings() {
-
   String json = "{";
   json += "\"device_name\": \"";
   json += Utils::getDeviceName().c_str();
@@ -232,8 +231,7 @@ void handleWebServerSettings() {
 
   String devices_json = "\"trainer_devices\": [";
   devices_json += "\"\",";
-  for (size_t deviceIndex = 0; deviceIndex < BTDeviceManager::getScannedDevices()->size(); deviceIndex++)
-  {
+  for (size_t deviceIndex = 0; deviceIndex < BTDeviceManager::getScannedDevices()->size(); deviceIndex++) {
     if (BTDeviceManager::getScannedDevices()->at(deviceIndex).haveName()) {
       devices_json += "\"";
       devices_json += BTDeviceManager::getScannedDevices()->at(deviceIndex).getName().c_str();
@@ -247,7 +245,7 @@ void handleWebServerSettings() {
   devices_json += "],";
 
   json += devices_json;
-  
+
   json += "\"virtual_shifting\": ";
   if (SettingsManager::isVirtualShiftingEnabled()) {
     json += "true";
@@ -276,7 +274,6 @@ void handleWebServerSettingsPost() {
 }
 
 void handleWebServerStatus() {
-
   String json = "{";
   json += "\"device_name\": \"";
   json += Utils::getDeviceName().c_str();
@@ -352,12 +349,11 @@ void handleWebServerStatus() {
   json += "\"free_heap\": ";
   json += ESP.getFreeHeap();
   json += "}";
-  
+
   webServer.send(200, "application/json", json);
 }
-  
-void handleWebServerDebug() {
 
+void handleWebServerDebug() {
   String json = "{";
   json += "\"current_gear_ratio\": ";
   json += DirConManager::getCurrentGearRatio();
@@ -390,7 +386,7 @@ void handleWebServerDebug() {
     services_json += "\"";
     services_json += service->UUID.to128().toString().c_str();
     services_json += "\": {";
-    for(Characteristic* characteristic : service->getCharacteristics()) {
+    for (Characteristic* characteristic : service->getCharacteristics()) {
       services_json += "\"";
       services_json += characteristic->UUID.to128().toString().c_str();
       services_json += "\": ";
@@ -410,6 +406,6 @@ void handleWebServerDebug() {
   json += services_json;
 
   json += "}";
-  
+
   webServer.send(200, "application/json", json);
 }

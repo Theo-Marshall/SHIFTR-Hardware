@@ -5,19 +5,18 @@ class ServiceCharacteristicCallbacks : public CharacteristicCallbacks {
   void onSubscriptionChanged(Characteristic* characteristic, bool removed) {
     Service* service = characteristic->getService();
     if (service != nullptr) {
-      for (size_t callbackIndex = 0; callbackIndex < service->characteristicCallbacks.size(); callbackIndex++)
-      {
+      for (size_t callbackIndex = 0; callbackIndex < service->characteristicCallbacks.size(); callbackIndex++) {
         service->characteristicCallbacks.at(callbackIndex)->onSubscriptionChanged(characteristic, removed);
       }
     }
   };
 };
 
-Service::Service(const NimBLEUUID &uuid) {
+Service::Service(const NimBLEUUID& uuid) {
   this->UUID = uuid;
 }
 
-Service::Service(const NimBLEUUID &uuid, bool advertise, bool internal) {
+Service::Service(const NimBLEUUID& uuid, bool advertise, bool internal) {
   this->UUID = uuid;
   this->Advertise = advertise;
   this->Internal = internal;
@@ -39,9 +38,8 @@ bool Service::isInternal() {
   return this->Internal;
 }
 
-Characteristic* Service::getCharacteristic(const NimBLEUUID &characteristicUUID) {
-  for (size_t characteristicIndex = 0; characteristicIndex < this->characteristics.size(); characteristicIndex++)
-  {
+Characteristic* Service::getCharacteristic(const NimBLEUUID& characteristicUUID) {
+  for (size_t characteristicIndex = 0; characteristicIndex < this->characteristics.size(); characteristicIndex++) {
     if (this->characteristics.at(characteristicIndex)->UUID.equals(characteristicUUID)) {
       return this->characteristics.at(characteristicIndex);
       break;

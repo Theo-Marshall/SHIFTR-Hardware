@@ -16,4 +16,4 @@
 #define TACX_FEC_READ_CHARACTERISTIC_UUID "6e40fec2-b5a3-f393-e0a9-e50e24dcca9e"
 #define TACX_FEC_WRITE_CHARACTERISTIC_UUID "6e40fec3-b5a3-f393-e0a9-e50e24dcca9e"
 
-#endif 
+#endif

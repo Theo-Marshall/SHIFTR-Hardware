@@ -137,12 +137,9 @@ void DirConManager::handleNewClient(void *arg, AsyncClient *client) {
 void DirConManager::handleDirConData(void *arg, AsyncClient *client, void *data, size_t len) {
   size_t clientIndex = DirConManager::getDirConClientIndex(client);
   if (clientIndex != (DIRCON_MAX_CLIENTS + 1)) {
-    //log_d("DirCon client #%d with IP %s sent data, length: %d, hex value: %s", clientIndex, client->remoteIP().toString().c_str(), len, Utils::getHexString((uint8_t *)data, len).c_str());
-    //log_i("DirCon client sent data, length: %d, hex value: %s", len, Utils::getHexString((uint8_t*)data, len).c_str());
     DirConMessage currentMessage;
     size_t parsedBytes = 0;
     while (parsedBytes < len) {
-      log_d("Parsing from %d with length %d", parsedBytes, (len - parsedBytes));
       parsedBytes += currentMessage.parse((uint8_t *)data + parsedBytes, (len - parsedBytes), 0);
       if (currentMessage.Identifier == DIRCON_MSGID_ERROR) {
         log_e("Error handling data from DirCon client: Unable to parse DirCon message");
@@ -210,14 +207,12 @@ bool DirConManager::processDirConMessage(DirConMessage *dirConMessage, AsyncClie
   returnMessage.UUID = dirConMessage->UUID;
   switch (dirConMessage->Identifier) {
     case DIRCON_MSGID_DISCOVER_SERVICES:
-      log_d("DirCon service discovery request, returning services");
       returnMessage.ResponseCode = DIRCON_RESPCODE_SUCCESS_REQUEST;
       for (Service *currentService : serviceManager->getServices()) {
         returnMessage.AdditionalUUIDs.push_back(currentService->UUID);
       }
       break;
     case DIRCON_MSGID_DISCOVER_CHARACTERISTICS:
-      log_d("DirCon characteristic discovery request for service UUID %s, returning characteristics", dirConMessage->UUID.to128().toString().c_str());
       returnMessage.ResponseCode = DIRCON_RESPCODE_SUCCESS_REQUEST;
       service = serviceManager->getService(dirConMessage->UUID);
       if (service == nullptr) {
@@ -230,7 +225,6 @@ bool DirConManager::processDirConMessage(DirConMessage *dirConMessage, AsyncClie
       }
       break;
     case DIRCON_MSGID_ENABLE_CHARACTERISTIC_NOTIFICATIONS:
-      log_d("DirCon characteristic enable notification request for characteristic UUID %s", dirConMessage->UUID.to128().toString().c_str());
       returnMessage.ResponseCode = DIRCON_RESPCODE_SUCCESS_REQUEST;
       characteristic = serviceManager->getCharacteristic(dirConMessage->UUID);
       if (characteristic == nullptr) {
@@ -248,11 +242,10 @@ bool DirConManager::processDirConMessage(DirConMessage *dirConMessage, AsyncClie
       } else {
         if (!characteristic->isSubscribed(clientIndex)) {
           characteristic->addSubscription(clientIndex);
-         }
+        }
       }
       break;
     case DIRCON_MSGID_WRITE_CHARACTERISTIC:
-      log_d("DirCon write characteristic request for characteristic UUID %s", dirConMessage->UUID.to128().toString().c_str());
       returnMessage.ResponseCode = DIRCON_RESPCODE_SUCCESS_REQUEST;
       characteristic = serviceManager->getCharacteristic(dirConMessage->UUID);
       if (characteristic == nullptr) {
@@ -282,7 +275,6 @@ bool DirConManager::processDirConMessage(DirConMessage *dirConMessage, AsyncClie
       }
       break;
     case DIRCON_MSGID_READ_CHARACTERISTIC:
-      log_d("DirCon read characteristic request for characteristic UUID %s", dirConMessage->UUID.to128().toString().c_str());
       returnMessage.ResponseCode = DIRCON_RESPCODE_SUCCESS_REQUEST;
       characteristic = serviceManager->getCharacteristic(dirConMessage->UUID);
       if (characteristic == nullptr) {
@@ -298,7 +290,7 @@ bool DirConManager::processDirConMessage(DirConMessage *dirConMessage, AsyncClie
           }
         } else {
           log_e("DirCon read to internal characteristic, not implemented!");
-          // TODO
+          // There shouldn't be any need to read internal characteristics
         }
       } else {
         returnMessage.ResponseCode = DIRCON_RESPCODE_CHARACTERISTIC_NOT_FOUND;
@@ -313,7 +305,6 @@ bool DirConManager::processDirConMessage(DirConMessage *dirConMessage, AsyncClie
   }
   returnData = returnMessage.encode(dirConMessage->SequenceNumber);
   if (returnData->size() > 0) {
-    // log_i("Sending data to DirCon client #%d with IP %s, length: %d, hex value: %s", clientIndex, client->remoteIP().toString().c_str(), returnData->size(), Utils::getHexString(returnData->data(), returnData->size()).c_str());
     client->write((char *)returnData->data(), returnData->size());
   } else {
     log_e("Error encoding DirCon message, aborting");
@@ -385,13 +376,15 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
     uint8_t zwiftCommandLength = requestData->at(2);
     std::map<uint8_t, int64_t> requestValues = getZwiftDataValues(requestData);
 
+    // for development purposes
+    /*
     if (zwiftCommandSubtype != 0x22) {
       log_i("Zwift command: %d, commandsubtype: %d", zwiftCommand, zwiftCommandSubtype);
       for (auto requestValue = requestValues.begin(); requestValue != requestValues.end(); requestValue++) {
         log_i("Zwift sync data key: %d, value %d", requestValue->first, requestValue->second);
       }
-
     }
+    */
 
     switch (zwiftCommand) {
       // Status request
@@ -399,25 +392,6 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
         // do nothing
         return true;
         break;
-
-        /*
-
-
-        [285003][I][DirConManager.cpp:371] processZwiftSyncRequest(): Zwift command: 4, commandsubtype: 24
-        [285012][I][DirConManager.cpp:387] processZwiftSyncRequest(): Hex: [04 18 73]
-        [286111][I][DirConManager.cpp:371] processZwiftSyncRequest(): Zwift command: 4, commandsubtype: 24
-        [286120][I][DirConManager.cpp:387] processZwiftSyncRequest(): Hex: [04 18 73]
-        [286212][I][DirConManager.cpp:371] processZwiftSyncRequest(): Zwift command: 4, commandsubtype: 42
-        [286221][I][DirConManager.cpp:373] processZwiftSyncRequest(): Zwift sync data key: 16, value 16800
-        [286232][I][DirConManager.cpp:373] processZwiftSyncRequest(): Zwift sync data key: 32, value 616
-        [286243][I][DirConManager.cpp:373] processZwiftSyncRequest(): Zwift sync data key: 40, value -5598
-        [286254][I][DirConManager.cpp:456] processZwiftSyncRequest(): TACX Hex: [A4 09 4F 05 33 FF FF FF FF A0 41 53 66]
-        [287018][I][DirConManager.cpp:371] processZwiftSyncRequest(): Zwift command: 4, commandsubtype: 34
-        [287027][I][DirConManager.cpp:373] processZwiftSyncRequest(): Zwift sync data key: 16, value 200
-        [287825][I][DirConManager.cpp:371] processZwiftSyncRequest(): Zwift command: 4, commandsubtype: 34
-        [287834][I][DirConManager.cpp:373] processZwiftSyncRequest(): Zwift sync data key: 16, value 200
-
-        */
 
       // Change request
       case 0x04:
