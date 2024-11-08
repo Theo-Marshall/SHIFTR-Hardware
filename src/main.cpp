@@ -14,6 +14,7 @@
 #include <Version.h>
 #include <WiFi.h>
 #include <IotWebConfUsing.h>
+#include <SettingsManager.h>
 
 void networkEvent(WiFiEvent_t event);
 void handleWebServerFile(const String& fileName);
@@ -31,12 +32,7 @@ bool isOTAInProgress = false;
 DNSServer dnsServer;
 WebServer webServer(WEB_SERVER_PORT);
 HTTPUpdateServer updateServer;
-char iotWebConfVSParameterValue[16];
-char iotWebConfTrainerDeviceParameterValue[128];
 IotWebConf iotWebConf(Utils::getDeviceName().c_str(), &dnsServer, &webServer, Utils::getHostName().c_str(), WIFI_CONFIG_VERSION);
-IotWebConfParameterGroup iotWebConfSettingsGroup = IotWebConfParameterGroup("settings", "Device settings");
-IotWebConfCheckboxParameter iotWebConfVSParameter = IotWebConfCheckboxParameter("Virtual shifting", "virtual_shifting", iotWebConfVSParameterValue, 16,  true);
-IotWebConfTextParameter iotWebConfTrainerDeviceParameter = IotWebConfTextParameter("Trainer device", "trainer_device", iotWebConfTrainerDeviceParameterValue, 128, "");
 
 ServiceManager serviceManager;
 
@@ -84,12 +80,13 @@ void setup() {
   ETH.begin();
   log_i("Ethernet interface initialized");
 
+  // initialize settings manager
+  SettingsManager::initialize();
+  
   // initialize wifi manager and web server
   iotWebConf.setStatusPin(WIFI_STATUS_PIN);
   iotWebConf.setConfigPin(WIFI_CONFIG_PIN);
-  iotWebConfSettingsGroup.addItem(&iotWebConfTrainerDeviceParameter);
-  iotWebConfSettingsGroup.addItem(&iotWebConfVSParameter);
-  iotWebConf.addParameterGroup(&iotWebConfSettingsGroup);
+  iotWebConf.addParameterGroup(SettingsManager::getIoTWebConfSettingsParameterGroup());
   iotWebConf.setupUpdateServer(
       [](const char* updatePath) { updateServer.setup(&webServer, updatePath); },
       [](const char* userName, char* password) { updateServer.updateCredentials(STR(OTA_USERNAME), STR(OTA_PASSWORD)); });
@@ -107,17 +104,17 @@ void setup() {
   log_i("WiFi manager and web server initialized");
 
   // initialize service manager internal service if enabled
-  if (strncmp(iotWebConfVSParameterValue, "selected", sizeof(iotWebConfVSParameterValue)) == 0) {
+  if (SettingsManager::isVirtualShiftingEnabled()) {
     Service* zwiftCustomService = new Service(NimBLEUUID(ZWIFT_CUSTOM_SERVICE_UUID), true, true);
     zwiftCustomService->addCharacteristic(new Characteristic(NimBLEUUID(ZWIFT_ASYNC_CHARACTERISTIC_UUID), NOTIFY));
     zwiftCustomService->addCharacteristic(new Characteristic(NimBLEUUID(ZWIFT_SYNCRX_CHARACTERISTIC_UUID), WRITE));
     zwiftCustomService->addCharacteristic(new Characteristic(NimBLEUUID(ZWIFT_SYNCTX_CHARACTERISTIC_UUID), INDICATE));
     serviceManager.addService(zwiftCustomService);
-  } 
+  }
   log_i("Service manager initialized");
 
   // set BTDeviceManager selected trainer device
-  BTDeviceManager::setRemoteDeviceNameFilter(iotWebConfTrainerDeviceParameterValue);
+  BTDeviceManager::setRemoteDeviceNameFilter(SettingsManager::getTrainerDeviceName());
 
   // initialize MDNS
   if (!MDNS.begin(Utils::getHostName().c_str())) {
@@ -230,7 +227,7 @@ void handleWebServerSettings() {
   json += "\",";
 
   json += "\"trainer_device\": \"";
-  json += iotWebConfTrainerDeviceParameterValue;
+  json += SettingsManager::getTrainerDeviceName().c_str();
   json += "\",";
 
   String devices_json = "\"trainer_devices\": [";
@@ -252,7 +249,7 @@ void handleWebServerSettings() {
   json += devices_json;
   
   json += "\"virtual_shifting\": ";
-  if (strncmp(iotWebConfVSParameterValue, "selected", sizeof(iotWebConfVSParameterValue)) == 0) {
+  if (SettingsManager::isVirtualShiftingEnabled()) {
     json += "true";
   } else {
     json += "false";
@@ -265,14 +262,13 @@ void handleWebServerSettings() {
 void handleWebServerSettingsPost() {
   if (webServer.args() > 0) {
     if (webServer.hasArg("trainer_device")) {
-      String trainerDevice = webServer.arg("trainer_device");
-      strncpy(iotWebConfTrainerDeviceParameterValue, trainerDevice.c_str(), sizeof(iotWebConfTrainerDeviceParameterValue));
+      SettingsManager::setTrainerDeviceName(webServer.arg("trainer_device").c_str());
     }
-    String virtualShifting = "";
     if (webServer.hasArg("virtual_shifting")) {
-      virtualShifting = "selected";
-    } 
-    strncpy(iotWebConfVSParameterValue, virtualShifting.c_str(), sizeof(iotWebConfVSParameterValue));
+      SettingsManager::setVirtualShiftingEnabled(true);
+    } else {
+      SettingsManager::setVirtualShiftingEnabled(false);
+    }
     iotWebConf.saveConfig();
     delay(500);
     ESP.restart();
@@ -346,7 +342,7 @@ void handleWebServerStatus() {
 
   json += "\"mode\": \"";
   json += "Pass-through";
-  if (strncmp(iotWebConfVSParameterValue, "selected", sizeof(iotWebConfVSParameterValue)) == 0) {
+  if (SettingsManager::isVirtualShiftingEnabled()) {
     json += " + virtual shifting";
   }
   json += "\",";
