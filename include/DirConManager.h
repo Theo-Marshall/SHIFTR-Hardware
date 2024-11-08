@@ -11,6 +11,11 @@
 #include <UUIDs.h>
 #include <arduino-timer.h>
 
+typedef enum TrainerMode {
+  ERG_MODE = 0,
+  SIM_MODE = 1
+} trainerModeType;
+
 class DirConManager {
  public:
   static bool start();
@@ -35,6 +40,7 @@ class DirConManager {
 
  private:
   friend class DirConServiceManagerCallbacks;
+  static TrainerMode trainerMode;
   static uint8_t zwiftAsyncRideOnAnswer[];
   static uint8_t zwiftSyncRideOnAnswer[];
   static bool doNotifications(void* arg);

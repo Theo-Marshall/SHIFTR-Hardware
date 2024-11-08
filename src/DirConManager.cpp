@@ -8,6 +8,8 @@
 #include <Utils.h>
 #include <leb128.h>
 
+TrainerMode DirConManager::trainerMode = TrainerMode::SIM_MODE;
+
 uint8_t DirConManager::zwiftAsyncRideOnAnswer[18] = {0x2a, 0x08, 0x03, 0x12, 0x0d, 0x22, 0x0b, 0x52, 0x49, 0x44, 0x45, 0x5f, 0x4f, 0x4e, 0x28, 0x30, 0x29, 0x00};
 uint8_t DirConManager::zwiftSyncRideOnAnswer[8] = {0x52, 0x69, 0x64, 0x65, 0x4f, 0x6e, 0x02, 0x00};
 
@@ -26,7 +28,7 @@ uint16_t DirConManager::currentDeviceCrankRevolutions = 0;
 uint16_t DirConManager::currentDeviceCrankLastEventTime = 0;
 bool DirConManager::currentDeviceCrankStaleness = true;
 uint16_t DirConManager::currentDeviceCadence = 0;
-uint8_t DirConManager::currentDeviceGearRatio = 0;
+uint8_t DirConManager::currentDeviceGearRatio = DEFAULT_DEVICE_GEAR_RATIO;
 uint8_t DirConManager::currentDeviceWheelDiameter = 0;
 uint16_t DirConManager::currentDeviceGrade = 0;
 bool DirConManager::virtualShiftingEnabled = false;
@@ -86,6 +88,7 @@ bool DirConManager::start() {
     dirConServer->begin();
     dirConServer->onClient(&handleNewClient, dirConServer);
     started = true;
+    trainerMode = TrainerMode::SIM_MODE;
     updateStatusMessage();
     return true;
   }
@@ -367,25 +370,22 @@ std::map<uint8_t, int64_t> DirConManager::getZwiftDataValues(std::vector<uint8_t
   return returnMap;
 }
 
+// @Roberto Viola: This is the part you're probably looking for to implement the virtual shifting in qdomyos-zwift :-)
+// Feel free to contact me to get more insights.
 bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *characteristic, std::vector<uint8_t> *requestData) {
-  uint8_t checksum = 0;
   std::vector<uint8_t> returnData;
   if (requestData->size() >= 3) {
     uint8_t zwiftCommand = requestData->at(0);
     uint8_t zwiftCommandSubtype = requestData->at(1);
     uint8_t zwiftCommandLength = requestData->at(2);
     std::map<uint8_t, int64_t> requestValues = getZwiftDataValues(requestData);
-
     // for development purposes
-    /*
     if (zwiftCommandSubtype != 0x22) {
       log_i("Zwift command: %d, commandsubtype: %d", zwiftCommand, zwiftCommandSubtype);
       for (auto requestValue = requestValues.begin(); requestValue != requestValues.end(); requestValue++) {
         log_i("Zwift sync data key: %d, value %d", requestValue->first, requestValue->second);
       }
     }
-    */
-
     switch (zwiftCommand) {
       // Status request
       case 0x00:
@@ -393,29 +393,39 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
         return true;
         break;
 
-      // Change request
+      // Change request (ERG / SIM mode / Gear ratio / ...)
       case 0x04:
         switch (zwiftCommandSubtype) {
           // ERG Mode
           case 0x18:
-            log_i("ERG mode enabled");
-            log_i("Hex: %s", Utils::getHexString(requestData).c_str());
+            log_i("ERG mode requested");
+            trainerMode = TrainerMode::ERG_MODE;
             if (requestValues.find(0x00) != requestValues.end()) {
               currentRequestedPower = requestValues.at(0x00);
-              if (!BTDeviceManager::writeFECTargetPower(currentRequestedPower)) {
-                log_e("Error writing FEC target power");
-              }
             }
-            break;
-          // SIM Mode -> Information with inclination
-          case 0x22:
-            if (requestValues.find(0x10) != requestValues.end()) {
-              currentInclination = requestValues.at(0x10);
+            if (!BTDeviceManager::writeFECTargetPower(currentRequestedPower)) {
+              log_e("Error writing FEC target power");
             }
             break;
 
-          // SIM Mode
+          // SIM Mode Inclination
+          case 0x22:
+            if (trainerMode == TrainerMode::ERG_MODE) {
+              log_i("SIM mode requested");
+              trainerMode = TrainerMode::SIM_MODE;
+            }
+            if (requestValues.find(0x10) != requestValues.end()) {
+              currentInclination = requestValues.at(0x10); 
+              currentDeviceGrade = (uint16_t)((currentInclination + 200) / 0.01);
+            }
+            if (!BTDeviceManager::writeFECTrackResistance(currentDeviceGrade)) {
+              log_e("Error writing FEC track resistance");
+            }
+            break;
+
+          // VS enable/disable --> Explicitely SIM mode
           case 0x2A:
+            trainerMode = TrainerMode::SIM_MODE;
             if (requestValues.find(0x10) != requestValues.end()) {
               currentGearRatio = requestValues.at(0x10);
               if (currentGearRatio == 0) {
@@ -423,7 +433,7 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
                   log_i("Virtual shifting disabled");
                 }
                 virtualShiftingEnabled = false;
-                currentDeviceGearRatio = 0;
+                currentDeviceGearRatio = DEFAULT_DEVICE_GEAR_RATIO;
                 currentDeviceWheelDiameter = 0xFF;
               } else {
                 if (!virtualShiftingEnabled) {
@@ -431,16 +441,13 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
                 }
                 virtualShiftingEnabled = true;
                 currentDeviceGearRatio = (uint8_t)(currentGearRatio / 300);
-                currentDeviceWheelDiameter = (uint8_t)(currentGearRatio / 340);
+                // if gear ratio doesn't work try with wheel diameter 
+                // currentDeviceWheelDiameter = (uint8_t)(currentGearRatio / 340);
+                currentDeviceWheelDiameter = 0xFF;
               }
             }
 
-            currentDeviceGrade = 0x4e20;
-            if (currentGearRatio != 0) {
-              currentDeviceGrade = (uint16_t)currentGearRatio;
-            }
-
-            if (!BTDeviceManager::writeFECTrackResistance(currentDeviceGrade)) {
+            if (!BTDeviceManager::writeFECUserConfiguration(0xFFFF, currentDeviceWheelDiameter, currentDeviceGearRatio)) {
               log_e("Error writing FEC track resistance");
             }
             break;
@@ -669,6 +676,14 @@ String DirConManager::getStatusMessage() {
 }
 
 void DirConManager::updateStatusMessage() {
+
+  if (trainerMode == TrainerMode::SIM_MODE) {
+    statusMessage = "SIM";
+  } else {
+    statusMessage = "ERG";
+  }
+  statusMessage += " mode, ";
+
   size_t advertisedServices = 0;
   for (Service *currentService : serviceManager->getServices()) {
     if (currentService->isAdvertised()) {
@@ -676,7 +691,7 @@ void DirConManager::updateStatusMessage() {
     }
   }
   statusMessage += advertisedServices;
-  statusMessage += " adv. services, ";
+  statusMessage += " services, ";
 
   size_t connectedClients = 0;
   for (size_t clientIndex = 0; clientIndex < DIRCON_MAX_CLIENTS; clientIndex++) {
