@@ -1,6 +1,8 @@
 # SHIFTR
 A BLE to Direct Connect bridge for bike trainers using a WT32-ETH01 module based on ESP32. Additionally adding Zwift™️ "virtual shifting" functionality to any device supporting FE-C over BLE.
 
+Currently tested with Garmin/Tacx NEO 2T and Vortex but should also work on other trainers supporting FE-C over BLE and the "Cycling Power Service".
+
 ## Overview
 Bike trainers heavily evolved over the last years. Tacx (acquired by Garmin some years ago) is one of the market leaders producing bike trainers of a very high quality with special features like e.g. "Road Feeling" to simulate different road surfaces. 
 Other vendors like Zwift came up with cool new features like "virtual shifting" using the "Zwift Cog" and a controller device (Zwift Click/Play) to have a non-mechanical shifting solution which is setting the gears via software that adjusts the resistance in the trainer. 
@@ -15,6 +17,7 @@ Unfortunately there was absolutely no information about the "virtual shifting" t
 
 As I wanted to have a convenient solution that doesn't require a special program or app to be started to have that functionality I decided to implement everything on an ESP32 micro controler that already features WiFi and Bluetooth onboard and also optionally ethernet. The perfect module for that was the [WT32-ETH01](https://en.wireless-tag.com/product-item-2.html) module that comes with everything I needed. The device will be placed very close to the trainer in a 3D printed case that also has place for step down converter to be able to use the existing power supply from the trainer.
 
+Now I have a great setup with a Garmin/Tacx NEO 2T with a Zwift Cog installed and communicating to Zwift via ethernet while still having the "Road Feeling" feature: 
 ![The whole setup](images/tacx_neo_2t_and_zwift_cog_and_device.jpg)
 
 ## Needed hardware
@@ -22,13 +25,13 @@ As I wanted to have a convenient solution that doesn't require a special program
 - Step-Down converter 5-80V (the Tacx Neo supplies 48V) to 5V (e.g. from [Amazon](https://www.amazon.de/dp/B0CMC7Y3DJ))
 - Y-Splitter for the Tacx power cable (e.g. from [Amazon](https://www.amazon.de/dp/B09FHHN9T5))
 - Power connector for the case (e.g. from [Amazon](https://www.amazon.de/gp/product/B09PD6J4BN))
-- 3D printed case that fits the WT32-ETH01. Luckily I was able to find a perfect match: [WT32-ETH01 Enclosure](https://www.thingiverse.com/thing:5621092)
+- 3D printed case that fits the WT32-ETH01. Luckily I was able to find a perfect match that also fits the step-down converter: [WT32-ETH01 Enclosure](https://www.thingiverse.com/thing:5621092)
 - Two countersunk screws M2x7 to hold the lid on the case
 
 
 ## Hardware installation
 - ***IMPORTANT***: Don't solder the pin headers that came with the WT32-ETH01. With the longer pins on the bottom side the module won't fit the case anymore.
-- ***IMPORTANT #2***: Connect the step-down converter to a power supply (e.g. the original one with 48V) and a multimeter and use a screwdriver to adjust the output voltage to 5V before connecting it to the WT32-ETH01 module!
+- ***IMPORTANT #2***: Connect the step-down converter first to a power supply (e.g. the original one with 48V) and a multimeter and use a screwdriver to adjust the output voltage to 5V before connecting it to the WT32-ETH01 module!
 - Use a standard USB<->TTL converter (e.g. with FTDI232 or similar). Make sure that it can provide **3,3V and not 5V** and connect as follows (see also pinout above):
   | Converter | -> | ETH01-EVO | 
   |-|-|-|
@@ -42,7 +45,7 @@ As I wanted to have a convenient solution that doesn't require a special program
   To start the WT32-ETH01 in boot mode it is necessary to connect "IO0" with GND and then to reset the board shortly connect "EN" to GND for a quarter of a second.
 
 ## Software installation
-- Make a copy of the provided ``ota.ini.example`` file and name it ``ota.ini`` (you can adjust the values in the file to your needs but also leave it as it is)
+- Make a copy of the provided ``ota.ini.example`` file and name it ``ota.ini`` (you can adjust the values in the file to your needs but also leave it as it is). This is because the credentials shouldn't be committed to GitHub and so they are stored in a separate file that is on the .gitignore list.
 - Open the project in [PlatformIO](https://platformio.org) and let it install the dependencies
 - Connect the programmer and upload via the task wt32-eth01 -> Upload and Monitor
 - Connect an ethernet cable and make sure a DHCP server exists in your network
