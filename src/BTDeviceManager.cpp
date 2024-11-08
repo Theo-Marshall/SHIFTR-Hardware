@@ -133,7 +133,7 @@ NimBLEAdvertisedDevice* BTDeviceManager::getRemoteDevice() {
 }
 
 bool BTDeviceManager::connectRemoteDevice(NimBLEAdvertisedDevice* remoteDevice) {
-  log_i("Connecting to BLE device %s (%s)...", remoteDevice->getAddress().toString().c_str(), remoteDevice->getName().c_str());
+  log_i("Connecting to BLE device %s (%s)", remoteDevice->getAddress().toString().c_str(), remoteDevice->getName().c_str());
   stopScan();
   nimBLEClient = nullptr;
   nimBLEClient = NimBLEDevice::createClient();
@@ -150,7 +150,7 @@ bool BTDeviceManager::connectRemoteDevice(NimBLEAdvertisedDevice* remoteDevice) 
   connectedDeviceName = remoteDevice->getName();
   statusMessage = "Connected to '";
   statusMessage += connectedDeviceName.c_str();
-  statusMessage = "'";
+  statusMessage += "'";
 
   if (serviceManager != nullptr) {
     std::vector<NimBLERemoteService*>* remoteServices = nimBLEClient->getServices(true);
@@ -407,7 +407,7 @@ bool BTDeviceManager::writeFECTrackResistance(uint16_t grade, uint8_t rollingRes
 bool BTDeviceManager::writeFECUserConfiguration(uint16_t userWeight, uint8_t wheelDiameter, uint8_t gearRatio) {
   std::vector<uint8_t> fecData;
   fecData.push_back(0xA4);  // SYNC
-  fecData.push_back(0x0D);  // MSG_LEN
+  fecData.push_back(0x09);  // MSG_LEN
   fecData.push_back(0x4E);  // MSG_ID
   fecData.push_back(0x05);  // CONTENT_START
   fecData.push_back(0x37);  // PAGE 55 (0x37)

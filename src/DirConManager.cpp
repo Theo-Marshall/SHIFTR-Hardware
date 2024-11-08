@@ -7,6 +7,7 @@
 #include <ServiceManagerCallbacks.h>
 #include <Utils.h>
 #include <leb128.h>
+#include <uleb128.h>
 
 TrainerMode DirConManager::trainerMode = TrainerMode::SIM_MODE;
 
@@ -79,6 +80,7 @@ bool DirConManager::start() {
     if (serviceManager == nullptr) {
       return false;
     }
+    updateStatusMessage();
     notificationTimer.every(DIRCON_NOTIFICATION_INTERVAL, DirConManager::doNotifications);
     serviceManager->subscribeCallbacks(new DirConServiceManagerCallbacks);
     MDNS.addService(DIRCON_MDNS_SERVICE_NAME, DIRCON_MDNS_SERVICE_PROTOCOL, DIRCON_TCP_PORT);
@@ -89,7 +91,6 @@ bool DirConManager::start() {
     dirConServer->onClient(&handleNewClient, dirConServer);
     started = true;
     trainerMode = TrainerMode::SIM_MODE;
-    updateStatusMessage();
     return true;
   }
   return false;
@@ -370,6 +371,45 @@ std::map<uint8_t, int64_t> DirConManager::getZwiftDataValues(std::vector<uint8_t
   return returnMap;
 }
 
+std::map<uint8_t, uint64_t> DirConManager::getUnsignedZwiftDataValues(std::vector<uint8_t> *requestData) {
+  std::map<uint8_t, uint64_t> returnMap;
+  if (requestData->size() > 2) {
+    if (requestData->at(0) == 0x04) {
+      size_t processedBytes = 0;
+      size_t dataIndex = 0;
+      uint8_t currentKey = 0;
+      uint64_t currentValue = 0;
+      if (((requestData->at(1) == 0x22) || (requestData->at(1) == 0x2A)) && requestData->size() > 4) {
+        dataIndex = 3;
+        if (requestData->size() == (requestData->at(2) + dataIndex)) {
+          while (dataIndex < requestData->size()) {
+            currentKey = requestData->at(dataIndex);
+            dataIndex++;
+            processedBytes = bfs::DecodeUleb128(requestData->data() + dataIndex, requestData->size() - dataIndex, &currentValue);
+            dataIndex = dataIndex + processedBytes;
+            if (processedBytes == 0) {
+              log_e("Error parsing unsigned Zwift data values, hex: ", Utils::getHexString(requestData).c_str());
+              dataIndex++;
+            }
+            returnMap.emplace(currentKey, currentValue);
+          }
+        } else {
+          log_e("Error parsing unsigned Zwift data values, length mismatch");
+        }
+      } else if (requestData->at(1) == 0x18) {
+        dataIndex = 2;
+        processedBytes = bfs::DecodeUleb128(requestData->data() + dataIndex, requestData->size() - dataIndex, &currentValue);
+        if (processedBytes == 0) {
+          log_e("Error parsing unsigned Zwift data value, hex: ", Utils::getHexString(requestData).c_str());
+        } else {
+          returnMap.emplace(currentKey, currentValue);
+        }
+      }
+    }
+  }
+  return returnMap;
+}
+
 // @Roberto Viola: This is the part you're probably looking for to implement the virtual shifting in qdomyos-zwift :-)
 // Feel free to contact me to get more insights.
 bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *characteristic, std::vector<uint8_t> *requestData) {
@@ -379,11 +419,15 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
     uint8_t zwiftCommandSubtype = requestData->at(1);
     uint8_t zwiftCommandLength = requestData->at(2);
     std::map<uint8_t, int64_t> requestValues = getZwiftDataValues(requestData);
+    std::map<uint8_t, uint64_t> unsignedRequestValues = getUnsignedZwiftDataValues(requestData);
     // for development purposes
     if (zwiftCommandSubtype != 0x22) {
       log_i("Zwift command: %d, commandsubtype: %d", zwiftCommand, zwiftCommandSubtype);
       for (auto requestValue = requestValues.begin(); requestValue != requestValues.end(); requestValue++) {
         log_i("Zwift sync data key: %d, value %d", requestValue->first, requestValue->second);
+      }
+      for (auto requestValue = unsignedRequestValues.begin(); requestValue != unsignedRequestValues.end(); requestValue++) {
+        log_i("Unsigned Zwift sync data key: %d, value %d", requestValue->first, requestValue->second);
       }
     }
     switch (zwiftCommand) {
@@ -416,7 +460,7 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
             }
             if (requestValues.find(0x10) != requestValues.end()) {
               currentInclination = requestValues.at(0x10); 
-              currentDeviceGrade = (uint16_t)((currentInclination + 200) / 0.01);
+              currentDeviceGrade = (uint16_t)(0x4E20 + currentInclination);
             }
             if (!BTDeviceManager::writeFECTrackResistance(currentDeviceGrade)) {
               log_e("Error writing FEC track resistance");
@@ -426,8 +470,8 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
           // VS enable/disable --> Explicitely SIM mode
           case 0x2A:
             trainerMode = TrainerMode::SIM_MODE;
-            if (requestValues.find(0x10) != requestValues.end()) {
-              currentGearRatio = requestValues.at(0x10);
+            if (unsignedRequestValues.find(0x10) != unsignedRequestValues.end()) {
+              currentGearRatio = unsignedRequestValues.at(0x10);
               if (currentGearRatio == 0) {
                 if (virtualShiftingEnabled) {
                   log_i("Virtual shifting disabled");
@@ -441,9 +485,11 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
                 }
                 virtualShiftingEnabled = true;
                 currentDeviceGearRatio = (uint8_t)(currentGearRatio / 300);
+                log_i("CurrentDeviceGearRatio %d, %d",0, currentDeviceGearRatio);
+                currentDeviceGearRatio = 0x00;
                 // if gear ratio doesn't work try with wheel diameter 
-                // currentDeviceWheelDiameter = (uint8_t)(currentGearRatio / 340);
-                currentDeviceWheelDiameter = 0xFF;
+                currentDeviceWheelDiameter = (uint8_t)(currentGearRatio / 240);
+                log_i("CurrentDeviceWheelDiameter %d, %d",0, currentDeviceWheelDiameter);
               }
             }
 
@@ -691,7 +737,7 @@ void DirConManager::updateStatusMessage() {
     }
   }
   statusMessage += advertisedServices;
-  statusMessage += " services, ";
+  statusMessage += " service(s), ";
 
   size_t connectedClients = 0;
   for (size_t clientIndex = 0; clientIndex < DIRCON_MAX_CLIENTS; clientIndex++) {
@@ -702,5 +748,5 @@ void DirConManager::updateStatusMessage() {
   statusMessage += connectedClients;
   statusMessage += "/";
   statusMessage += DIRCON_MAX_CLIENTS;
-  statusMessage += " clients";
+  statusMessage += " client(s)";
 }

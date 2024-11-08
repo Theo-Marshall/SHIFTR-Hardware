@@ -66,6 +66,6 @@ String ServiceManager::getStatusMessage() {
 }
 
 void ServiceManager::updateStatusMessage() {
-  this->statusMessage += this->services.size();
-  this->statusMessage = " services registered";
+  this->statusMessage = this->services.size();
+  this->statusMessage += " service(s) registered";
 }
