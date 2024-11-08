@@ -17,6 +17,7 @@ bool BTDeviceManager::connected = false;
 bool BTDeviceManager::started = false;
 Timer<> BTDeviceManager::scanTimer = timer_create_default();
 Timer<> BTDeviceManager::connectTimer = timer_create_default();
+String BTDeviceManager::statusMessage = "";
 
 class BTDeviceServiceManagerCallbacks : public ServiceManagerCallbacks {
   void onCharacteristicSubscriptionChanged(Characteristic* characteristic, bool removed) {
@@ -33,7 +34,6 @@ class BTDeviceServiceManagerCallbacks : public ServiceManagerCallbacks {
 };
 
 void BTDeviceManager::onBLENotify(BLERemoteCharacteristic* pBLERemoteCharacteristic, uint8_t* pData, size_t length, bool isNotify) {
-  //log_i("BLE forward notification characteristic %s with data %s", pBLERemoteCharacteristic->getUUID().toString().c_str(), Utils::getHexString(pData, length).c_str());
   DirConManager::notifyDirConCharacteristic(pBLERemoteCharacteristic->getUUID(), pData, length);
 }
 
@@ -141,12 +141,17 @@ bool BTDeviceManager::connectRemoteDevice(NimBLEAdvertisedDevice* remoteDevice) 
   nimBLEClient->setConnectTimeout(BLE_CONNECT_TIMEOUT);
   if (!nimBLEClient->connect(remoteDevice)) {
     log_e("Connection to BLE device failed, error %d", nimBLEClient->getLastError());
+    statusMessage = "Connection failed";
     nimBLEClient->disconnect();
     connectedDeviceName = "";
     return false;
   }
   connected = true;
   connectedDeviceName = remoteDevice->getName();
+  statusMessage = "Connected to '";
+  statusMessage += connectedDeviceName.c_str();
+  statusMessage = "'";
+
   if (serviceManager != nullptr) {
     log_d("Iterating through remote BLE services and characteristics...");
     std::vector<NimBLERemoteService*>* remoteServices = nimBLEClient->getServices(true);
@@ -224,6 +229,7 @@ bool BTDeviceManager::doScan(void* argument) {
       nimBLEScanner->setMaxResults(0);
       scannedDevices.clear();
       if (nimBLEScanner->start(0, BTDeviceManager::onScanEnd, false)) {
+        statusMessage = "Scanning";
         log_e("BLE scan started");
         return false;
       }
@@ -252,6 +258,7 @@ void BTDeviceManager::onScanEnd(NimBLEScanResults scanResults) {
 bool BTDeviceManager::doConnect(void* argument) {
   log_i("Starting BLE connection...");
   if (started) {
+    statusMessage = "Connecting...";
     if (connectRemoteDevice(getRemoteDevice())) {
       return false;
     }
@@ -413,4 +420,8 @@ uint8_t BTDeviceManager::getFECChecksum(std::vector<uint8_t>* fecData) {
     }
   }
   return checksum;
+}
+
+String BTDeviceManager::getStatusMessage() {
+  return statusMessage;
 }

@@ -30,7 +30,7 @@ uint8_t DirConManager::currentDeviceGearRatio = 0;
 uint8_t DirConManager::currentDeviceWheelDiameter = 0;
 uint16_t DirConManager::currentDeviceGrade = 0;
 bool DirConManager::virtualShiftingEnabled = false;
-String DirConManager::debugMessage = "";
+String DirConManager::statusMessage = "";
 
 class DirConServiceManagerCallbacks : public ServiceManagerCallbacks {
   void onServiceAdded(Service *service) {
@@ -44,8 +44,8 @@ class DirConServiceManagerCallbacks : public ServiceManagerCallbacks {
           serviceUUIDs += currentService->UUID.to16().toString().c_str();
         }
       }
-      log_i("Updating advertised service UUIDs: %s", serviceUUIDs.c_str());
       MDNS.addServiceTxt(DIRCON_MDNS_SERVICE_NAME, DIRCON_MDNS_SERVICE_PROTOCOL, "ble-service-uuids", serviceUUIDs.c_str());
+      service->getServiceManager()->updateStatusMessage();
     };
   };
 
@@ -86,6 +86,7 @@ bool DirConManager::start() {
     dirConServer->begin();
     dirConServer->onClient(&handleNewClient, dirConServer);
     started = true;
+    updateStatusMessage();
     return true;
   }
   return false;
@@ -120,6 +121,7 @@ void DirConManager::handleNewClient(void *arg, AsyncClient *client) {
       break;
     }
   }
+  updateStatusMessage();
   if (clientAccepted) {
     log_i("Free connection slot found, DirCon connection from %s accepted", client->remoteIP().toString().c_str());
     client->onData(&DirConManager::handleDirConData, NULL);
@@ -184,6 +186,7 @@ void DirConManager::removeSubscriptions(AsyncClient *client) {
       }
     }
   }
+  updateStatusMessage();
 }
 
 size_t DirConManager::getDirConClientIndex(AsyncClient *client) {
@@ -393,6 +396,7 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
     switch (zwiftCommand) {
       // Status request
       case 0x00:
+        // do nothing
         return true;
         break;
 
@@ -429,7 +433,7 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
               }
             }
             break;
-          // Information with inclination
+          // SIM Mode -> Information with inclination
           case 0x22:
             if (requestValues.find(0x10) != requestValues.end()) {
               currentInclination = requestValues.at(0x10);
@@ -481,6 +485,7 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
 
       // Unknown request, similar to 0x00
       case 0x41:
+        // do nothing
         return true;
         break;
 
@@ -493,7 +498,6 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
         }
         break;
 
-      // Unknown request
       default:
         log_e("Unknown Zwift Sync request with hex value: %s", Utils::getHexString(requestData).c_str());
         break;
@@ -510,7 +514,6 @@ void DirConManager::notifyDirConCharacteristic(Characteristic *characteristic, u
   if (characteristic != nullptr) {
     // Fetch current power and cadence data
     if (characteristic->UUID.equals(NimBLEUUID(CYCLING_POWER_MEASUREMENT_CHARACTERISTIC_UUID))) {
-      debugMessage = Utils::getHexString(pData, length).c_str();
       uint16_t flags = 0;
       int16_t power = 0;
       uint16_t crankRevolutions = 0;
@@ -539,12 +542,12 @@ void DirConManager::notifyDirConCharacteristic(Characteristic *characteristic, u
               crankLastEventTime = (pData[currentIndex + 1] << 8) | pData[currentIndex];
               currentIndex += 2;
               if (!currentDeviceCrankStaleness) {
-                uint16_t eventTimeDiff = crankLastEventTime - currentDeviceCrankLastEventTime;
-                uint16_t revolutionsDiff = crankRevolutions - currentDeviceCrankRevolutions;
+                uint16_t eventTimeDiff = abs(crankLastEventTime - currentDeviceCrankLastEventTime);
+                uint16_t revolutionsDiff = abs(crankRevolutions - currentDeviceCrankRevolutions);
                 if (eventTimeDiff > 0) {
                   currentDeviceCadence = 1024 * 60 * revolutionsDiff / eventTimeDiff;
                 } else {
-                  currentDeviceCadence = 0;
+                  currentDeviceCadence = revolutionsDiff;
                 }
               } else {
                 currentDeviceCrankStaleness = false;
@@ -685,4 +688,30 @@ uint16_t DirConManager::getCurrentDeviceCadence() {
 
 uint16_t DirConManager::getCurrentDeviceGrade() {
   return currentDeviceGrade;
+}
+
+String DirConManager::getStatusMessage() {
+  return statusMessage;
+}
+
+void DirConManager::updateStatusMessage() {
+  size_t advertisedServices = 0;
+  for (Service *currentService : serviceManager->getServices()) {
+    if (currentService->isAdvertised()) {
+      advertisedServices++;
+    }
+  }
+  statusMessage += advertisedServices;
+  statusMessage += " advertisements, ";
+
+  size_t connectedClients = 0;
+  for (size_t clientIndex = 0; clientIndex < DIRCON_MAX_CLIENTS; clientIndex++) {
+    if ((dirConClients[clientIndex] != nullptr) && dirConClients[clientIndex]->connected()) {
+      connectedClients++;
+    }
+  }
+  statusMessage += connectedClients;
+  statusMessage += "/";
+  statusMessage += DIRCON_MAX_CLIENTS;
+  statusMessage += " clients";
 }

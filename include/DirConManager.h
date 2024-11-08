@@ -31,6 +31,7 @@ class DirConManager {
   static bool isVirtualShiftingEnabled();
   static void setCurrentPower(int64_t power);
   static void setCurrentCadence(int64_t cadence);
+  static String getStatusMessage();
 
  private:
  friend class DirConServiceManagerCallbacks;
@@ -53,6 +54,7 @@ class DirConManager {
   static std::map<uint8_t, int64_t> getZwiftDataValues(std::vector<uint8_t> *requestData);
   static void sendDirConCharacteristicNotification(const NimBLEUUID &characteristicUUID, uint8_t *pData, size_t length, bool onlySubscribers);
   static void sendDirConCharacteristicNotification(Characteristic *characteristic, uint8_t *pData, size_t length, bool onlySubscribers);
+  static void updateStatusMessage();
   static ServiceManager* serviceManager;
   static Timer<> notificationTimer;
   static AsyncServer* dirConServer;
@@ -72,7 +74,7 @@ class DirConManager {
   static uint8_t currentDeviceWheelDiameter;
   static uint16_t currentDeviceGrade;
   static bool virtualShiftingEnabled;
-  static String debugMessage;
+  static String statusMessage;
 };
 
 #endif

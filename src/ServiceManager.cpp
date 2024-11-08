@@ -28,6 +28,7 @@ void ServiceManager::addService(Service* service) {
   {
     this->serviceManagerCallbacks.at(callbackIndex)->onServiceAdded(service);
   }
+  this->updateStatusMessage();
 }
 
 Service* ServiceManager::getService(const NimBLEUUID& serviceUUID) {
@@ -65,4 +66,13 @@ Characteristic* ServiceManager::getCharacteristic(const NimBLEUUID& characterist
 
 void ServiceManager::subscribeCallbacks(ServiceManagerCallbacks* callbacks) {
   this->serviceManagerCallbacks.push_back(callbacks);
+}
+
+String ServiceManager::getStatusMessage() {
+  return this->statusMessage;
+}
+
+void ServiceManager::updateStatusMessage() {
+  this->statusMessage += this->services.size();
+  this->statusMessage = " services registered";
 }

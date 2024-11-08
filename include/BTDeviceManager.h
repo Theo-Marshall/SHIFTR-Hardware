@@ -23,6 +23,7 @@ class BTDeviceManager {
   static bool writeFECTargetPower(uint16_t targetPower);
   static bool writeFECTrackResistance(uint16_t grade, uint8_t rollingResistance = 0xFF);
   static std::vector<NimBLEAdvertisedDevice>* getScannedDevices();
+  static String getStatusMessage();
   
  private:
   friend class BTAdvertisedDeviceCallbacks;
@@ -50,6 +51,7 @@ class BTDeviceManager {
   static void onBLENotify(BLERemoteCharacteristic* pBLERemoteCharacteristic, uint8_t* pData, size_t length, bool isNotify);
   static bool changeBLENotify(Characteristic* characteristic, bool remove);
   static uint8_t getFECChecksum(std::vector<uint8_t>* fecData);
+  static String statusMessage;
 };
 
 #endif
