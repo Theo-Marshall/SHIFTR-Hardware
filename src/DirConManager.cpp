@@ -29,8 +29,6 @@ uint16_t DirConManager::currentDeviceCrankRevolutions = 0;
 uint16_t DirConManager::currentDeviceCrankLastEventTime = 0;
 bool DirConManager::currentDeviceCrankStaleness = true;
 uint16_t DirConManager::currentDeviceCadence = 0;
-uint8_t DirConManager::currentDeviceGearRatio = DEFAULT_DEVICE_GEAR_RATIO;
-uint8_t DirConManager::currentDeviceWheelDiameter = 0;
 uint16_t DirConManager::currentDeviceGrade = 0;
 bool DirConManager::virtualShiftingEnabled = false;
 String DirConManager::statusMessage = "";
@@ -60,8 +58,7 @@ class DirConServiceManagerCallbacks : public ServiceManagerCallbacks {
         DirConManager::currentDeviceCrankLastEventTime = 0;
         DirConManager::currentDeviceCadence = 0;
         DirConManager::currentDevicePower = 0;
-        DirConManager::currentDeviceGearRatio = 0;
-        DirConManager::currentDeviceWheelDiameter = 0;
+        DirConManager::currentDeviceGrade = 0;
       } else {
         if (characteristic->getSubscriptions().size() > 0) {
           DirConManager::currentDeviceCrankStaleness = true;
@@ -184,6 +181,12 @@ void DirConManager::removeSubscriptions(AsyncClient *client) {
     for (Service *service : serviceManager->getServices()) {
       for (Characteristic *characteristic : service->getCharacteristics()) {
         characteristic->removeSubscription(clientIndex);
+        if (characteristic->UUID.equals(NimBLEUUID(TACX_FEC_READ_CHARACTERISTIC_UUID))) {
+          if (characteristic->getSubscriptions().size() == 0) {
+            // if no client is connected anymore set default mode on trainer
+            BTDeviceManager::writeFECTrackResistance(0x4E20);
+          }
+        }
       }
     }
   }
@@ -410,7 +413,9 @@ std::map<uint8_t, uint64_t> DirConManager::getUnsignedZwiftDataValues(std::vecto
   return returnMap;
 }
 
-// @Roberto Viola: This is the part you're probably looking for to implement the virtual shifting in qdomyos-zwift :-)
+// @Roberto Viola: This is the part you're probably looking for to implement the virtual shifting correctly in qdomyos-zwift :-)
+// The values that are being sent do not specify a specific gear but the ratio from 0.75 to 5.49 in LEB128 encoding!
+// 0.75 0.87 0.99 1.11 1.23 1.38 1.53 1.68 1.86 2.04 2.22 2.40 2.61 2.82 3.03 3.24 3.49 3.74 3.99 4.24 4.54 4.84 5.14 5.49
 // Feel free to contact me to get more insights.
 bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *characteristic, std::vector<uint8_t> *requestData) {
   std::vector<uint8_t> returnData;
@@ -462,6 +467,11 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
               currentInclination = requestValues.at(0x10); 
               currentDeviceGrade = (uint16_t)(0x4E20 + currentInclination);
             }
+            if (virtualShiftingEnabled) {
+              if (currentGearRatio != 0) {
+                currentDeviceGrade = (uint16_t)(0x4E20 + currentInclination + ((currentGearRatio - DEFAULT_GEAR_RATIO) / 2));
+              } 
+            } 
             if (!BTDeviceManager::writeFECTrackResistance(currentDeviceGrade)) {
               log_e("Error writing FEC track resistance");
             }
@@ -477,23 +487,21 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
                   log_i("Virtual shifting disabled");
                 }
                 virtualShiftingEnabled = false;
-                currentDeviceGearRatio = DEFAULT_DEVICE_GEAR_RATIO;
-                currentDeviceWheelDiameter = 0xFF;
               } else {
                 if (!virtualShiftingEnabled) {
                   log_i("Virtual shifting enabled");
                 }
                 virtualShiftingEnabled = true;
-                currentDeviceGearRatio = (uint8_t)(currentGearRatio / 300);
-                log_i("CurrentDeviceGearRatio %d, %d",0, currentDeviceGearRatio);
-                currentDeviceGearRatio = 0x00;
-                // if gear ratio doesn't work try with wheel diameter 
-                currentDeviceWheelDiameter = (uint8_t)(currentGearRatio / 240);
-                log_i("CurrentDeviceWheelDiameter %d, %d",0, currentDeviceWheelDiameter);
               }
             }
-
-            if (!BTDeviceManager::writeFECUserConfiguration(0xFFFF, currentDeviceWheelDiameter, currentDeviceGearRatio)) {
+            if (virtualShiftingEnabled) {
+              if (currentGearRatio != 0) {
+                currentDeviceGrade = (uint16_t)(0x4E20 + currentInclination + ((currentGearRatio - DEFAULT_GEAR_RATIO) / 2));
+              } else {
+                currentDeviceGrade = (uint16_t)(0x4E20 + currentInclination);
+              }
+            } 
+            if (!BTDeviceManager::writeFECTrackResistance(currentDeviceGrade)) {
               log_e("Error writing FEC track resistance");
             }
             break;

@@ -77,8 +77,6 @@ class DirConManager {
   static uint16_t currentDeviceCrankLastEventTime;
   static bool currentDeviceCrankStaleness;
   static uint16_t currentDeviceCadence;
-  static uint8_t currentDeviceGearRatio;
-  static uint8_t currentDeviceWheelDiameter;
   static uint16_t currentDeviceGrade;
   static bool virtualShiftingEnabled;
   static String statusMessage;
