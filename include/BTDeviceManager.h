@@ -22,7 +22,7 @@ class BTDeviceManager {
   static std::vector<uint8_t> readBLECharacteristic(const NimBLEUUID& serviceUUID, const NimBLEUUID& characteristicUUID);
   static bool writeFECTargetPower(uint16_t targetPower);
   static bool writeFECTrackResistance(uint16_t grade, uint8_t rollingResistance = 0xFF);
-  static bool writeFECUserConfiguration(uint16_t userWeight = 0xFFFF, uint8_t wheelDiameter = 0xFF, uint8_t gearRatio = 0x00);
+  static bool writeFECUserConfiguration(uint16_t bicycleWeight, uint16_t userWeight, uint8_t wheelDiameter, uint8_t gearRatio);
   static std::vector<NimBLEAdvertisedDevice>* getScannedDevices();
   static String getStatusMessage();
 

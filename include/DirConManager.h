@@ -62,6 +62,7 @@ class DirConManager {
   static void sendDirConCharacteristicNotification(const NimBLEUUID& characteristicUUID, uint8_t* pData, size_t length, bool onlySubscribers);
   static void sendDirConCharacteristicNotification(Characteristic* characteristic, uint8_t* pData, size_t length, bool onlySubscribers);
   static void updateStatusMessage();
+  static uint16_t calculateVirtualShiftingDeviceGrade();
   static ServiceManager* serviceManager;
   static Timer<> notificationTimer;
   static AsyncServer* dirConServer;
@@ -72,6 +73,8 @@ class DirConManager {
   static int64_t currentInclination;
   static int64_t currentGearRatio;
   static int64_t currentRequestedPower;
+  static uint16_t currentUserWeight;
+  static uint16_t currentBicycleWeight;
   static int16_t currentDevicePower;
   static uint16_t currentDeviceCrankRevolutions;
   static uint16_t currentDeviceCrankLastEventTime;

@@ -24,6 +24,8 @@ int64_t DirConManager::currentCadence = 0;
 int64_t DirConManager::currentInclination = 0;
 int64_t DirConManager::currentGearRatio = 0;
 int64_t DirConManager::currentRequestedPower = 0;
+uint16_t DirConManager::currentUserWeight = 0xFFFF;
+uint16_t DirConManager::currentBicycleWeight = 0xFFFF;
 int16_t DirConManager::currentDevicePower = 0;
 uint16_t DirConManager::currentDeviceCrankRevolutions = 0;
 uint16_t DirConManager::currentDeviceCrankLastEventTime = 0;
@@ -59,6 +61,8 @@ class DirConServiceManagerCallbacks : public ServiceManagerCallbacks {
         DirConManager::currentDeviceCadence = 0;
         DirConManager::currentDevicePower = 0;
         DirConManager::currentDeviceGrade = 0;
+        DirConManager::currentUserWeight = 0xFFFF;
+        DirConManager::currentBicycleWeight = 0xFFFF;
       } else {
         if (characteristic->getSubscriptions().size() > 0) {
           DirConManager::currentDeviceCrankStaleness = true;
@@ -413,6 +417,17 @@ std::map<uint8_t, uint64_t> DirConManager::getUnsignedZwiftDataValues(std::vecto
   return returnMap;
 }
 
+uint16_t DirConManager::calculateVirtualShiftingDeviceGrade() {
+  //return (uint16_t)(0x4E20 + currentInclination + ((currentGearRatio - DEFAULT_GEAR_RATIO) / (DEFAULT_GEAR_RATIO / 1000)));
+  int64_t inclination = 0;
+  if (currentInclination >= 0) {
+    inclination = (currentInclination * (currentGearRatio / (DEFAULT_GEAR_RATIO / 100)) / 100);
+  } else {
+    inclination = currentInclination - ((currentInclination * (currentGearRatio / (DEFAULT_GEAR_RATIO / 100))) / 100) + currentInclination;
+  }
+  return (uint16_t)(0x4E20 + inclination);
+}
+
 // @Roberto Viola: This is the part you're probably looking for to implement the virtual shifting correctly in qdomyos-zwift :-)
 // The values that are being sent do not specify a specific gear but the ratio from 0.75 to 5.49 in LEB128 encoding!
 // 0.75 0.87 0.99 1.11 1.23 1.38 1.53 1.68 1.86 2.04 2.22 2.40 2.61 2.82 3.03 3.24 3.49 3.74 3.99 4.24 4.54 4.84 5.14 5.49
@@ -426,7 +441,7 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
     std::map<uint8_t, int64_t> requestValues = getZwiftDataValues(requestData);
     std::map<uint8_t, uint64_t> unsignedRequestValues = getUnsignedZwiftDataValues(requestData);
     // for development purposes
-    /*
+    /**/
     if ((zwiftCommandSubtype != 0x22) && (zwiftCommandSubtype != 0x18)) {
       log_i("Zwift command: %d, commandsubtype: %d", zwiftCommand, zwiftCommandSubtype);
       for (auto requestValue = requestValues.begin(); requestValue != requestValues.end(); requestValue++) {
@@ -436,7 +451,7 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
         log_i("Unsigned Zwift sync data key: %d, value %d", requestValue->first, requestValue->second);
       }
     }
-    */
+    
     switch (zwiftCommand) {
       // Status request
       case 0x00:
@@ -469,7 +484,7 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
             }
             if (virtualShiftingEnabled) {
               if (currentGearRatio != 0) {
-                currentDeviceGrade = (uint16_t)(0x4E20 + currentInclination + ((currentGearRatio - DEFAULT_GEAR_RATIO) / (DEFAULT_GEAR_RATIO / 1000)));
+                currentDeviceGrade = calculateVirtualShiftingDeviceGrade();
               } 
               if (trainerMode == TrainerMode::SIM_MODE) {
                 if (!BTDeviceManager::writeFECTrackResistance(currentDeviceGrade)) {
@@ -479,11 +494,21 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
             } 
             break;
 
-          // SIM mode with virtual shifting information
+          // SIM mode parameter update
           case 0x2A:
             if (trainerMode == TrainerMode::ERG_MODE) {
               log_i("SIM mode requested");
               trainerMode = TrainerMode::SIM_MODE;
+            }
+            if (unsignedRequestValues.find(0x20) != unsignedRequestValues.end()) {
+              currentBicycleWeight = unsignedRequestValues.at(0x20);
+              if (unsignedRequestValues.find(0x28) != unsignedRequestValues.end()) {
+                currentUserWeight = unsignedRequestValues.at(0x28);
+                log_i("Received bicycle (%d) and user (%d) weight", currentBicycleWeight, currentUserWeight);
+                if (!BTDeviceManager::writeFECUserConfiguration(currentBicycleWeight, currentUserWeight, 0xFF, 0x00)) {
+                  log_e("Error writing FEC user configuration");
+                }
+              }
             }
             if (unsignedRequestValues.find(0x10) != unsignedRequestValues.end()) {
               currentGearRatio = unsignedRequestValues.at(0x10);
@@ -499,14 +524,11 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
                 virtualShiftingEnabled = true;
               }
             }
-            if (virtualShiftingEnabled) {
-              if (currentGearRatio != 0) {
-                currentDeviceGrade = (uint16_t)(0x4E20 + currentInclination + ((currentGearRatio - DEFAULT_GEAR_RATIO) / (DEFAULT_GEAR_RATIO / 1000)));
-              } else {
-                currentDeviceGrade = (uint16_t)(0x4E20 + currentInclination);
-              }
-            } 
-            log_i("Track resistance change normal: %d, current: %d", (uint16_t)(0x4E20 + currentInclination), currentDeviceGrade);
+            if (currentGearRatio != 0) {
+              currentDeviceGrade = calculateVirtualShiftingDeviceGrade();
+            } else {
+              currentDeviceGrade = (uint16_t)(0x4E20 + currentInclination);
+            }
             if (!BTDeviceManager::writeFECTrackResistance(currentDeviceGrade)) {
               log_e("Error writing FEC track resistance");
             }

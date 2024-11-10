@@ -404,7 +404,7 @@ bool BTDeviceManager::writeFECTrackResistance(uint16_t grade, uint8_t rollingRes
   return writeBLECharacteristic(NimBLEUUID(TACX_FEC_PRIMARY_SERVICE_UUID), NimBLEUUID(TACX_FEC_WRITE_CHARACTERISTIC_UUID), &fecData);
 }
 
-bool BTDeviceManager::writeFECUserConfiguration(uint16_t userWeight, uint8_t wheelDiameter, uint8_t gearRatio) {
+bool BTDeviceManager::writeFECUserConfiguration(uint16_t bicycleWeight, uint16_t userWeight, uint8_t wheelDiameter, uint8_t gearRatio) {
   std::vector<uint8_t> fecData;
   fecData.push_back(0xA4);  // SYNC
   fecData.push_back(0x09);  // MSG_LEN
@@ -414,8 +414,8 @@ bool BTDeviceManager::writeFECUserConfiguration(uint16_t userWeight, uint8_t whe
   fecData.push_back((uint8_t)userWeight);
   fecData.push_back((uint8_t)(userWeight >> 8));
   fecData.push_back(0xFF);
-  fecData.push_back(0xFF);
-  fecData.push_back(0xFF);
+  fecData.push_back((uint8_t)bicycleWeight);
+  fecData.push_back((uint8_t)(bicycleWeight >> 8));
   fecData.push_back(wheelDiameter);
   fecData.push_back(gearRatio);
   fecData.push_back(getFECChecksum(&fecData));  // CHECKSUM
