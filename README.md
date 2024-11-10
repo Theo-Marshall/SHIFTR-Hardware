@@ -10,7 +10,7 @@ Wahoo came up with a technology called "Direct Connect" that allows the trainer 
 
 While other vendors like e.g. Elite or JetBlack are very fast in implementing things like virtual shifting to their newer models Garmin is very slow and unresponsive when it comes to such feature requests. Probably also because they have their own ecosystem that competes with Zwift. 
 
-Using Zwift since many years and owning a "Tacx Vortex" and a "Tacx Neo 2T" bike trainer I have been jealous to features like virtual shifting and the possibitlity to connect the trainer device via ethernet. So the idea for this project, SHIFTR, was born by having a device between Zwift and the Tacx supporting all this cool new functionality.
+Using Zwift since many years and owning a "Tacx Vortex" and a "Tacx Neo 2T" bike trainer I have been jealous to features like virtual shifting and the possibility to connect the trainer device via ethernet. So the idea for this project, SHIFTR, was born by having a device between Zwift and the Tacx supporting all this cool new functionality.
 
 After many days and nights of searching the internet for a specification of the protocols I was only able to find small parts for "Direct Connect" that has already been reverse engineered by Roberto Viola in his [QDomyos-Zwift](https://github.com/cagnulein/qdomyos-zwift) project. The code helped me a lot to understand the protocol.
 Unfortunately there was absolutely no information about the "virtual shifting" to be found. So a very long session of decompiling Zwift apps and sniffing BLE traffic between Zwift and capable trainers (which fortunately a friend had one of) started. It took some weeks but I was able to reverse engineer the used protocols.
@@ -19,6 +19,19 @@ As I wanted to have a convenient solution that doesn't require a special program
 
 Now I have a great setup with a Garmin/Tacx NEO 2T with a Zwift Cog installed and communicating to Zwift via ethernet while still having the "Road Feeling" feature: 
 ![The whole setup](images/tacx_neo_2t_and_zwift_cog_and_device.jpg)
+
+## How it works
+The SHIFTR is working in two modes, "Pass-through" and "Pass-through + virtual shifting":
+### Pass-through mode
+In this mode the SHIFTR just takes all services from the BLE trainer devices and provides them 1:1 via Direct Connect. It supports SIM and ERG mode as if the device would be connected via bluetooth.
+### Pass-through + virtual shifting mode
+This mode provides the pass through features as mentioned before and additionally offers a special Zwift service via Direct Connect that allows to behave like a Zwift certified device offering also virtual shifting. All necessary information like bicycle and user weight are transmitted to the trainer so it will behave as before. SIM and ERG mode are supported but of course virtual shifting only works in SIM mode.
+
+The virtual gears are defined inside Zwift and don't need a special handling in SHIFTR. Zwift just sends the corresponding gear ratio (chainring:sprocket) between 0.75 and 5.49 on every shift. 
+
+Currently these are: 0.75 0.87 0.99 1.11 1.23 1.38 1.53 1.68 1.86 2.04 2.22 2.40 2.61 2.82 3.03 3.24 3.49 3.74 3.99 4.24 4.54 4.84 5.14 5.49
+
+As the Zwift Cog has 14 teeth and a standard chainring 34 teeth the default ratio in SHIFTR is defined at 2.40 which currently matches Zwift Gear 12. Every gear change will result in a higher or lower grade/slope value sent to the FE-C track resistance page. The original value comes from Zwift and will just be forwarded as long as virtual shifting is disabled or neither Zwift Play controllers or a Zwift Click are connected (which leads to a disabled virtual shifting). Otherwise the value is being modified linearly depending on the current gear ratio requested.
 
 ## Needed hardware
 - WT32-ETH01 ESP32 board (e.g. from [Amazon](https://www.amazon.de/WT32-ETH01-Embedded-Schnittstelle-Bluetooth-Entwicklungsplatine/dp/B0CW3DDWZ4))
@@ -50,7 +63,7 @@ Now I have a great setup with a Garmin/Tacx NEO 2T with a Zwift Cog installed an
 - Connect the programmer and upload via the task wt32-eth01 -> Upload and Monitor
 - Connect an ethernet cable and make sure a DHCP server exists in your network
 - After a few seconds you should be able to see the IP address and the hostname (like e.g. "SHIFTR-123456.local") in the monitor log
-- If you don't use the Ethernet interface you can also use the WiFi functionality. For that the device opens an AP with the device name (e.g. "SHIFTR 123456") and the password is the same but with "-" insead of space. Please note that WiFi is provided by an external library called [IoTWebConf](https://github.com/prampec/IotWebConf) and more or less untested
+- If you don't use the Ethernet interface you can also use the WiFi functionality. For that the device opens an AP with the device name (e.g. "SHIFTR 123456") and the password is the same but with "-" instead of space. Please note that WiFi is provided by an external library called [IoTWebConf](https://github.com/prampec/IotWebConf) and more or less untested
 - After that you can configure the device and its network settings in the web interface on e.g. http://SHIFTR-123456.local
 - Further updates can be made over ethernet or WiFi so you can disconnect the programming adapter now
 
@@ -69,7 +82,7 @@ Now I have a great setup with a Garmin/Tacx NEO 2T with a Zwift Cog installed an
 - In Zwift you need to connect to the "SHIFTR 123456" device instead of your old device now. Have fun!
 
 ## Thank you!
-You've made it to the end, hopefully you'll have fun rebuilding the whole thing. 
+You've made it to the end, hopefully you'll have fun rebuilding the whole thing. Please tell me if you like it and if it works as expected.
 In case of any questions feel free to contact me!
 
 
