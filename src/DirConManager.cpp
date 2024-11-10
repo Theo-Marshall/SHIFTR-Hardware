@@ -426,7 +426,8 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
     std::map<uint8_t, int64_t> requestValues = getZwiftDataValues(requestData);
     std::map<uint8_t, uint64_t> unsignedRequestValues = getUnsignedZwiftDataValues(requestData);
     // for development purposes
-    if (zwiftCommandSubtype != 0x22) {
+    /*
+    if ((zwiftCommandSubtype != 0x22) && (zwiftCommandSubtype != 0x18)) {
       log_i("Zwift command: %d, commandsubtype: %d", zwiftCommand, zwiftCommandSubtype);
       for (auto requestValue = requestValues.begin(); requestValue != requestValues.end(); requestValue++) {
         log_i("Zwift sync data key: %d, value %d", requestValue->first, requestValue->second);
@@ -435,6 +436,7 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
         log_i("Unsigned Zwift sync data key: %d, value %d", requestValue->first, requestValue->second);
       }
     }
+    */
     switch (zwiftCommand) {
       // Status request
       case 0x00:
@@ -447,39 +449,42 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
         switch (zwiftCommandSubtype) {
           // ERG Mode
           case 0x18:
-            log_i("ERG mode requested");
-            trainerMode = TrainerMode::ERG_MODE;
+            if (trainerMode == TrainerMode::SIM_MODE) {
+              log_i("ERG mode requested");
+              trainerMode = TrainerMode::ERG_MODE;            
+            }
             if (requestValues.find(0x00) != requestValues.end()) {
               currentRequestedPower = requestValues.at(0x00);
             }
-            if (!BTDeviceManager::writeFECTargetPower(currentRequestedPower)) {
+            if (!BTDeviceManager::writeFECTargetPower((currentRequestedPower * 4))) {
               log_e("Error writing FEC target power");
             }
             break;
 
-          // SIM Mode Inclination
+          // SIM/ERG Mode Inclination
           case 0x22:
-            if (trainerMode == TrainerMode::ERG_MODE) {
-              log_i("SIM mode requested");
-              trainerMode = TrainerMode::SIM_MODE;
-            }
             if (requestValues.find(0x10) != requestValues.end()) {
               currentInclination = requestValues.at(0x10); 
               currentDeviceGrade = (uint16_t)(0x4E20 + currentInclination);
             }
             if (virtualShiftingEnabled) {
               if (currentGearRatio != 0) {
-                currentDeviceGrade = (uint16_t)(0x4E20 + currentInclination + ((currentGearRatio - DEFAULT_GEAR_RATIO) / 2));
+                currentDeviceGrade = (uint16_t)(0x4E20 + currentInclination + ((currentGearRatio - DEFAULT_GEAR_RATIO) / (DEFAULT_GEAR_RATIO / 1000)));
               } 
+              if (trainerMode == TrainerMode::SIM_MODE) {
+                if (!BTDeviceManager::writeFECTrackResistance(currentDeviceGrade)) {
+                  log_e("Error writing FEC track resistance");
+                }
+              }
             } 
-            if (!BTDeviceManager::writeFECTrackResistance(currentDeviceGrade)) {
-              log_e("Error writing FEC track resistance");
-            }
             break;
 
-          // VS enable/disable --> Explicitely SIM mode
+          // SIM mode with virtual shifting information
           case 0x2A:
-            trainerMode = TrainerMode::SIM_MODE;
+            if (trainerMode == TrainerMode::ERG_MODE) {
+              log_i("SIM mode requested");
+              trainerMode = TrainerMode::SIM_MODE;
+            }
             if (unsignedRequestValues.find(0x10) != unsignedRequestValues.end()) {
               currentGearRatio = unsignedRequestValues.at(0x10);
               if (currentGearRatio == 0) {
@@ -496,11 +501,12 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
             }
             if (virtualShiftingEnabled) {
               if (currentGearRatio != 0) {
-                currentDeviceGrade = (uint16_t)(0x4E20 + currentInclination + ((currentGearRatio - DEFAULT_GEAR_RATIO) / 2));
+                currentDeviceGrade = (uint16_t)(0x4E20 + currentInclination + ((currentGearRatio - DEFAULT_GEAR_RATIO) / (DEFAULT_GEAR_RATIO / 1000)));
               } else {
                 currentDeviceGrade = (uint16_t)(0x4E20 + currentInclination);
               }
             } 
+            log_i("Track resistance change normal: %d, current: %d", (uint16_t)(0x4E20 + currentInclination), currentDeviceGrade);
             if (!BTDeviceManager::writeFECTrackResistance(currentDeviceGrade)) {
               log_e("Error writing FEC track resistance");
             }
