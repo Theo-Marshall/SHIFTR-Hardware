@@ -13,7 +13,8 @@
 
 typedef enum TrainerMode {
   ERG_MODE = 0,
-  SIM_MODE = 1
+  SIM_MODE = 1,
+  SIM_MODE_VIRTUAL_SHIFTING = 2
 } trainerModeType;
 
 class DirConManager {
@@ -23,6 +24,8 @@ class DirConManager {
   static void update();
   static void setServiceManager(ServiceManager* serviceManager);
   static void notifyDirConCharacteristic(const NimBLEUUID& characteristicUUID, uint8_t* pData, size_t length);
+  static String getStatusMessage();
+  /*
   static int64_t getCurrentPower();
   static int64_t getCurrentCadence();
   static int64_t getCurrentInclination();
@@ -36,13 +39,14 @@ class DirConManager {
   static bool isVirtualShiftingEnabled();
   static void setCurrentPower(int64_t power);
   static void setCurrentCadence(int64_t cadence);
-  static String getStatusMessage();
+  */
+  static TrainerMode getZwiftTrainerMode();
+  static uint16_t getCalculatedCadence();
+  static uint16_t getCalculatedResistance();
+  
 
  private:
   friend class DirConServiceManagerCallbacks;
-  static TrainerMode trainerMode;
-  static uint8_t zwiftAsyncRideOnAnswer[];
-  static uint8_t zwiftSyncRideOnAnswer[];
   static bool doNotifications(void* arg);
   static void handleNewClient(void* arg, AsyncClient* client);
   static void handleDirConData(void* arg, AsyncClient* client, void* data, size_t len);
@@ -61,28 +65,33 @@ class DirConManager {
   static std::map<uint8_t, uint64_t> getUnsignedZwiftDataValues(std::vector<uint8_t>* requestData);
   static void sendDirConCharacteristicNotification(const NimBLEUUID& characteristicUUID, uint8_t* pData, size_t length, bool onlySubscribers);
   static void sendDirConCharacteristicNotification(Characteristic* characteristic, uint8_t* pData, size_t length, bool onlySubscribers);
+  static uint8_t calculateFECResistancePercentageValue();
   static void updateStatusMessage();
-  static uint16_t calculateVirtualShiftingDeviceGrade();
+  static void resetValues();
   static ServiceManager* serviceManager;
   static Timer<> notificationTimer;
   static AsyncServer* dirConServer;
   static AsyncClient* dirConClients[DIRCON_MAX_CLIENTS];
   static bool started;
-  static int64_t currentPower;
-  static int64_t currentCadence;
-  static int64_t currentInclination;
-  static int64_t currentGearRatio;
-  static int64_t currentRequestedPower;
-  static uint16_t currentUserWeight;
-  static uint16_t currentBicycleWeight;
-  static int16_t currentDevicePower;
-  static uint16_t currentDeviceCrankRevolutions;
-  static uint16_t currentDeviceCrankLastEventTime;
-  static bool currentDeviceCrankStaleness;
-  static uint16_t currentDeviceCadence;
-  static uint16_t currentDeviceGrade;
-  static bool virtualShiftingEnabled;
   static String statusMessage;
+  static uint8_t zwiftAsyncRideOnAnswer[];
+  static uint8_t zwiftSyncRideOnAnswer[];
+
+  static TrainerMode zwiftTrainerMode;
+  static uint64_t zwiftPower;
+  static int64_t zwiftGrade;
+  static uint64_t zwiftGearRatio;
+  static uint16_t zwiftBicycleWeight;
+  static uint16_t zwiftUserWeight;
+
+  static int16_t trainerPower;
+  static uint16_t trainerCrankRevolutions;
+  static uint16_t trainerCrankLastEventTime;
+  static uint16_t trainerMaximumResistance;
+  static bool trainerCrankStaleness;
+
+  static uint16_t calculatedCadence;
+  static uint16_t calculatedResistance;
 };
 
 #endif

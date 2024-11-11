@@ -8,17 +8,33 @@
 #include <Utils.h>
 #include <leb128.h>
 #include <uleb128.h>
-
-TrainerMode DirConManager::trainerMode = TrainerMode::SIM_MODE;
-
-uint8_t DirConManager::zwiftAsyncRideOnAnswer[18] = {0x2a, 0x08, 0x03, 0x12, 0x0d, 0x22, 0x0b, 0x52, 0x49, 0x44, 0x45, 0x5f, 0x4f, 0x4e, 0x28, 0x30, 0x29, 0x00};
-uint8_t DirConManager::zwiftSyncRideOnAnswer[8] = {0x52, 0x69, 0x64, 0x65, 0x4f, 0x6e, 0x02, 0x00};
+#include <SettingsManager.h>
 
 ServiceManager *DirConManager::serviceManager{};
 Timer<> DirConManager::notificationTimer = timer_create_default();
 bool DirConManager::started = false;
 AsyncServer *DirConManager::dirConServer = new AsyncServer(DIRCON_TCP_PORT);
 AsyncClient *DirConManager::dirConClients[];
+String DirConManager::statusMessage = "";
+
+uint8_t DirConManager::zwiftAsyncRideOnAnswer[18] = {0x2a, 0x08, 0x03, 0x12, 0x0d, 0x22, 0x0b, 0x52, 0x49, 0x44, 0x45, 0x5f, 0x4f, 0x4e, 0x28, 0x30, 0x29, 0x00};
+uint8_t DirConManager::zwiftSyncRideOnAnswer[8] = {0x52, 0x69, 0x64, 0x65, 0x4f, 0x6e, 0x02, 0x00};
+
+TrainerMode DirConManager::zwiftTrainerMode;
+uint64_t DirConManager::zwiftPower;
+int64_t DirConManager::zwiftGrade;
+uint64_t DirConManager::zwiftGearRatio;
+uint16_t DirConManager::zwiftBicycleWeight;
+uint16_t DirConManager::zwiftUserWeight;
+int16_t DirConManager::trainerPower;
+uint16_t DirConManager::trainerCrankRevolutions;
+uint16_t DirConManager::trainerCrankLastEventTime;
+uint16_t DirConManager::trainerMaximumResistance;
+bool DirConManager::trainerCrankStaleness;
+uint16_t DirConManager::calculatedCadence;
+uint16_t DirConManager::calculatedResistance;
+
+/*
 int64_t DirConManager::currentPower = 0;
 int64_t DirConManager::currentCadence = 0;
 int64_t DirConManager::currentInclination = 0;
@@ -33,7 +49,7 @@ bool DirConManager::currentDeviceCrankStaleness = true;
 uint16_t DirConManager::currentDeviceCadence = 0;
 uint16_t DirConManager::currentDeviceGrade = 0;
 bool DirConManager::virtualShiftingEnabled = false;
-String DirConManager::statusMessage = "";
+*/
 
 class DirConServiceManagerCallbacks : public ServiceManagerCallbacks {
   void onServiceAdded(Service *service) {
@@ -48,29 +64,33 @@ class DirConServiceManagerCallbacks : public ServiceManagerCallbacks {
         }
       }
       MDNS.addServiceTxt(DIRCON_MDNS_SERVICE_NAME, DIRCON_MDNS_SERVICE_PROTOCOL, "ble-service-uuids", serviceUUIDs.c_str());
-      service->getServiceManager()->updateStatusMessage();
     };
   };
 
   void onCharacteristicSubscriptionChanged(Characteristic *characteristic, bool removed) {
     if (characteristic->UUID.equals(NimBLEUUID(CYCLING_POWER_MEASUREMENT_CHARACTERISTIC_UUID))) {
       if (removed && (characteristic->getSubscriptions().size() == 0)) {
-        DirConManager::currentDeviceCrankStaleness = true;
-        DirConManager::currentDeviceCrankRevolutions = 0;
-        DirConManager::currentDeviceCrankLastEventTime = 0;
-        DirConManager::currentDeviceCadence = 0;
-        DirConManager::currentDevicePower = 0;
-        DirConManager::currentDeviceGrade = 0;
-        DirConManager::currentUserWeight = 0xFFFF;
-        DirConManager::currentBicycleWeight = 0xFFFF;
-      } else {
-        if (characteristic->getSubscriptions().size() > 0) {
-          DirConManager::currentDeviceCrankStaleness = true;
-        }
-      }
+        DirConManager::resetValues();
+      } 
     }
   };
 };
+
+void DirConManager::resetValues() {
+  zwiftTrainerMode = TrainerMode::SIM_MODE;
+  zwiftPower = 0;
+  zwiftGrade = 0;
+  zwiftGearRatio = 0;
+  zwiftBicycleWeight = 1000;
+  zwiftUserWeight = 7500;
+  trainerPower = 0;
+  trainerCrankRevolutions = 0;
+  trainerCrankLastEventTime = 0;
+  trainerMaximumResistance = 0;
+  trainerCrankStaleness = true;
+  calculatedCadence = 0;
+  calculatedResistance = 0;
+}
 
 void DirConManager::setServiceManager(ServiceManager *serviceManager) {
   DirConManager::serviceManager = serviceManager;
@@ -81,7 +101,7 @@ bool DirConManager::start() {
     if (serviceManager == nullptr) {
       return false;
     }
-    updateStatusMessage();
+    resetValues();
     notificationTimer.every(DIRCON_NOTIFICATION_INTERVAL, DirConManager::doNotifications);
     serviceManager->subscribeCallbacks(new DirConServiceManagerCallbacks);
     MDNS.addService(DIRCON_MDNS_SERVICE_NAME, DIRCON_MDNS_SERVICE_PROTOCOL, DIRCON_TCP_PORT);
@@ -91,13 +111,14 @@ bool DirConManager::start() {
     dirConServer->begin();
     dirConServer->onClient(&handleNewClient, dirConServer);
     started = true;
-    trainerMode = TrainerMode::SIM_MODE;
+    updateStatusMessage();
     return true;
   }
   return false;
 }
 
 void DirConManager::stop() {
+  resetValues();
   dirConServer->end();
   notificationTimer.cancel();
   MDNS.end();
@@ -123,6 +144,17 @@ void DirConManager::handleNewClient(void *arg, AsyncClient *client) {
     if ((dirConClients[clientIndex] == nullptr) || ((dirConClients[clientIndex] != nullptr) && (!dirConClients[clientIndex]->connected()))) {
       dirConClients[clientIndex] = client;
       clientAccepted = true;
+      // enable notifications for FE-C characteristics if virtual shifting is enabled
+      if (SettingsManager::isVirtualShiftingEnabled()) {
+        Characteristic* tacxFECReadCharacteristic = serviceManager->getCharacteristic(NimBLEUUID(TACX_FEC_READ_CHARACTERISTIC_UUID));
+        if (tacxFECReadCharacteristic != nullptr) {
+          tacxFECReadCharacteristic->addSubscription(clientIndex);
+        }
+      }
+      // send the FE-C request to receive the capabilities
+      if (!BTDeviceManager::writeFECCapabilitiesRequest()) {
+        log_e("Error writing FEC capabilities request");
+      }
       break;
     }
   }
@@ -187,7 +219,7 @@ void DirConManager::removeSubscriptions(AsyncClient *client) {
         characteristic->removeSubscription(clientIndex);
         if (characteristic->UUID.equals(NimBLEUUID(TACX_FEC_READ_CHARACTERISTIC_UUID))) {
           if (characteristic->getSubscriptions().size() == 0) {
-            // if no client is connected anymore set default mode on trainer
+            // if no client is connected anymore set default SIM mode on trainer
             BTDeviceManager::writeFECTrackResistance(0x4E20);
           }
         }
@@ -417,17 +449,6 @@ std::map<uint8_t, uint64_t> DirConManager::getUnsignedZwiftDataValues(std::vecto
   return returnMap;
 }
 
-uint16_t DirConManager::calculateVirtualShiftingDeviceGrade() {
-  //return (uint16_t)(0x4E20 + currentInclination + ((currentGearRatio - DEFAULT_GEAR_RATIO) / (DEFAULT_GEAR_RATIO / 1000)));
-  int64_t inclination = 0;
-  if (currentInclination >= 0) {
-    inclination = (currentInclination * (currentGearRatio / (DEFAULT_GEAR_RATIO / 100)) / 100);
-  } else {
-    inclination = currentInclination - ((currentInclination * (currentGearRatio / (DEFAULT_GEAR_RATIO / 100))) / 100) + currentInclination;
-  }
-  return (uint16_t)(0x4E20 + inclination);
-}
-
 // @Roberto Viola: This is the part you're probably looking for to implement the virtual shifting correctly in qdomyos-zwift :-)
 // The values that are being sent do not specify a specific gear but the ratio from 0.75 to 5.49 in LEB128 encoding!
 // 0.75 0.87 0.99 1.11 1.23 1.38 1.53 1.68 1.86 2.04 2.22 2.40 2.61 2.82 3.03 3.24 3.49 3.74 3.99 4.24 4.54 4.84 5.14 5.49
@@ -440,6 +461,8 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
     uint8_t zwiftCommandLength = requestData->at(2);
     std::map<uint8_t, int64_t> requestValues = getZwiftDataValues(requestData);
     std::map<uint8_t, uint64_t> unsignedRequestValues = getUnsignedZwiftDataValues(requestData);
+    TrainerMode newZwiftTrainerMode = zwiftTrainerMode;
+
     // for development purposes
     /**/
     if ((zwiftCommandSubtype != 0x22) && (zwiftCommandSubtype != 0x18)) {
@@ -464,14 +487,16 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
         switch (zwiftCommandSubtype) {
           // ERG Mode
           case 0x18:
-            if (trainerMode == TrainerMode::SIM_MODE) {
+            if ((zwiftTrainerMode == TrainerMode::SIM_MODE) || (zwiftTrainerMode == TrainerMode::SIM_MODE_VIRTUAL_SHIFTING)) {
               log_i("ERG mode requested");
-              trainerMode = TrainerMode::ERG_MODE;            
+              zwiftTrainerMode = TrainerMode::ERG_MODE;
+              updateStatusMessage();            
             }
-            if (requestValues.find(0x00) != requestValues.end()) {
-              currentRequestedPower = requestValues.at(0x00);
+            if (unsignedRequestValues.find(0x00) != unsignedRequestValues.end()) {
+              zwiftPower = unsignedRequestValues.at(0x00);
             }
-            if (!BTDeviceManager::writeFECTargetPower((currentRequestedPower * 4))) {
+            // FE-C target power is in 0.25W unit
+            if (!BTDeviceManager::writeFECTargetPower((zwiftPower * 4))) {
               log_e("Error writing FEC target power");
             }
             break;
@@ -479,58 +504,57 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
           // SIM/ERG Mode Inclination
           case 0x22:
             if (requestValues.find(0x10) != requestValues.end()) {
-              currentInclination = requestValues.at(0x10); 
-              currentDeviceGrade = (uint16_t)(0x4E20 + currentInclination);
+              zwiftGrade = requestValues.at(0x10); 
             }
-            if (virtualShiftingEnabled) {
-              if (currentGearRatio != 0) {
-                currentDeviceGrade = calculateVirtualShiftingDeviceGrade();
-              } 
-              if (trainerMode == TrainerMode::SIM_MODE) {
-                if (!BTDeviceManager::writeFECTrackResistance(currentDeviceGrade)) {
-                  log_e("Error writing FEC track resistance");
-                }
+            // normal SIM mode w/o virtual shifting, switching to track resistance mode
+            if (zwiftTrainerMode == TrainerMode::SIM_MODE) {
+              if (!BTDeviceManager::writeFECTrackResistance((uint16_t)(0x4E20 + zwiftGrade))) {
+                log_e("Error writing FEC track resistance");
               }
-            } 
+            } else if (zwiftTrainerMode == TrainerMode::SIM_MODE_VIRTUAL_SHIFTING) {
+              if (!BTDeviceManager::writeFECBasicResistance(calculateFECResistancePercentageValue())) {
+                log_e("Error writing FEC basic resistance");
+              }
+            }
             break;
 
           // SIM mode parameter update
           case 0x2A:
-            if (trainerMode == TrainerMode::ERG_MODE) {
-              log_i("SIM mode requested");
-              trainerMode = TrainerMode::SIM_MODE;
+            if (unsignedRequestValues.find(0x10) != unsignedRequestValues.end()) {
+              zwiftGearRatio = unsignedRequestValues.at(0x10);
+            }
+            if (zwiftGearRatio == 0) {
+              newZwiftTrainerMode = TrainerMode::SIM_MODE;
+            } else {
+              newZwiftTrainerMode = TrainerMode::SIM_MODE_VIRTUAL_SHIFTING;
+            }
+            if (zwiftTrainerMode != newZwiftTrainerMode) {
+              if (newZwiftTrainerMode == TrainerMode::SIM_MODE) {
+                log_i("SIM mode requested");
+              } else {
+                log_i("SIM + VS mode requested");
+              }
+              zwiftTrainerMode = newZwiftTrainerMode;
+              updateStatusMessage();            
             }
             if (unsignedRequestValues.find(0x20) != unsignedRequestValues.end()) {
-              currentBicycleWeight = unsignedRequestValues.at(0x20);
+              zwiftBicycleWeight = unsignedRequestValues.at(0x20);
               if (unsignedRequestValues.find(0x28) != unsignedRequestValues.end()) {
-                currentUserWeight = unsignedRequestValues.at(0x28);
-                log_i("Received bicycle (%d) and user (%d) weight", currentBicycleWeight, currentUserWeight);
-                if (!BTDeviceManager::writeFECUserConfiguration(currentBicycleWeight, currentUserWeight, 0xFF, 0x00)) {
+                zwiftUserWeight = unsignedRequestValues.at(0x28);
+                if (!BTDeviceManager::writeFECUserConfiguration(zwiftBicycleWeight, zwiftUserWeight, 0xFF, 0x00)) {
                   log_e("Error writing FEC user configuration");
                 }
               }
             }
-            if (unsignedRequestValues.find(0x10) != unsignedRequestValues.end()) {
-              currentGearRatio = unsignedRequestValues.at(0x10);
-              if (currentGearRatio == 0) {
-                if (virtualShiftingEnabled) {
-                  log_i("Virtual shifting disabled");
-                }
-                virtualShiftingEnabled = false;
-              } else {
-                if (!virtualShiftingEnabled) {
-                  log_i("Virtual shifting enabled");
-                }
-                virtualShiftingEnabled = true;
+            // update track resistance mode
+            if (zwiftTrainerMode == TrainerMode::SIM_MODE) {
+              if (!BTDeviceManager::writeFECTrackResistance((uint16_t)(0x4E20 + zwiftGrade))) {
+                log_e("Error writing FEC track resistance");
               }
-            }
-            if (currentGearRatio != 0) {
-              currentDeviceGrade = calculateVirtualShiftingDeviceGrade();
-            } else {
-              currentDeviceGrade = (uint16_t)(0x4E20 + currentInclination);
-            }
-            if (!BTDeviceManager::writeFECTrackResistance(currentDeviceGrade)) {
-              log_e("Error writing FEC track resistance");
+            } else if (zwiftTrainerMode == TrainerMode::SIM_MODE_VIRTUAL_SHIFTING) {
+              if (!BTDeviceManager::writeFECBasicResistance(calculateFECResistancePercentageValue())) {
+                log_e("Error writing FEC basic resistance");
+              }
             }
             break;
 
@@ -575,6 +599,21 @@ void DirConManager::notifyDirConCharacteristic(const NimBLEUUID &characteristicU
 
 void DirConManager::notifyDirConCharacteristic(Characteristic *characteristic, uint8_t *pData, size_t length) {
   if (characteristic != nullptr) {
+    // Fetch FE-C information
+    if (characteristic->UUID.equals(NimBLEUUID(TACX_FEC_READ_CHARACTERISTIC_UUID))) {
+      //log_i("FEC DATA: %s", Utils::getHexString(pData, length).c_str());
+      if (length == 13) {
+        // switch for the FE-C data page received
+        switch (pData[4]) {
+          //page 54 - 0x36 - FE Capabilities
+          case 0x36:
+            trainerMaximumResistance = (pData[10] << 8) | pData[9];
+            //log_i("Maximum resistance %d", trainerMaximumResistance);
+          default:
+            break;
+        }
+      }
+    }
     // Fetch current power and cadence data
     if (characteristic->UUID.equals(NimBLEUUID(CYCLING_POWER_MEASUREMENT_CHARACTERISTIC_UUID))) {
       uint16_t flags = 0;
@@ -587,7 +626,7 @@ void DirConManager::notifyDirConCharacteristic(Characteristic *characteristic, u
         currentIndex += 2;
         if (length >= (currentIndex + 2)) {
           power = (pData[currentIndex + 1] << 8) | pData[currentIndex];
-          currentDevicePower = power;
+          trainerPower = power;
           currentIndex += 2;
           if ((flags & 1) == 1) {
             currentIndex += 1;  // Skip "Pedal Power Balance"
@@ -604,19 +643,19 @@ void DirConManager::notifyDirConCharacteristic(Characteristic *characteristic, u
               currentIndex += 2;
               crankLastEventTime = (pData[currentIndex + 1] << 8) | pData[currentIndex];
               currentIndex += 2;
-              if (!currentDeviceCrankStaleness) {
-                uint16_t eventTimeDiff = abs(crankLastEventTime - currentDeviceCrankLastEventTime);
-                uint16_t revolutionsDiff = abs(crankRevolutions - currentDeviceCrankRevolutions);
+              if (!trainerCrankStaleness) {
+                uint16_t eventTimeDiff = crankLastEventTime - trainerCrankLastEventTime;
+                uint16_t revolutionsDiff = crankRevolutions - trainerCrankRevolutions;
                 if (eventTimeDiff > 0) {
-                  currentDeviceCadence = 1024 * 60 * revolutionsDiff / eventTimeDiff;
+                  calculatedCadence = 1024 * 60 * revolutionsDiff / eventTimeDiff;
                 } else {
-                  currentDeviceCadence = revolutionsDiff;
+                  calculatedCadence = 0;
                 }
               } else {
-                currentDeviceCrankStaleness = false;
+                trainerCrankStaleness = false;
               }
-              currentDeviceCrankRevolutions = crankRevolutions;
-              currentDeviceCrankLastEventTime = crankLastEventTime;
+              trainerCrankRevolutions = crankRevolutions;
+              trainerCrankLastEventTime = crankLastEventTime;
             }
           }
         }
@@ -655,9 +694,7 @@ void DirConManager::notifyInternalCharacteristics() {
     if (service->isInternal()) {
       for (Characteristic *characteristic : service->getCharacteristics()) {
         if (characteristic->UUID.equals(NimBLEUUID(ZWIFT_ASYNC_CHARACTERISTIC_UUID))) {
-          currentPower = currentDevicePower;
-          currentCadence = currentDeviceCadence;
-          std::vector<uint8_t> notificationData = generateZwiftAsyncNotificationData(currentPower, currentCadence, 0, 0, 0);
+          std::vector<uint8_t> notificationData = generateZwiftAsyncNotificationData(trainerPower, calculatedCadence, 0, 0, 0);
           notifyDirConCharacteristic(characteristic, notificationData.data(), notificationData.size());
         }
       }
@@ -701,79 +738,20 @@ std::vector<uint8_t> DirConManager::generateZwiftAsyncNotificationData(int64_t p
   return notificationData;
 }
 
-int64_t DirConManager::getCurrentPower() {
-  return currentPower;
-}
-
-int64_t DirConManager::getCurrentCadence() {
-  return currentCadence;
-}
-
-int64_t DirConManager::getCurrentInclination() {
-  return currentInclination;
-}
-
-int64_t DirConManager::getCurrentGearRatio() {
-  return currentGearRatio;
-}
-
-int64_t DirConManager::getCurrentRequestedPower() {
-  return currentRequestedPower;
-}
-
-bool DirConManager::isVirtualShiftingEnabled() {
-  return virtualShiftingEnabled;
-}
-
-void DirConManager::setCurrentPower(int64_t power) {
-  currentPower = power;
-}
-
-void DirConManager::setCurrentCadence(int64_t cadence) {
-  currentCadence = cadence;
-}
-
-int16_t DirConManager::getCurrentDevicePower() {
-  return currentDevicePower;
-}
-
-uint16_t DirConManager::getCurrentDeviceCrankRevolutions() {
-  return currentDeviceCrankRevolutions;
-}
-
-uint16_t DirConManager::getCurrentDeviceCrankLastEventTime() {
-  return currentDeviceCrankLastEventTime;
-}
-
-uint16_t DirConManager::getCurrentDeviceCadence() {
-  return currentDeviceCadence;
-}
-
-uint16_t DirConManager::getCurrentDeviceGrade() {
-  return currentDeviceGrade;
-}
-
 String DirConManager::getStatusMessage() {
   return statusMessage;
 }
 
 void DirConManager::updateStatusMessage() {
 
-  if (trainerMode == TrainerMode::SIM_MODE) {
+  if (zwiftTrainerMode == TrainerMode::SIM_MODE) {
     statusMessage = "SIM";
+  } else if (zwiftTrainerMode == TrainerMode::SIM_MODE_VIRTUAL_SHIFTING) {
+    statusMessage = "SIM + VS";
   } else {
     statusMessage = "ERG";
   }
   statusMessage += " mode, ";
-
-  size_t advertisedServices = 0;
-  for (Service *currentService : serviceManager->getServices()) {
-    if (currentService->isAdvertised()) {
-      advertisedServices++;
-    }
-  }
-  statusMessage += advertisedServices;
-  statusMessage += " service(s), ";
 
   size_t connectedClients = 0;
   for (size_t clientIndex = 0; clientIndex < DIRCON_MAX_CLIENTS; clientIndex++) {
@@ -785,4 +763,70 @@ void DirConManager::updateStatusMessage() {
   statusMessage += "/";
   statusMessage += DIRCON_MAX_CLIENTS;
   statusMessage += " client(s)";
+}
+
+TrainerMode DirConManager::getZwiftTrainerMode() {
+  return zwiftTrainerMode;
+}
+
+uint16_t DirConManager::getCalculatedCadence() {
+  return calculatedCadence;
+}
+
+uint16_t DirConManager::getCalculatedResistance() {
+  return calculatedResistance;
+}
+
+uint8_t DirConManager::calculateFECResistancePercentageValue() {
+  uint8_t resistancePercentageValue = 200; // unit is 0.5% so 200=100%
+  uint8_t rollingResistanceCoefficient = 0x50; // unit 5x10^-5 (0.0 - 0.0127) -> default 0.004 => 80 = 0x50
+  uint16_t gravity = 981; // unit 0.01 -> default 9.81 => 981
+  uint16_t bicycleWeight = zwiftBicycleWeight; // unit 0.01 kg
+  uint16_t userWeight = zwiftUserWeight; // unit 0.01 kg
+  int16_t grade = zwiftGrade; // unit 0.01 % grade/slope
+  int16_t gravitationalResistance = 0; // unit 0.01 N
+  uint16_t rollingResistance = 0; // unit 0.01 N
+
+  // defaults according to FE-C specs
+  if (bicycleWeight == 0) {
+    bicycleWeight = 1000;
+  } 
+  if (userWeight == 0) {
+    userWeight = 7500;
+  }
+
+  // calculate with integers only and don't loose too much decimals
+  gravitationalResistance = ((bicycleWeight + userWeight) * grade / 10000) * gravity / 100;
+  //log_i("Gravitational resistance: %d", gravitationalResistance);
+  rollingResistance = ((bicycleWeight + userWeight) * rollingResistanceCoefficient / 2000) * gravity / 1000;
+  //log_i("Rolling resistance: %d", rollingResistance);
+
+  uint16_t relativeGearRatio = (zwiftGearRatio * 10) / (DEFAULT_GEAR_RATIO / 10); // unit 0.01
+  //log_i("Relative gear ratio: %d", relativeGearRatio);
+
+  // add relative gear ratio to rolling resistance
+  rollingResistance = (rollingResistance * relativeGearRatio) / 100; 
+
+  if (gravitationalResistance >= 0) {
+    gravitationalResistance = (gravitationalResistance * relativeGearRatio) / 100; 
+  } else {
+    gravitationalResistance = (gravitationalResistance * 100) / relativeGearRatio; 
+  }
+  //log_i("New gravitational resistance: %d", gravitationalResistance);
+  //log_i("New rolling resistance: %d", rollingResistance);
+
+  int16_t totalResistance = gravitationalResistance + rollingResistance;
+  //log_i("Total resistance: %d", totalResistance);
+
+  if (totalResistance < 0) {
+    totalResistance = 0;
+  }
+  if (trainerMaximumResistance != 0) {
+    if (totalResistance <= (trainerMaximumResistance * 100)) {
+      resistancePercentageValue = (totalResistance * 10) / trainerMaximumResistance * 2 / 10;
+    } 
+  }
+  //log_i("Percentage value (0.5perc. unit): %d", resistancePercentageValue);
+
+  return resistancePercentageValue;
 }

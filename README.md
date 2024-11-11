@@ -25,13 +25,15 @@ The SHIFTR is working in two modes, "Pass-through" and "Pass-through + virtual s
 ### Pass-through mode
 In this mode the SHIFTR just takes all services from the BLE trainer devices and provides them 1:1 via Direct Connect. It supports SIM and ERG mode as if the device would be connected via bluetooth.
 ### Pass-through + virtual shifting mode
-This mode provides the pass through features as mentioned before and additionally offers a special Zwift service via Direct Connect that allows to behave like a Zwift certified device offering also virtual shifting. All necessary information like bicycle and user weight are transmitted to the trainer so it will behave as before. SIM and ERG mode are supported but of course virtual shifting only works in SIM mode.
+This mode provides the pass through features as mentioned before and additionally offers a special Zwift service via Direct Connect that allows to behave like a Zwift certified device offering also virtual shifting. All necessary information like bicycle and user weight are transmitted by Zwift and used for calculations. SIM and ERG mode are supported but of course virtual shifting only works in SIM mode.
 
 The virtual gears are defined inside Zwift and don't need a special handling in SHIFTR. Zwift just sends the corresponding gear ratio (chainring:sprocket) between 0.75 and 5.49 on every shift. 
 
 Currently these are: 0.75 0.87 0.99 1.11 1.23 1.38 1.53 1.68 1.86 2.04 2.22 2.40 2.61 2.82 3.03 3.24 3.49 3.74 3.99 4.24 4.54 4.84 5.14 5.49
 
-As the Zwift Cog has 14 teeth and a standard chainring 34 teeth the default ratio in SHIFTR is defined at 2.40 which currently matches Zwift Gear 12. Every gear change will result in a higher or lower grade/slope value sent to the FE-C track resistance page. The original value comes from Zwift and will just be forwarded as long as virtual shifting is disabled or neither Zwift Play controllers or a Zwift Click are connected (which leads to a disabled virtual shifting). Otherwise the value is being modified linearly depending on the current gear ratio requested.
+As the Zwift Cog has 14 teeth and a standard chainring 34 teeth the default ratio in SHIFTR is defined at 2.43 which roughly matches Zwift Gear 12. This will later be configurable via the web interface so the calculations will become even better. This ratio is the base for all further gear calculations.
+
+Virtual shifting will be disabled if neither Zwift Play controllers nor a Zwift Click are connected which results in the standard SIM mode with a track resistance of 0%.
 
 ## Needed hardware
 - WT32-ETH01 ESP32 board (e.g. from [Amazon](https://www.amazon.de/WT32-ETH01-Embedded-Schnittstelle-Bluetooth-Entwicklungsplatine/dp/B0CW3DDWZ4))

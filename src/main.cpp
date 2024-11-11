@@ -354,31 +354,28 @@ void handleWebServerStatus() {
 }
 
 void handleWebServerDebug() {
+
   String json = "{";
-  json += "\"current_gear_ratio\": ";
-  json += DirConManager::getCurrentGearRatio();
-  json += ",";
-  json += "\"current_power\": ";
-  json += DirConManager::getCurrentPower();
-  json += ",";
-  json += "\"current_inclination\": ";
-  json += DirConManager::getCurrentInclination();
-  json += ",";
-  json += "\"current_cadence\": ";
-  json += DirConManager::getCurrentCadence();
-  json += ",";
-  json += "\"current_requested_power\": ";
-  json += DirConManager::getCurrentRequestedPower();
+  json += "\"zwift_trainer_mode\": \"";
+  switch (DirConManager::getZwiftTrainerMode()) {
+    case TrainerMode::SIM_MODE:
+      json += "SIM mode";
+      break;
+    case TrainerMode::SIM_MODE_VIRTUAL_SHIFTING:
+      json += "SIM + VS mode";
+      break;
+    default:
+      json += "ERG mode";
+      break;
+  }
+  json += "\",";
+
+  json += "\"calculated_cadence\": ";
+  json += DirConManager::getCalculatedCadence();
   json += ",";
 
-  json += "\"device_power\": ";
-  json += DirConManager::getCurrentDevicePower();
-  json += ",";
-  json += "\"device_cadence\": ";
-  json += DirConManager::getCurrentDeviceCadence();
-  json += ",";
-  json += "\"device_grade\": ";
-  json += DirConManager::getCurrentDeviceGrade();
+  json += "\"calculated_resistance\": ";
+  json += DirConManager::getCalculatedResistance();
   json += ",";
 
   String services_json = "\"ble_services\": {";
