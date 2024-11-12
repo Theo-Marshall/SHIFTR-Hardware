@@ -462,7 +462,7 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
     std::map<uint8_t, int64_t> requestValues = getZwiftDataValues(requestData);
     std::map<uint8_t, uint64_t> unsignedRequestValues = getUnsignedZwiftDataValues(requestData);
     TrainerMode newZwiftTrainerMode = zwiftTrainerMode;
-
+    uint8_t trainerBasicResistance = 0;
     // for development purposes
     /**/
     if ((zwiftCommandSubtype != 0x22) && (zwiftCommandSubtype != 0x18)) {
@@ -495,6 +495,7 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
             if (unsignedRequestValues.find(0x00) != unsignedRequestValues.end()) {
               zwiftPower = unsignedRequestValues.at(0x00);
             }
+            log_i("FEC target power: %d", (zwiftPower * 4));
             // FE-C target power is in 0.25W unit
             if (!BTDeviceManager::writeFECTargetPower((zwiftPower * 4))) {
               log_e("Error writing FEC target power");
@@ -508,11 +509,14 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
             }
             // normal SIM mode w/o virtual shifting, switching to track resistance mode
             if (zwiftTrainerMode == TrainerMode::SIM_MODE) {
+              log_i("FEC track resistance 22: %d", ((uint16_t)(0x4E20 + zwiftGrade)));
               if (!BTDeviceManager::writeFECTrackResistance((uint16_t)(0x4E20 + zwiftGrade))) {
                 log_e("Error writing FEC track resistance");
               }
             } else if (zwiftTrainerMode == TrainerMode::SIM_MODE_VIRTUAL_SHIFTING) {
-              if (!BTDeviceManager::writeFECBasicResistance(calculateFECResistancePercentageValue())) {
+              trainerBasicResistance = calculateFECResistancePercentageValue();
+              log_i("FEC basic resistance 22: %d", trainerBasicResistance);
+              if (!BTDeviceManager::writeFECBasicResistance(trainerBasicResistance)) {
                 log_e("Error writing FEC basic resistance");
               }
             }
@@ -548,11 +552,14 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
             }
             // update track resistance mode
             if (zwiftTrainerMode == TrainerMode::SIM_MODE) {
+              log_i("FEC track resistance 2A: %d", ((uint16_t)(0x4E20 + zwiftGrade)));
               if (!BTDeviceManager::writeFECTrackResistance((uint16_t)(0x4E20 + zwiftGrade))) {
                 log_e("Error writing FEC track resistance");
               }
             } else if (zwiftTrainerMode == TrainerMode::SIM_MODE_VIRTUAL_SHIFTING) {
-              if (!BTDeviceManager::writeFECBasicResistance(calculateFECResistancePercentageValue())) {
+              trainerBasicResistance = calculateFECResistancePercentageValue();
+              log_i("FEC basic resistance 2A: %d", trainerBasicResistance);
+              if (!BTDeviceManager::writeFECBasicResistance(trainerBasicResistance)) {
                 log_e("Error writing FEC basic resistance");
               }
             }
@@ -795,14 +802,16 @@ uint8_t DirConManager::calculateFECResistancePercentageValue() {
     userWeight = 7500;
   }
 
+  log_i("Grade: %d - %d", 0, zwiftGrade);
+
   // calculate with integers only and don't loose too much decimals
   gravitationalResistance = ((bicycleWeight + userWeight) * grade / 10000) * gravity / 100;
-  //log_i("Gravitational resistance: %d", gravitationalResistance);
+  log_i("Gravitational resistance: %d", gravitationalResistance);
   rollingResistance = ((bicycleWeight + userWeight) * rollingResistanceCoefficient / 2000) * gravity / 1000;
-  //log_i("Rolling resistance: %d", rollingResistance);
+  log_i("Rolling resistance: %d", rollingResistance);
 
   uint16_t relativeGearRatio = (zwiftGearRatio * 10) / (DEFAULT_GEAR_RATIO / 10); // unit 0.01
-  //log_i("Relative gear ratio: %d", relativeGearRatio);
+  log_i("Relative gear ratio: %d", relativeGearRatio);
 
   // add relative gear ratio to rolling resistance
   rollingResistance = (rollingResistance * relativeGearRatio) / 100; 
@@ -812,11 +821,11 @@ uint8_t DirConManager::calculateFECResistancePercentageValue() {
   } else {
     gravitationalResistance = (gravitationalResistance * 100) / relativeGearRatio; 
   }
-  //log_i("New gravitational resistance: %d", gravitationalResistance);
-  //log_i("New rolling resistance: %d", rollingResistance);
+  log_i("New gravitational resistance: %d", gravitationalResistance);
+  log_i("New rolling resistance: %d", rollingResistance);
 
   int16_t totalResistance = gravitationalResistance + rollingResistance;
-  //log_i("Total resistance: %d", totalResistance);
+  log_i("Total resistance: %d", totalResistance);
 
   if (totalResistance < 0) {
     totalResistance = 0;
