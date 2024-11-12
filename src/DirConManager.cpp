@@ -615,7 +615,7 @@ void DirConManager::notifyDirConCharacteristic(Characteristic *characteristic, u
           //page 54 - 0x36 - FE Capabilities
           case 0x36:
             trainerMaximumResistance = (pData[10] << 8) | pData[9];
-            //log_i("Maximum resistance %d", trainerMaximumResistance);
+            log_i("Trainer maximum resistance %d", trainerMaximumResistance);
           default:
             break;
         }
