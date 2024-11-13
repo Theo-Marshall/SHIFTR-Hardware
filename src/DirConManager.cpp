@@ -27,6 +27,8 @@ uint64_t DirConManager::zwiftGearRatio;
 uint16_t DirConManager::zwiftBicycleWeight;
 uint16_t DirConManager::zwiftUserWeight;
 int16_t DirConManager::trainerPower;
+uint16_t DirConManager::trainerInstantaneousPower;
+uint8_t DirConManager::trainerCadence;
 uint16_t DirConManager::trainerCrankRevolutions;
 uint16_t DirConManager::trainerCrankLastEventTime;
 uint16_t DirConManager::trainerMaximumResistance;
@@ -478,6 +480,7 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
     switch (zwiftCommand) {
       // Status request
       case 0x00:
+        log_e("Zwift 0x41 request, hex value: %s", Utils::getHexString(requestData).c_str());
         // do nothing
         return true;
         break;
@@ -579,6 +582,8 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
 
       // Unknown request, similar to 0x00
       case 0x41:
+        log_e("Zwift 0x41 request, hex value: %s", Utils::getHexString(requestData).c_str());
+
         // do nothing
         return true;
         break;
@@ -608,15 +613,19 @@ void DirConManager::notifyDirConCharacteristic(Characteristic *characteristic, u
   if (characteristic != nullptr) {
     // Fetch FE-C information
     if (characteristic->UUID.equals(NimBLEUUID(TACX_FEC_READ_CHARACTERISTIC_UUID))) {
-      //log_i("FEC DATA: %s", Utils::getHexString(pData, length).c_str());
       if (length == 13) {
         // switch for the FE-C data page received
         switch (pData[4]) {
+          //page 25 - 0x19 - Stationary Bike Data
+          case 0x19:
+            trainerCadence = pData[6];
+            trainerInstantaneousPower = ((pData[10] & 0xF) << 8) | pData[9];
           //page 54 - 0x36 - FE Capabilities
           case 0x36:
             trainerMaximumResistance = (pData[10] << 8) | pData[9];
             log_i("Trainer maximum resistance %d", trainerMaximumResistance);
           default:
+            log_i("FEC DATA: %s", Utils::getHexString(pData, length).c_str());
             break;
         }
       }
@@ -701,7 +710,8 @@ void DirConManager::notifyInternalCharacteristics() {
     if (service->isInternal()) {
       for (Characteristic *characteristic : service->getCharacteristics()) {
         if (characteristic->UUID.equals(NimBLEUUID(ZWIFT_ASYNC_CHARACTERISTIC_UUID))) {
-          std::vector<uint8_t> notificationData = generateZwiftAsyncNotificationData(trainerPower, calculatedCadence, 0, 0, 0);
+          //std::vector<uint8_t> notificationData = generateZwiftAsyncNotificationData(trainerPower, calculatedCadence, 0, 0, 0);
+          std::vector<uint8_t> notificationData = generateZwiftAsyncNotificationData(trainerInstantaneousPower, trainerCadence, 0, 0, 0);
           notifyDirConCharacteristic(characteristic, notificationData.data(), notificationData.size());
         }
       }

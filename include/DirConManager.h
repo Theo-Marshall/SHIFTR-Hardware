@@ -85,6 +85,8 @@ class DirConManager {
   static uint16_t zwiftUserWeight;
 
   static int16_t trainerPower;
+  static uint16_t trainerInstantaneousPower;
+  static uint8_t trainerCadence;
   static uint16_t trainerCrankRevolutions;
   static uint16_t trainerCrankLastEventTime;
   static uint16_t trainerMaximumResistance;
