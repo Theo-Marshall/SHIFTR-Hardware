@@ -523,7 +523,7 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
             } else if (zwiftTrainerMode == TrainerMode::SIM_MODE_VIRTUAL_SHIFTING) {
               trainerBasicResistance = calculateFECResistancePercentageValue((zwiftBicycleWeight + zwiftUserWeight) / 100,
                                                                               zwiftGrade / 100,
-                                                                              trainerInstantaneousSpeed / 100,
+                                                                              trainerInstantaneousSpeed / 1000,
                                                                               zwiftGearRatio / 100,
                                                                               DEFAULT_GEAR_RATIO / 100,
                                                                               trainerMaximumResistance);
@@ -571,7 +571,7 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
             } else if (zwiftTrainerMode == TrainerMode::SIM_MODE_VIRTUAL_SHIFTING) {
               trainerBasicResistance = calculateFECResistancePercentageValue((zwiftBicycleWeight + zwiftUserWeight) / 100,
                                                                               zwiftGrade / 100,
-                                                                              trainerInstantaneousSpeed / 100,
+                                                                              trainerInstantaneousSpeed / 1000,
                                                                               zwiftGearRatio / 100,
                                                                               DEFAULT_GEAR_RATIO / 100,
                                                                               trainerMaximumResistance);    
@@ -633,13 +633,16 @@ void DirConManager::notifyDirConCharacteristic(Characteristic *characteristic, u
           //page 16 - 0x10 - General FE Data
           case 0x10:
             trainerInstantaneousSpeed = (pData[9] << 8) | pData[8];
+            break;
           //page 25 - 0x19 - Stationary Bike Data
           case 0x19:
             trainerCadence = pData[6];
             trainerInstantaneousPower = ((pData[10] & 0xF) << 8) | pData[9];
+            break;
           //page 54 - 0x36 - FE Capabilities
           case 0x36:
             trainerMaximumResistance = (pData[10] << 8) | pData[9];
+            break;
           default:
             log_i("FEC DATA: %s", Utils::getHexString(pData, length).c_str());
             break;
@@ -824,34 +827,21 @@ uint8_t DirConManager::calculateFECResistancePercentageValue(double totalWeight,
   double dragForce = 0.5 * windResistanceCoefficient * pow(speed, 2);
   printf("Drag force: %f\n", dragForce);
 
-  // 0.75 0.87 0.99 1.11 1.23 1.38 1.53 1.68 1.86 2.04 2.22 2.40 2.61 2.82 3.03 3.24 3.49 3.74 3.99 4.24 4.54 4.84 5.14 5.49
   double relativeGearRatio = gearRatio / defaultGearRatio;
   printf("Relative gear ratio: %f\n", relativeGearRatio);
 
-  // add relative gear ratio to gravity force
-  if (gravityForce >= 0) {
-    gravityForce = gravityForce * relativeGearRatio; 
-  } else {
-    gravityForce = gravityForce / relativeGearRatio; 
-  }
-
-  // add relative gear ratio to rolling force
-  rollingForce = rollingForce * relativeGearRatio; 
-
-  // add relative gear ratio to drag force
-  if (dragForce >= 0) {
-    dragForce = dragForce * relativeGearRatio; 
-  } else {
-    dragForce = dragForce / relativeGearRatio; 
-  }
-
   double totalForce = gravityForce + rollingForce + dragForce;
+  printf("Total force before: %f\n", totalForce);
+  if (totalForce >= 0) {
+    totalForce = totalForce * relativeGearRatio;
+  } else {
+    totalForce = totalForce + (abs(totalForce) * relativeGearRatio);
+  }
   printf("Total force: %f\n", totalForce);
 
   if (totalForce < 0) {
     return 0;
   }
-
   if ((maximumResistance != 0) && (totalForce <= maximumResistance)) {
     return round(totalForce / maximumResistance * 200);
   } 

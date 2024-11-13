@@ -35,9 +35,11 @@ As the Zwift Cog has 14 teeth and a standard chainring 34 teeth the default rati
 
 Based on this ratio and the selected ratio from Zwift (e.g. 1.23 ~ "Gear 5") the ratio that will later be applied to the trainer's force will be calculated. Example:
 
-$GearRatio_{relative} = 1.23 / 2.4286 = 0.51$ (rounded)
+$R_{relative} = 1.23 / 2.4286 = 0.51$ (rounded)
 
-To set the correct resistance of the trainer the gravitational and the rolling force are calculated using formulas. The combined weight of you (the cyclist) and your bike is $W$ ($kg$). The gravitational force constant $g$ is 9.8067 ($m/s^2$). There is a dimensionless parameter, called the "Coefficient of Rolling Resistance", or $C_{rr}$, that captures the bumpiness of the road and the quality of your tires. There are some defaults specified in the FE-C docs:
+To set the correct resistance of the trainer the gravitational, the rolling and the drag force are calculated using formulas. 
+
+The combined weight of you (the cyclist) and your bike is $W$ ($kg$). The gravitational force constant $g$ is 9.8067 ($m/s^2$). There is a dimensionless parameter, called the "Coefficient of Rolling Resistance", or $C_{rr}$, that captures the bumpiness of the road and the quality of your tires. There are some defaults specified in the FE-C docs:
 
 | Terrain | Coefficient of Rolling Resistance | 
   |-|-|
@@ -84,13 +86,20 @@ As a unit this coefficient uses 0.01 kg/m and the default value of the trainer i
 
 $F_{drag} = 0.5 · C_{wr} · V_{as}^2$
 
-Now the relative gear ratio mentioned above will be applied to each of the forces. If the forces are positive the ratio will be multiplied, otherwise it will be divided to let  the force go in the right direction.
-
 The total force is the sum of these three forces:
 
 $F_{total} = F_{gravity} + F_{rolling} + F_{drag}$
 
-This force will then be used to set the trainer's resistance. Depending on the model there is a maximum force the trainer can apply. For a Tacx Vortex this is 50N which for a Tacx Neo 2T this is 200N. On every connection the maximum force is read out of the trainer. The basic resistance can only be set in 0.5% (0-200) and not in N as expected. So before applying the resistance it will be mapped to the correct 0.5% value. 
+In case of $F_{total} >= 0$ the relative gear ratio mentioned above will be applied by multiplication:
+
+$F_{total} = F_{total} · R_{relative}$
+
+Otherwise in case of $F_{total} < 0$ the relative gear ratio will be applied by multiplication with the absolute value and added to the original value:
+
+$F_{total} = F_{total} + (|F_{total}| · R_{relative})$
+
+
+The resulting force will then be used to set the trainer's resistance. Depending on the model there is a maximum force the trainer can apply. For a Tacx Vortex this is 50N which for a Tacx Neo 2T this is 200N. On every connection the maximum force is read out of the trainer. The basic resistance can only be set in 0.5% (0-200) and not in N as expected. So before applying the resistance it will be mapped to the correct 0.5% value. 
 
 ***Note***: Virtual shifting will be disabled if neither Zwift Play controllers nor a Zwift Click are connected which results in the standard SIM mode with a track resistance of 0%. Then you'd have to shift with your bike but with a Zwift Cog installed this doesn't make sense of course. If the controllers disconnect during a training then the fallback will be this normal SIM mode but as soon as the controllers a reconnected the virtual shifting will be enabled again.
 
