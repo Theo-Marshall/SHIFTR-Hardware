@@ -25,15 +25,74 @@ The SHIFTR is working in two modes, "Pass-through" and "Pass-through + virtual s
 ### Pass-through mode
 In this mode the SHIFTR just takes all services from the BLE trainer devices and provides them 1:1 via Direct Connect. It supports SIM and ERG mode as if the device would be connected via bluetooth.
 ### Pass-through + virtual shifting mode
-This mode provides the pass through features as mentioned before and additionally offers a special Zwift service via Direct Connect that allows to behave like a Zwift certified device offering also virtual shifting. All necessary information like bicycle and user weight are transmitted by Zwift and used for calculations. SIM and ERG mode are supported but of course virtual shifting only works in SIM mode.
-
+This mode provides the pass through features as mentioned before and additionally offers a special Zwift service via Direct Connect that allows to behave like a Zwift certified device offering virtual shifting, too. All necessary information like incline, bicycle and user weight, etc. are transmitted by Zwift and used for calculations. SIM and ERG mode are supported but of course virtual shifting only works in SIM mode.
+### Virtual shifting 
 The virtual gears are defined inside Zwift and don't need a special handling in SHIFTR. Zwift just sends the corresponding gear ratio (chainring:sprocket) between 0.75 and 5.49 on every shift. 
 
 Currently these are: 0.75 0.87 0.99 1.11 1.23 1.38 1.53 1.68 1.86 2.04 2.22 2.40 2.61 2.82 3.03 3.24 3.49 3.74 3.99 4.24 4.54 4.84 5.14 5.49
 
-As the Zwift Cog has 14 teeth and a standard chainring 34 teeth the default ratio in SHIFTR is defined at 2.43 which roughly matches Zwift Gear 12. This will later be configurable via the web interface so the calculations will become even better. This ratio is the base for all further gear calculations.
+As the Zwift Cog has 14 teeth and a standard chainring 34 teeth the default ratio in SHIFTR is defined at 2.4286 which roughly matches Zwift Gear 12. This ratio is the base for all further gear calculations.
 
-Virtual shifting will be disabled if neither Zwift Play controllers nor a Zwift Click are connected which results in the standard SIM mode with a track resistance of 0%.
+Based on this ratio and the selected ratio from Zwift (e.g. 1.23 ~ "Gear 5") the ratio that will later be applied to the trainer's force will be calculated. Example:
+
+$GearRatio_{relative} = 1.23 / 2.4286 = 0.51$ (rounded)
+
+To set the correct resistance of the trainer the gravitational and the rolling force are calculated using formulas. The combined weight of you (the cyclist) and your bike is $W$ ($kg$). The gravitational force constant $g$ is 9.8067 ($m/s^2$). There is a dimensionless parameter, called the "Coefficient of Rolling Resistance", or $C_{rr}$, that captures the bumpiness of the road and the quality of your tires. There are some defaults specified in the FE-C docs:
+
+| Terrain | Coefficient of Rolling Resistance | 
+  |-|-|
+  | Wooden Track | 0.001 |
+  | Smooth Concrete | 0.002 |
+  | Asphalt Road | 0.004 |
+  | Rough Road | 0.008 |
+
+This parameter is set by Zwift in normal SIM mode as `0x53`(= 83 dec) and equals (as the unit is $5·10^{-5}$) a value of 0.00415 which is kind of an "Asphalt Road" and also the default mentioned in the FE-C docs. The steepness of a hill will be provided by Zwift in terms of percentage grade $G$.
+
+Regarding the aerodynamic drag the head/tailwind $V_{hw} (m/s)$ isn't been taken into account from Zwift and is assumed 0. But the faster your groundspeed $V_{gs} (m/s)$ is, the more force the air pushes against you. Your airspeed $V_{as} (m/s)$ is the speed that the wind strikes your face, and it is the sum of your groundspeed $V_{gs}$ and the headwind speed $V_{hw}$. As well, you and your bike present a certain frontal area $A (m^2)$ to the air. The larger this frontal area, the more air you have to displace, and the larger the force the air pushes against you. The air density $Rho (kg/m^3)$ is also important. The more dense the air, the more force it exerts on you. Then there is another dimensionless parameter, called the "Drag Coefficient", or $C_{d}$, that captures other effects, like the slipperyness of your clothing and the degree to which air flows laminarly rather than turbulently around you and your bike. 
+
+Having all the values we can calculate as follows:
+
+$F_{gravity} = g · \sin(\arctan(\frac{G}{100})) · W$
+
+$F_{rolling} = g · \cos(\arctan(\frac{G}{100})) · W · C_{rr}$
+
+As we are calculating with no head/tailwind, our $V_{as}$ equals our $V_{gs}$ as we assume $V_{hw} = 0$ and the calculation would be:
+
+$V_{as} = V_{gs} + V_{hw}$
+
+$F_{drag} = 0.5 · C_d · A · Rho · V_{as}^2$
+
+The FE-C documentation uses a more simple approach by using a bundled coefficient $C_{wr} (kg/m)$ as the "Wind Resistance Coefficient" there:
+
+$C_{wr} = A · C_d · Rho$
+
+| Bicycle and Rider | Frontal Area ($m^2$) | 
+  |-|-|
+  | All-terrain (Mountain) Bike | 0.57 |
+  | Upright Commuting Bike | 0.55 |
+  | Road Bike, Touring Position | 0.40 |
+  | Racing Bike, Rider Crouched, Tight Clothing | 0.36 |
+
+| Bicycle and Rider | Drag Coefficient | 
+  |-|-|
+  | All-terrain (Mountain) Bike | 1.20 |
+  | Upright Commuting Bike | 1.15 |
+  | Road Bike, Touring Position | 1.0 |
+  | Racing Bike, Rider Crouched, Tight Clothing | 0.88 |
+
+As a unit this coefficient uses 0.01 kg/m and the default value of the trainer is `0x33` (=51 dec) which equals 0.51 kg/m while using the standard density of air, 1.275kg/m3 (15°C at sea level) and the "Road Bike" parameters for frontal area and drag coefficient as the default.
+
+$F_{drag} = 0.5 · C_{wr} · V_{as}^2$
+
+Now the relative gear ratio mentioned above will be applied to each of the forces. If the forces are positive the ratio will be multiplied, otherwise it will be divided to let  the force go in the right direction.
+
+The total force is the sum of these three forces:
+
+$F_{total} = F_{gravity} + F_{rolling} + F_{drag}$
+
+This force will then be used to set the trainer's resistance. Depending on the model there is a maximum force the trainer can apply. For a Tacx Vortex this is 50N which for a Tacx Neo 2T this is 200N. On every connection the maximum force is read out of the trainer. The basic resistance can only be set in 0.5% (0-200) and not in N as expected. So before applying the resistance it will be mapped to the correct 0.5% value. 
+
+***Note***: Virtual shifting will be disabled if neither Zwift Play controllers nor a Zwift Click are connected which results in the standard SIM mode with a track resistance of 0%. Then you'd have to shift with your bike but with a Zwift Cog installed this doesn't make sense of course. If the controllers disconnect during a training then the fallback will be this normal SIM mode but as soon as the controllers a reconnected the virtual shifting will be enabled again.
 
 ## Needed hardware
 - WT32-ETH01 ESP32 board (e.g. from [Amazon](https://www.amazon.de/WT32-ETH01-Embedded-Schnittstelle-Bluetooth-Entwicklungsplatine/dp/B0CW3DDWZ4))
@@ -86,6 +145,10 @@ Virtual shifting will be disabled if neither Zwift Play controllers nor a Zwift 
 ## Thank you!
 You've made it to the end, hopefully you'll have fun rebuilding the whole thing. Please tell me if you like it and if it works as expected.
 In case of any questions feel free to contact me!
+
+## Disclaimer
+Please always check the documentation of the hardware you bought as there are sometimes small changes in pin assignments, voltage and so on. I don't take any liability for damages or injuries. Build this project at you own risk. The linked products and pages are for reference only. I don't get any money from the manufacturers or the (re)sellers.
+
 
 
 

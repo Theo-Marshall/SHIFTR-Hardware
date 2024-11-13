@@ -65,7 +65,7 @@ class DirConManager {
   static std::map<uint8_t, uint64_t> getUnsignedZwiftDataValues(std::vector<uint8_t>* requestData);
   static void sendDirConCharacteristicNotification(const NimBLEUUID& characteristicUUID, uint8_t* pData, size_t length, bool onlySubscribers);
   static void sendDirConCharacteristicNotification(Characteristic* characteristic, uint8_t* pData, size_t length, bool onlySubscribers);
-  static uint8_t calculateFECResistancePercentageValue();
+  static uint8_t calculateFECResistancePercentageValue(double totalWeight, double grade, double speed, double gearRatio, double defaultGearRatio, uint16_t maximumResistance);
   static void updateStatusMessage();
   static void resetValues();
   static ServiceManager* serviceManager;
@@ -86,6 +86,7 @@ class DirConManager {
 
   static int16_t trainerPower;
   static uint16_t trainerInstantaneousPower;
+  static uint16_t trainerInstantaneousSpeed;
   static uint8_t trainerCadence;
   static uint16_t trainerCrankRevolutions;
   static uint16_t trainerCrankLastEventTime;

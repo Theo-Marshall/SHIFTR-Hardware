@@ -28,6 +28,7 @@ uint16_t DirConManager::zwiftBicycleWeight;
 uint16_t DirConManager::zwiftUserWeight;
 int16_t DirConManager::trainerPower;
 uint16_t DirConManager::trainerInstantaneousPower;
+uint16_t DirConManager::trainerInstantaneousSpeed;
 uint8_t DirConManager::trainerCadence;
 uint16_t DirConManager::trainerCrankRevolutions;
 uint16_t DirConManager::trainerCrankLastEventTime;
@@ -86,6 +87,9 @@ void DirConManager::resetValues() {
   zwiftBicycleWeight = 1000;
   zwiftUserWeight = 7500;
   trainerPower = 0;
+  trainerInstantaneousPower = 0;
+  trainerInstantaneousSpeed = 0;
+  trainerCadence = 0;
   trainerCrankRevolutions = 0;
   trainerCrankLastEventTime = 0;
   trainerMaximumResistance = 0;
@@ -517,7 +521,12 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
                 log_e("Error writing FEC track resistance");
               }
             } else if (zwiftTrainerMode == TrainerMode::SIM_MODE_VIRTUAL_SHIFTING) {
-              trainerBasicResistance = calculateFECResistancePercentageValue();
+              trainerBasicResistance = calculateFECResistancePercentageValue((zwiftBicycleWeight + zwiftUserWeight) / 100,
+                                                                              zwiftGrade / 100,
+                                                                              trainerInstantaneousSpeed / 100,
+                                                                              zwiftGearRatio / 100,
+                                                                              DEFAULT_GEAR_RATIO / 100,
+                                                                              trainerMaximumResistance);
               log_i("FEC basic resistance 22: %d", trainerBasicResistance);
               if (!BTDeviceManager::writeFECBasicResistance(trainerBasicResistance)) {
                 log_e("Error writing FEC basic resistance");
@@ -560,7 +569,12 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
                 log_e("Error writing FEC track resistance");
               }
             } else if (zwiftTrainerMode == TrainerMode::SIM_MODE_VIRTUAL_SHIFTING) {
-              trainerBasicResistance = calculateFECResistancePercentageValue();
+              trainerBasicResistance = calculateFECResistancePercentageValue((zwiftBicycleWeight + zwiftUserWeight) / 100,
+                                                                              zwiftGrade / 100,
+                                                                              trainerInstantaneousSpeed / 100,
+                                                                              zwiftGearRatio / 100,
+                                                                              DEFAULT_GEAR_RATIO / 100,
+                                                                              trainerMaximumResistance);    
               log_i("FEC basic resistance 2A: %d", trainerBasicResistance);
               if (!BTDeviceManager::writeFECBasicResistance(trainerBasicResistance)) {
                 log_e("Error writing FEC basic resistance");
@@ -616,6 +630,9 @@ void DirConManager::notifyDirConCharacteristic(Characteristic *characteristic, u
       if (length == 13) {
         // switch for the FE-C data page received
         switch (pData[4]) {
+          //page 16 - 0x10 - General FE Data
+          case 0x10:
+            trainerInstantaneousSpeed = (pData[9] << 8) | pData[8];
           //page 25 - 0x19 - Stationary Bike Data
           case 0x19:
             trainerCadence = pData[6];
@@ -623,7 +640,6 @@ void DirConManager::notifyDirConCharacteristic(Characteristic *characteristic, u
           //page 54 - 0x36 - FE Capabilities
           case 0x36:
             trainerMaximumResistance = (pData[10] << 8) | pData[9];
-            log_i("Trainer maximum resistance %d", trainerMaximumResistance);
           default:
             log_i("FEC DATA: %s", Utils::getHexString(pData, length).c_str());
             break;
@@ -794,58 +810,50 @@ uint16_t DirConManager::getCalculatedResistance() {
   return calculatedResistance;
 }
 
-uint8_t DirConManager::calculateFECResistancePercentageValue() {
-  uint8_t resistancePercentageValue = 200; // unit is 0.5% so 200=100%
-  uint8_t rollingResistanceCoefficient = 0x50; // unit 5x10^-5 (0.0 - 0.0127) -> default 0.004 => 80 = 0x50
-  uint16_t gravity = 981; // unit 0.01 -> default 9.81 => 981
-  uint16_t bicycleWeight = zwiftBicycleWeight; // unit 0.01 kg
-  uint16_t userWeight = zwiftUserWeight; // unit 0.01 kg
-  int16_t grade = zwiftGrade; // unit 0.01 % grade/slope
-  int16_t gravitationalResistance = 0; // unit 0.01 N
-  uint16_t rollingResistance = 0; // unit 0.01 N
+uint8_t DirConManager::calculateFECResistancePercentageValue(double totalWeight, double grade, double speed, double gearRatio, double defaultGearRatio, uint16_t maximumResistance) {
+  double const gravity = 9.81;
+  double const rollingResistanceCoefficient = 0.00415;
+  double const windResistanceCoefficient = 0.51;
+  
+  double gravityForce = gravity * sin(atan(grade/100)) * totalWeight;
+  printf("Gravity force: %f\n", gravityForce);
 
-  // defaults according to FE-C specs
-  if (bicycleWeight == 0) {
-    bicycleWeight = 1000;
-  } 
-  if (userWeight == 0) {
-    userWeight = 7500;
-  }
+  double rollingForce = gravity * cos(atan(grade/100)) * totalWeight * rollingResistanceCoefficient;
+  printf("Rolling force: %f\n", rollingForce);
 
-  log_i("Grade: %d - %d", 0, zwiftGrade);
+  double dragForce = 0.5 * windResistanceCoefficient * pow(speed, 2);
+  printf("Drag force: %f\n", dragForce);
 
-  // calculate with integers only and don't loose too much decimals
-  gravitationalResistance = ((bicycleWeight + userWeight) * grade / 10000) * gravity / 100;
-  log_i("Gravitational resistance: %d", gravitationalResistance);
-  rollingResistance = ((bicycleWeight + userWeight) * rollingResistanceCoefficient / 2000) * gravity / 1000;
-  log_i("Rolling resistance: %d", rollingResistance);
+  // 0.75 0.87 0.99 1.11 1.23 1.38 1.53 1.68 1.86 2.04 2.22 2.40 2.61 2.82 3.03 3.24 3.49 3.74 3.99 4.24 4.54 4.84 5.14 5.49
+  double relativeGearRatio = gearRatio / defaultGearRatio;
+  printf("Relative gear ratio: %f\n", relativeGearRatio);
 
-  uint16_t relativeGearRatio = (zwiftGearRatio * 10) / (DEFAULT_GEAR_RATIO / 10); // unit 0.01
-  log_i("Relative gear ratio: %d", relativeGearRatio);
-
-  // add relative gear ratio to rolling resistance
-  rollingResistance = (rollingResistance * relativeGearRatio) / 100; 
-
-  if (gravitationalResistance >= 0) {
-    gravitationalResistance = (gravitationalResistance * relativeGearRatio) / 100; 
+  // add relative gear ratio to gravity force
+  if (gravityForce >= 0) {
+    gravityForce = gravityForce * relativeGearRatio; 
   } else {
-    gravitationalResistance = (gravitationalResistance * 100) / relativeGearRatio; 
+    gravityForce = gravityForce / relativeGearRatio; 
   }
-  log_i("New gravitational resistance: %d", gravitationalResistance);
-  log_i("New rolling resistance: %d", rollingResistance);
 
-  int16_t totalResistance = gravitationalResistance + rollingResistance;
-  log_i("Total resistance: %d", totalResistance);
+  // add relative gear ratio to rolling force
+  rollingForce = rollingForce * relativeGearRatio; 
 
-  if (totalResistance < 0) {
-    totalResistance = 0;
+  // add relative gear ratio to drag force
+  if (dragForce >= 0) {
+    dragForce = dragForce * relativeGearRatio; 
+  } else {
+    dragForce = dragForce / relativeGearRatio; 
   }
-  if (trainerMaximumResistance != 0) {
-    if (totalResistance <= (trainerMaximumResistance * 100)) {
-      resistancePercentageValue = (totalResistance * 10) / trainerMaximumResistance * 2 / 10;
-    } 
-  }
-  //log_i("Percentage value (0.5perc. unit): %d", resistancePercentageValue);
 
-  return resistancePercentageValue;
+  double totalForce = gravityForce + rollingForce + dragForce;
+  printf("Total force: %f\n", totalForce);
+
+  if (totalForce < 0) {
+    return 0;
+  }
+
+  if ((maximumResistance != 0) && (totalForce <= maximumResistance)) {
+    return round(totalForce / maximumResistance * 200);
+  } 
+  return 200;
 }
