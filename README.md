@@ -1,7 +1,7 @@
 # SHIFTR
 A BLE to Direct Connect bridge for bike trainers using a WT32-ETH01 module based on ESP32. Additionally adding Zwift™️ "virtual shifting" functionality to any device supporting FE-C over BLE.
 
-Currently tested with Garmin/Tacx NEO 2T and Vortex but should also work on other trainers supporting FE-C over BLE and the "Cycling Power Service".
+Currently tested with Garmin/Tacx NEO 2T and Vortex but should also work on other trainers supporting FE-C over BLE.
 
 ## Overview
 Bike trainers heavily evolved over the last years. Tacx (acquired by Garmin some years ago) is one of the market leaders producing bike trainers of a very high quality with special features like e.g. "Road Feeling" to simulate different road surfaces. 
@@ -20,6 +20,8 @@ As I wanted to have a convenient solution that doesn't require a special program
 Now I have a great setup with a Garmin/Tacx NEO 2T with a Zwift Cog installed and communicating to Zwift via ethernet while still having the "Road Feeling" feature: 
 ![The whole setup](images/tacx_neo_2t_and_zwift_cog_and_device.jpg)
 
+This setup even works great with Zwift running on an Apple TV. Apple TV only support two simultaneous bluetooth connections and those can now be used for the Zwift Play controllers while the trainer itself is being connected through ethernet.
+
 ## How it works
 The SHIFTR is working in two modes, "Pass-through" and "Pass-through + virtual shifting":
 ### Pass-through mode
@@ -33,16 +35,20 @@ Currently these are: 0.75 0.87 0.99 1.11 1.23 1.38 1.53 1.68 1.86 2.04 2.22 2.40
 
 As the Zwift Cog has 14 teeth and a standard chainring 34 teeth the default ratio in SHIFTR is defined at 2.4286 which roughly matches Zwift Gear 12. This ratio is the base for all further gear calculations.
 
-Based on this ratio and the selected ratio from Zwift (e.g. 1.23 ~ "Gear 5") the ratio that will later be applied to the trainer's force will be calculated. Example:
+Based on this ratio and the selected ratio from Zwift (e.g. 1.23 ~ "Gear 5") the ratio that will later be applied to the trainer's force will be calculated:
+
+$R_{relative} = R_{selected} / R_{standard}$ 
+
+Example: 
 
 $R_{relative} = 1.23 / 2.4286 = 0.51$ (rounded)
 
-To set the correct resistance of the trainer the gravitational, the rolling and the drag force are calculated using formulas. 
+To set the correct resistance of the trainer, the gravitational, the rolling and the drag force are calculated using formulas. 
 
 The combined weight of you (the cyclist) and your bike is $W$ ($kg$). The gravitational force constant $g$ is 9.8067 ($m/s^2$). There is a dimensionless parameter, called the "Coefficient of Rolling Resistance", or $C_{rr}$, that captures the bumpiness of the road and the quality of your tires. There are some defaults specified in the FE-C docs:
 
 | Terrain | Coefficient of Rolling Resistance | 
-  |-|-|
+  |-|-:|
   | Wooden Track | 0.001 |
   | Smooth Concrete | 0.002 |
   | Asphalt Road | 0.004 |
@@ -68,19 +74,12 @@ The FE-C documentation uses a more simple approach by using a bundled coefficien
 
 $C_{wr} = A · C_d · Rho$
 
-| Bicycle and Rider | Frontal Area ($m^2$) | 
-  |-|-|
-  | All-terrain (Mountain) Bike | 0.57 |
-  | Upright Commuting Bike | 0.55 |
-  | Road Bike, Touring Position | 0.40 |
-  | Racing Bike, Rider Crouched, Tight Clothing | 0.36 |
-
-| Bicycle and Rider | Drag Coefficient | 
-  |-|-|
-  | All-terrain (Mountain) Bike | 1.20 |
-  | Upright Commuting Bike | 1.15 |
-  | Road Bike, Touring Position | 1.0 |
-  | Racing Bike, Rider Crouched, Tight Clothing | 0.88 |
+| Bicycle and Rider | Frontal Area ($m^2$) | Drag Coefficient |  
+  |-|-:|-:|
+  | All-terrain (Mountain) Bike | 0.57 | 1.20 |
+  | Upright Commuting Bike | 0.55 | 1.15 |
+  | Road Bike, Touring Position | 0.40 | 1.0 |
+  | Racing Bike, Rider Crouched, Tight Clothing | 0.36 | 0.88 |
 
 As a unit this coefficient uses 0.01 kg/m and the default value of the trainer is `0x33` (=51 dec) which equals 0.51 kg/m while using the standard density of air, 1.275kg/m3 (15°C at sea level) and the "Road Bike" parameters for frontal area and drag coefficient as the default.
 
@@ -99,7 +98,7 @@ Otherwise in case of $F_{total} < 0$ the relative gear ratio will be applied by 
 $F_{total} = F_{total} + (|F_{total}| · R_{relative})$
 
 
-The resulting force will then be used to set the trainer's resistance. Depending on the model there is a maximum force the trainer can apply. For a Tacx Vortex this is 50N which for a Tacx Neo 2T this is 200N. On every connection the maximum force is read out of the trainer. The basic resistance can only be set in 0.5% (0-200) and not in N as expected. So before applying the resistance it will be mapped to the correct 0.5% value. 
+The resulting force will then be used to set the trainer's resistance. Depending on the model there is a maximum force the trainer can apply. For a Tacx Vortex this is 50N and for a Tacx Neo 2T this is 200N. On every connection the maximum force is read out of the trainer. The basic resistance can only be set in 0.5% (0-200) and not in N as expected. So before applying the resistance it will be mapped to the correct 0.5% value. 
 
 ***Note***: Virtual shifting will be disabled if neither Zwift Play controllers nor a Zwift Click are connected which results in the standard SIM mode with a track resistance of 0%. Then you'd have to shift with your bike but with a Zwift Cog installed this doesn't make sense of course. If the controllers disconnect during a training then the fallback will be this normal SIM mode but as soon as the controllers a reconnected the virtual shifting will be enabled again.
 
