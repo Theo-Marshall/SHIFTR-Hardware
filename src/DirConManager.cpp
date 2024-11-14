@@ -9,6 +9,7 @@
 #include <leb128.h>
 #include <uleb128.h>
 #include <SettingsManager.h>
+#include <Calculations.h>
 
 ServiceManager *DirConManager::serviceManager{};
 Timer<> DirConManager::notificationTimer = timer_create_default();
@@ -492,7 +493,7 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
                 log_e("Error writing FEC track resistance");
               }
             } else if (zwiftTrainerMode == TrainerMode::SIM_MODE_VIRTUAL_SHIFTING) {
-              trainerBasicResistance = calculateFECResistancePercentageValue((zwiftBicycleWeight + zwiftUserWeight) / 100,
+              trainerBasicResistance = Calculations::calculateFECResistancePercentageValue((zwiftBicycleWeight + zwiftUserWeight) / 100,
                                                                               zwiftGrade / 100,
                                                                               trainerInstantaneousSpeed / 1000,
                                                                               zwiftGearRatio / 100,
@@ -540,7 +541,7 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
                 log_e("Error writing FEC track resistance");
               }
             } else if (zwiftTrainerMode == TrainerMode::SIM_MODE_VIRTUAL_SHIFTING) {
-              trainerBasicResistance = calculateFECResistancePercentageValue((zwiftBicycleWeight + zwiftUserWeight) / 100,
+              trainerBasicResistance = Calculations::calculateFECResistancePercentageValue((zwiftBicycleWeight + zwiftUserWeight) / 100,
                                                                               zwiftGrade / 100,
                                                                               trainerInstantaneousSpeed / 1000,
                                                                               zwiftGearRatio / 100,
@@ -727,39 +728,4 @@ void DirConManager::updateStatusMessage() {
 
 TrainerMode DirConManager::getZwiftTrainerMode() {
   return zwiftTrainerMode;
-}
-
-uint8_t DirConManager::calculateFECResistancePercentageValue(double totalWeight, double grade, double speed, double gearRatio, double defaultGearRatio, uint16_t maximumResistance) {
-  double const gravity = 9.81;
-  double const rollingResistanceCoefficient = 0.00415;
-  double const windResistanceCoefficient = 0.51;
-  
-  double gravityForce = gravity * sin(atan(grade/100)) * totalWeight;
-  printf("Gravity force: %f\n", gravityForce);
-
-  double rollingForce = gravity * cos(atan(grade/100)) * totalWeight * rollingResistanceCoefficient;
-  printf("Rolling force: %f\n", rollingForce);
-
-  double dragForce = 0.5 * windResistanceCoefficient * pow(speed, 2);
-  printf("Drag force: %f\n", dragForce);
-
-  double relativeGearRatio = gearRatio / defaultGearRatio;
-  printf("Relative gear ratio: %f\n", relativeGearRatio);
-
-  double totalForce = gravityForce + rollingForce + dragForce;
-  printf("Total force before: %f\n", totalForce);
-  if (totalForce >= 0) {
-    totalForce = totalForce * relativeGearRatio;
-  } else {
-    totalForce = totalForce + (abs(totalForce) * relativeGearRatio);
-  }
-  printf("Total force: %f\n", totalForce);
-
-  if (totalForce < 0) {
-    return 0;
-  }
-  if ((maximumResistance != 0) && (totalForce <= maximumResistance)) {
-    return round(totalForce / maximumResistance * 200);
-  } 
-  return 200;
 }
