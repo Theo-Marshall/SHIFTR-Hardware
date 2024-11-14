@@ -26,33 +26,10 @@ int64_t DirConManager::zwiftGrade;
 uint64_t DirConManager::zwiftGearRatio;
 uint16_t DirConManager::zwiftBicycleWeight;
 uint16_t DirConManager::zwiftUserWeight;
-int16_t DirConManager::trainerPower;
 uint16_t DirConManager::trainerInstantaneousPower;
 uint16_t DirConManager::trainerInstantaneousSpeed;
 uint8_t DirConManager::trainerCadence;
-uint16_t DirConManager::trainerCrankRevolutions;
-uint16_t DirConManager::trainerCrankLastEventTime;
 uint16_t DirConManager::trainerMaximumResistance;
-bool DirConManager::trainerCrankStaleness;
-uint16_t DirConManager::calculatedCadence;
-uint16_t DirConManager::calculatedResistance;
-
-/*
-int64_t DirConManager::currentPower = 0;
-int64_t DirConManager::currentCadence = 0;
-int64_t DirConManager::currentInclination = 0;
-int64_t DirConManager::currentGearRatio = 0;
-int64_t DirConManager::currentRequestedPower = 0;
-uint16_t DirConManager::currentUserWeight = 0xFFFF;
-uint16_t DirConManager::currentBicycleWeight = 0xFFFF;
-int16_t DirConManager::currentDevicePower = 0;
-uint16_t DirConManager::currentDeviceCrankRevolutions = 0;
-uint16_t DirConManager::currentDeviceCrankLastEventTime = 0;
-bool DirConManager::currentDeviceCrankStaleness = true;
-uint16_t DirConManager::currentDeviceCadence = 0;
-uint16_t DirConManager::currentDeviceGrade = 0;
-bool DirConManager::virtualShiftingEnabled = false;
-*/
 
 class DirConServiceManagerCallbacks : public ServiceManagerCallbacks {
   void onServiceAdded(Service *service) {
@@ -86,16 +63,10 @@ void DirConManager::resetValues() {
   zwiftGearRatio = 0;
   zwiftBicycleWeight = 1000;
   zwiftUserWeight = 7500;
-  trainerPower = 0;
   trainerInstantaneousPower = 0;
   trainerInstantaneousSpeed = 0;
   trainerCadence = 0;
-  trainerCrankRevolutions = 0;
-  trainerCrankLastEventTime = 0;
   trainerMaximumResistance = 0;
-  trainerCrankStaleness = true;
-  calculatedCadence = 0;
-  calculatedResistance = 0;
 }
 
 void DirConManager::setServiceManager(ServiceManager *serviceManager) {
@@ -644,55 +615,8 @@ void DirConManager::notifyDirConCharacteristic(Characteristic *characteristic, u
             trainerMaximumResistance = (pData[10] << 8) | pData[9];
             break;
           default:
-            log_i("FEC DATA: %s", Utils::getHexString(pData, length).c_str());
+            //log_i("FEC DATA: %s", Utils::getHexString(pData, length).c_str());
             break;
-        }
-      }
-    }
-    // Fetch current power and cadence data
-    if (characteristic->UUID.equals(NimBLEUUID(CYCLING_POWER_MEASUREMENT_CHARACTERISTIC_UUID))) {
-      uint16_t flags = 0;
-      int16_t power = 0;
-      uint16_t crankRevolutions = 0;
-      uint16_t crankLastEventTime = 0;
-      size_t currentIndex = 0;
-      if (length >= (currentIndex + 2)) {
-        flags = (pData[currentIndex + 1] << 8) | pData[currentIndex];
-        currentIndex += 2;
-        if (length >= (currentIndex + 2)) {
-          power = (pData[currentIndex + 1] << 8) | pData[currentIndex];
-          trainerPower = power;
-          currentIndex += 2;
-          if ((flags & 1) == 1) {
-            currentIndex += 1;  // Skip "Pedal Power Balance"
-          }
-          if ((flags & 4) == 4) {
-            currentIndex += 2;  // Skip "Accumulated Torque"
-          }
-          if ((flags & 16) == 16) {
-            currentIndex += 6;  // Skip "Wheel Revolution Data"
-          }
-          if ((flags & 32) == 32) {
-            if (length >= (currentIndex + 4)) {
-              crankRevolutions = (pData[currentIndex + 1] << 8) | pData[currentIndex];
-              currentIndex += 2;
-              crankLastEventTime = (pData[currentIndex + 1] << 8) | pData[currentIndex];
-              currentIndex += 2;
-              if (!trainerCrankStaleness) {
-                uint16_t eventTimeDiff = crankLastEventTime - trainerCrankLastEventTime;
-                uint16_t revolutionsDiff = crankRevolutions - trainerCrankRevolutions;
-                if (eventTimeDiff > 0) {
-                  calculatedCadence = 1024 * 60 * revolutionsDiff / eventTimeDiff;
-                } else {
-                  calculatedCadence = 0;
-                }
-              } else {
-                trainerCrankStaleness = false;
-              }
-              trainerCrankRevolutions = crankRevolutions;
-              trainerCrankLastEventTime = crankLastEventTime;
-            }
-          }
         }
       }
     }
@@ -803,14 +727,6 @@ void DirConManager::updateStatusMessage() {
 
 TrainerMode DirConManager::getZwiftTrainerMode() {
   return zwiftTrainerMode;
-}
-
-uint16_t DirConManager::getCalculatedCadence() {
-  return calculatedCadence;
-}
-
-uint16_t DirConManager::getCalculatedResistance() {
-  return calculatedResistance;
 }
 
 uint8_t DirConManager::calculateFECResistancePercentageValue(double totalWeight, double grade, double speed, double gearRatio, double defaultGearRatio, uint16_t maximumResistance) {

@@ -370,14 +370,6 @@ void handleWebServerDebug() {
   }
   json += "\",";
 
-  json += "\"calculated_cadence\": ";
-  json += DirConManager::getCalculatedCadence();
-  json += ",";
-
-  json += "\"calculated_resistance\": ";
-  json += DirConManager::getCalculatedResistance();
-  json += ",";
-
   String services_json = "\"ble_services\": {";
   for (Service* service : serviceManager.getServices()) {
     services_json += "\"";

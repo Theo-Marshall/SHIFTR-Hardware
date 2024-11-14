@@ -25,25 +25,7 @@ class DirConManager {
   static void setServiceManager(ServiceManager* serviceManager);
   static void notifyDirConCharacteristic(const NimBLEUUID& characteristicUUID, uint8_t* pData, size_t length);
   static String getStatusMessage();
-  /*
-  static int64_t getCurrentPower();
-  static int64_t getCurrentCadence();
-  static int64_t getCurrentInclination();
-  static int64_t getCurrentGearRatio();
-  static int64_t getCurrentRequestedPower();
-  static int16_t getCurrentDevicePower();
-  static uint16_t getCurrentDeviceCrankRevolutions();
-  static uint16_t getCurrentDeviceCrankLastEventTime();
-  static uint16_t getCurrentDeviceCadence();
-  static uint16_t getCurrentDeviceGrade();
-  static bool isVirtualShiftingEnabled();
-  static void setCurrentPower(int64_t power);
-  static void setCurrentCadence(int64_t cadence);
-  */
   static TrainerMode getZwiftTrainerMode();
-  static uint16_t getCalculatedCadence();
-  static uint16_t getCalculatedResistance();
-  
 
  private:
   friend class DirConServiceManagerCallbacks;
@@ -84,17 +66,10 @@ class DirConManager {
   static uint16_t zwiftBicycleWeight;
   static uint16_t zwiftUserWeight;
 
-  static int16_t trainerPower;
   static uint16_t trainerInstantaneousPower;
   static uint16_t trainerInstantaneousSpeed;
   static uint8_t trainerCadence;
-  static uint16_t trainerCrankRevolutions;
-  static uint16_t trainerCrankLastEventTime;
   static uint16_t trainerMaximumResistance;
-  static bool trainerCrankStaleness;
-
-  static uint16_t calculatedCadence;
-  static uint16_t calculatedResistance;
 };
 
 #endif
