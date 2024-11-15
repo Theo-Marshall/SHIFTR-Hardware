@@ -252,6 +252,22 @@ void handleWebServerSettings() {
   } else {
     json += "false";
   }
+  json += ",";
+
+  json += "\"chainring_teeth\": ";
+  json += SettingsManager::getChainringTeeth();
+  json += ",";
+
+  json += "\"sprocket_teeth\": ";
+  json += SettingsManager::getSprocketTeeth();
+  json += ",";
+
+  json += "\"track_resistance\": ";
+  if (SettingsManager::isTrackResistanceEnabled()) {
+    json += "true";
+  } else {
+    json += "false";
+  }
   json += "}";
 
   webServer.send(200, "application/json", json);
@@ -266,6 +282,17 @@ void handleWebServerSettingsPost() {
       SettingsManager::setVirtualShiftingEnabled(true);
     } else {
       SettingsManager::setVirtualShiftingEnabled(false);
+    }
+    if (webServer.hasArg("track_resistance")) {
+      SettingsManager::setTrackResistanceEnabled(true);
+    } else {
+      SettingsManager::setTrackResistanceEnabled(false);
+    }
+    if (webServer.hasArg("chainring_teeth")) {
+      SettingsManager::setChainringTeeth(std::atoi(webServer.arg("chainring_teeth").c_str()));
+    }
+    if (webServer.hasArg("sprocket_teeth")) {
+      SettingsManager::setSprocketTeeth(std::atoi(webServer.arg("sprocket_teeth").c_str()));
     }
     iotWebConf.saveConfig();
     delay(500);

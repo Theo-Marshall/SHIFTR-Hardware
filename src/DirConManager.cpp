@@ -21,6 +21,8 @@ String DirConManager::statusMessage = "";
 uint8_t DirConManager::zwiftAsyncRideOnAnswer[18] = {0x2a, 0x08, 0x03, 0x12, 0x0d, 0x22, 0x0b, 0x52, 0x49, 0x44, 0x45, 0x5f, 0x4f, 0x4e, 0x28, 0x30, 0x29, 0x00};
 uint8_t DirConManager::zwiftSyncRideOnAnswer[8] = {0x52, 0x69, 0x64, 0x65, 0x4f, 0x6e, 0x02, 0x00};
 
+double DirConManager::defaultGearRatio;
+
 TrainerMode DirConManager::zwiftTrainerMode;
 uint64_t DirConManager::zwiftPower;
 int64_t DirConManager::zwiftGrade;
@@ -58,6 +60,7 @@ class DirConServiceManagerCallbacks : public ServiceManagerCallbacks {
 };
 
 void DirConManager::resetValues() {
+  defaultGearRatio = (double)SettingsManager::getChainringTeeth() / (double)SettingsManager::getSprocketTeeth();
   zwiftTrainerMode = TrainerMode::SIM_MODE;
   zwiftPower = 0;
   zwiftGrade = 0;
@@ -440,7 +443,6 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
     std::map<uint8_t, int64_t> requestValues = getZwiftDataValues(requestData);
     std::map<uint8_t, uint64_t> unsignedRequestValues = getUnsignedZwiftDataValues(requestData);
     TrainerMode newZwiftTrainerMode = zwiftTrainerMode;
-    uint8_t trainerBasicResistance = 0;
     // for development purposes
     /**/
     if ((zwiftCommandSubtype != 0x22) && (zwiftCommandSubtype != 0x18)) {
@@ -485,29 +487,15 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
           case 0x22:
             if (requestValues.find(0x10) != requestValues.end()) {
               zwiftGrade = requestValues.at(0x10); 
+              log_i("Zwift grade request with hex value: %s", Utils::getHexString(requestData).c_str());
             }
-            // normal SIM mode w/o virtual shifting, switching to track resistance mode
-            if (zwiftTrainerMode == TrainerMode::SIM_MODE) {
-              log_i("FEC track resistance 22: %d", ((uint16_t)(0x4E20 + zwiftGrade)));
-              if (!BTDeviceManager::writeFECTrackResistance((uint16_t)(0x4E20 + zwiftGrade))) {
-                log_e("Error writing FEC track resistance");
-              }
-            } else if (zwiftTrainerMode == TrainerMode::SIM_MODE_VIRTUAL_SHIFTING) {
-              trainerBasicResistance = Calculations::calculateFECResistancePercentageValue((zwiftBicycleWeight + zwiftUserWeight) / 100,
-                                                                              zwiftGrade / 100,
-                                                                              trainerInstantaneousSpeed / 1000,
-                                                                              zwiftGearRatio / 100,
-                                                                              DEFAULT_GEAR_RATIO / 100,
-                                                                              trainerMaximumResistance);
-              log_i("FEC basic resistance 22: %d", trainerBasicResistance);
-              if (!BTDeviceManager::writeFECBasicResistance(trainerBasicResistance)) {
-                log_e("Error writing FEC basic resistance");
-              }
-            }
+            updateSIMModeResistance();
             break;
 
           // SIM mode parameter update
           case 0x2A:
+            log_i("Zwift 2A request with hex value: %s", Utils::getHexString(requestData).c_str());
+
             if (unsignedRequestValues.find(0x10) != unsignedRequestValues.end()) {
               zwiftGearRatio = unsignedRequestValues.at(0x10);
             }
@@ -534,25 +522,12 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
                 }
               }
             }
-            // update track resistance mode
-            if (zwiftTrainerMode == TrainerMode::SIM_MODE) {
-              log_i("FEC track resistance 2A: %d", ((uint16_t)(0x4E20 + zwiftGrade)));
-              if (!BTDeviceManager::writeFECTrackResistance((uint16_t)(0x4E20 + zwiftGrade))) {
-                log_e("Error writing FEC track resistance");
-              }
-            } else if (zwiftTrainerMode == TrainerMode::SIM_MODE_VIRTUAL_SHIFTING) {
-              trainerBasicResistance = Calculations::calculateFECResistancePercentageValue((zwiftBicycleWeight + zwiftUserWeight) / 100,
-                                                                              zwiftGrade / 100,
-                                                                              trainerInstantaneousSpeed / 1000,
-                                                                              zwiftGearRatio / 100,
-                                                                              DEFAULT_GEAR_RATIO / 100,
-                                                                              trainerMaximumResistance);    
-              log_i("FEC basic resistance 2A: %d", trainerBasicResistance);
-              if (!BTDeviceManager::writeFECBasicResistance(trainerBasicResistance)) {
-                log_e("Error writing FEC basic resistance");
-              }
-            }
+            updateSIMModeResistance();
             break;
+//[ 16529][I][DirConManager.cpp:490] processZwiftSyncRequest(): Zwift grade request with hex value: [04 22 09 10 8D 01 18 EC 27 20 90 03]
+//Grade: 1.410000
+//Speed: 0.000000
+//Calculated grade 0.847404
 
           // Unknown
           default:
@@ -590,6 +565,39 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
   }
   return false;
 }
+
+void DirConManager::updateSIMModeResistance() {
+  // normal SIM mode w/o virtual shifting, use normal track resistance mode
+  if (zwiftTrainerMode == TrainerMode::SIM_MODE) {
+    if (!BTDeviceManager::writeFECTrackResistance((uint16_t)(0x4E20 + zwiftGrade), 0x53)) {
+      log_e("Error writing FEC track resistance");
+    }
+  } else if (zwiftTrainerMode == TrainerMode::SIM_MODE_VIRTUAL_SHIFTING) {
+    if (SettingsManager::isTrackResistanceEnabled()) {
+      uint16_t trainerTrackResistanceGrade = Calculations::
+                calculateFECTrackResistanceGrade((zwiftBicycleWeight + zwiftUserWeight) / 100.0,
+                                                  zwiftGrade / 100.0,
+                                                  trainerInstantaneousSpeed / 1000.0,
+                                                  zwiftGearRatio / 10000.0,
+                                                  defaultGearRatio);
+      if (!BTDeviceManager::writeFECTrackResistance(trainerTrackResistanceGrade, 0x53)) {
+        log_e("Error writing geared FEC track resistance");
+      }
+    } else {
+      uint8_t trainerBasicResistance = Calculations::
+                 calculateFECResistancePercentageValue((zwiftBicycleWeight + zwiftUserWeight) / 100.0,
+                                                        zwiftGrade / 100.0,
+                                                        trainerInstantaneousSpeed / 1000.0,
+                                                        zwiftGearRatio / 10000.0,
+                                                        defaultGearRatio,
+                                                        trainerMaximumResistance);
+      if (!BTDeviceManager::writeFECBasicResistance(trainerBasicResistance)) {
+        log_e("Error writing FEC basic resistance");
+      }
+    }
+  }
+}
+
 
 void DirConManager::notifyDirConCharacteristic(const NimBLEUUID &characteristicUUID, uint8_t *pData, size_t length) {
   notifyDirConCharacteristic(serviceManager->getCharacteristic(characteristicUUID), pData, length);

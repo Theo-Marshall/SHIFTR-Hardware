@@ -15,6 +15,9 @@
         let deviceName = document.getElementById('device_name');
         let trainerDevice = document.getElementById('trainer_device');
         let virtualShifting = document.getElementById('virtual_shifting');
+        let trackResistance = document.getElementById('track_resistance');
+        let chainringTeeth = document.getElementById('chainring_teeth');
+        let sprocketTeeth = document.getElementById('sprocket_teeth');
 
         fetch('/devicesettings', {
             method: 'GET',
@@ -28,6 +31,9 @@
             .then(response => {
                 deviceName.value = response.device_name;
                 virtualShifting.checked = response.virtual_shifting;
+                trackResistance.checked = response.track_resistance;
+                chainringTeeth.value = response.chainring_teeth;
+                sprocketTeeth.value = response.sprocket_teeth;
                 while (trainerDevice.options.length > 0) {
                     trainerDevice.remove(0);
                 }
@@ -49,6 +55,7 @@
         let save = document.getElementById('save_btn');
         save.disabled = false;
     }
+    
     function waitForReboot() {
         let settingsContainer = document.getElementById('settings_container');
         let rebootContainer = document.getElementById('reboot_container');
@@ -84,6 +91,22 @@
                             <input type="checkbox" id="virtual_shifting" name="virtual_shifting" onchange="enableSave()">
                             <span class="slider round"></span>
                         </label>
+                    </div>
+                    <div class="form-control">
+                        <label>Track Resistance:</label>
+                        <label class="switch">
+                            <input type="checkbox" id="track_resistance" name="track_resistance" onchange="enableSave()">
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                    <div class="form-control">
+                        <label>Chainring teeth:</label>
+                        <input type="number" id="chainring_teeth" name="chainring_teeth" min="1" max="100" onchange="enableSave()">
+                        </span>
+                    </div>
+                    <div class="form-control">
+                        <label>Sprocket teeth:</label>
+                        <input type="number" id="sprocket_teeth" name="sprocket_teeth" min="1" max="100" onchange="enableSave()">
                     </div>
                     <div class="button-container">
                         <button type="submit" class="btn" id="save_btn" onclick="waitForReboot()">

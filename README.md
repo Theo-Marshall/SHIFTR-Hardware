@@ -33,7 +33,7 @@ The virtual gears are defined inside Zwift and don't need a special handling in 
 
 Currently these are: 0.75 0.87 0.99 1.11 1.23 1.38 1.53 1.68 1.86 2.04 2.22 2.40 2.61 2.82 3.03 3.24 3.49 3.74 3.99 4.24 4.54 4.84 5.14 5.49
 
-As the Zwift Cog has 14 teeth and a standard chainring 34 teeth the default ratio in SHIFTR is defined at 2.4286 which roughly matches Zwift Gear 12. This ratio is the base for all further gear calculations.
+As the Zwift Cog has 14 teeth and a standard chainring 34 teeth the default ratio in SHIFTR is defined at 2.4286 which roughly matches Zwift Gear 12. This ratio is the base for all further gear calculations. Of course the chainring and sprocket teeth can be set in the device configuration and these values will then be used for the default ratio.
 
 Based on this ratio and the selected ratio from Zwift (e.g. 1.23 ~ "Gear 5") the ratio that will later be applied to the trainer's force will be calculated:
 
@@ -62,7 +62,7 @@ Having all the values we can calculate as follows:
 
 $F_{gravity} = g · \sin(\arctan(\frac{G}{100})) · W$
 
-$F_{rolling} = g · \cos(\arctan(\frac{G}{100})) · W · C_{rr}$
+$F_{rolling} = g · W · C_{rr}$
 
 As we are calculating with no head/tailwind, our $V_{as}$ equals our $V_{gs}$ as we assume $V_{hw} = 0$ and the calculation would be:
 
@@ -91,14 +91,23 @@ $F_{total} = F_{gravity} + F_{rolling} + F_{drag}$
 
 In case of $F_{total} >= 0$ the relative gear ratio mentioned above will be applied by multiplication:
 
-$F_{total} = F_{total} · R_{relative}$
+$F_{totalGeared} = F_{total} · R_{relative}$
 
 Otherwise in case of $F_{total} < 0$ the relative gear ratio will be subtracted by 1 and then applied by multiplication with the absolute value and added to the original value:
 
-$F_{total} = F_{total} + (|F_{total}| · (R_{relative} - 1))$
-
+$F_{totalGeared} = F_{total} + (|F_{total}| · (R_{relative} - 1))$
 
 The resulting force will then be used to set the trainer's resistance. Depending on the model there is a maximum force the trainer can apply. For a Tacx Vortex this is 50N and for a Tacx Neo 2T this is 200N. On every connection the maximum force is read out of the trainer. The basic resistance can only be set in 0.5% (0-200) and not in N as expected. So before applying the resistance it will be mapped to the correct 0.5% value. 
+
+In the device settings another method of adjusting the trainer can be selected that currently is kind of experimental but is already working good. It's called "Track Resistance" and will use the trainer's track resistance mode instead of the basic resistance mode to set the calculated force. As this mode doesn't accept neither a force nor percent of the force but instead only the percentage grade/slope. So we have to calculate backwards to get a correct percentage of the desired grade/slope with the gear ratio calculated in. 
+
+This is done by first calculating the force as above but then subtracting the rolling and drag force to only have the gravity force with its gearing factor left. From there we are calculating the grade, that would need to be set to achieve the force we calculated before:
+
+$F_{gravity} = F_{totalGeared} - F_{rolling} - F_{drag}$
+
+$G = \tan(\arcsin(F_{gravity} / W / g)) · 100$
+
+This new grade value is then sent to the trainer in the track resistance mode and so will also support the powered decline feature to provide a better feeling.
 
 ***Note***: Virtual shifting will be disabled if neither Zwift Play controllers nor a Zwift Click are connected which results in the standard SIM mode with a track resistance of 0%. Then you'd have to shift with your bike but with a Zwift Cog installed this doesn't make sense of course. If the controllers disconnect during a training then the fallback will be this normal SIM mode but as soon as the controllers a reconnected the virtual shifting will be enabled again.
 

@@ -49,6 +49,7 @@ class DirConManager {
   static void sendDirConCharacteristicNotification(Characteristic* characteristic, uint8_t* pData, size_t length, bool onlySubscribers);
   static void updateStatusMessage();
   static void resetValues();
+  static void updateSIMModeResistance();
   static ServiceManager* serviceManager;
   static Timer<> notificationTimer;
   static AsyncServer* dirConServer;
@@ -57,6 +58,8 @@ class DirConManager {
   static String statusMessage;
   static uint8_t zwiftAsyncRideOnAnswer[];
   static uint8_t zwiftSyncRideOnAnswer[];
+
+  static double defaultGearRatio;
 
   static TrainerMode zwiftTrainerMode;
   static uint64_t zwiftPower;

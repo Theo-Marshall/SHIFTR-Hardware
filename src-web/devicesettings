@@ -2,6 +2,9 @@
     "device_name": "SHIFTR 123456",
     "trainer_device": "Tacx Neo 54321",
     "trainer_devices": ["Tacx Vortex 12345", "Tacx Neo 54321"],
-    "virtual_shifting": true
+    "virtual_shifting": true,
+    "chainring_teeth": 34,
+    "sprocket_teeth": 14,
+    "track_resistance": true
 }
 
