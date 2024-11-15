@@ -8,8 +8,8 @@ double const Calculations::windResistanceCoefficient = 0.51;
 double Calculations::calculateTotalForce(double totalWeight, double grade, double speed) {
   double gravityForce = gravity * sin(atan(grade/100)) * totalWeight;
   //printf("Gravity force: %f\n", gravityForce);
-  printf("Grade: %f\n", grade);    
-  printf("Speed: %f\n", speed);
+  //printf("Grade: %f\n", grade);    
+  //printf("Speed: %f\n", speed);
   double rollingForce = gravity * totalWeight * rollingResistanceCoefficient;
   //printf("Rolling force: %f\n", rollingForce);
 
@@ -24,7 +24,7 @@ double Calculations::calculateGearedForce(double force, double gearRatio, double
   double relativeGearRatio = gearRatio / defaultGearRatio;
   //printf("Relative gear ratio: %f\n", relativeGearRatio);
   if (force < 0) {
-    return force + (abs(force) * (relativeGearRatio - 1));
+    return force * (1 / relativeGearRatio);
   }
   return force * relativeGearRatio;
 }
@@ -44,6 +44,7 @@ uint8_t Calculations::calculateFECResistancePercentageValue(double totalWeight, 
 uint16_t Calculations::calculateFECTrackResistanceGrade(double totalWeight, double grade, double speed, double gearRatio, double defaultGearRatio) {
   double gearedTotalForce = calculateGearedForce(calculateTotalForce(totalWeight, grade, speed), gearRatio, defaultGearRatio);
   double calculatedGrade = calculateGradeFromTotalForce(gearedTotalForce, totalWeight, speed);
+  printf("Grade requested: %f\n", grade);    
   printf("Calculated grade %f\n", calculatedGrade);
   return 0x4E20 + (calculatedGrade * 100);
 }

@@ -6,7 +6,6 @@
 #include <Service.h>
 #include <ServiceManagerCallbacks.h>
 #include <Utils.h>
-#include <leb128.h>
 #include <uleb128.h>
 #include <SettingsManager.h>
 #include <Calculations.h>
@@ -352,46 +351,7 @@ uint8_t DirConManager::getDirConProperties(uint32_t characteristicProperties) {
   return returnValue;
 }
 
-std::map<uint8_t, int64_t> DirConManager::getZwiftDataValues(std::vector<uint8_t> *requestData) {
-  std::map<uint8_t, int64_t> returnMap;
-  if (requestData->size() > 2) {
-    if (requestData->at(0) == 0x04) {
-      size_t processedBytes = 0;
-      size_t dataIndex = 0;
-      uint8_t currentKey = 0;
-      int64_t currentValue = 0;
-      if (((requestData->at(1) == 0x22) || (requestData->at(1) == 0x2A)) && requestData->size() > 4) {
-        dataIndex = 3;
-        if (requestData->size() == (requestData->at(2) + dataIndex)) {
-          while (dataIndex < requestData->size()) {
-            currentKey = requestData->at(dataIndex);
-            dataIndex++;
-            processedBytes = bfs::DecodeLeb128(requestData->data() + dataIndex, requestData->size() - dataIndex, &currentValue);
-            dataIndex = dataIndex + processedBytes;
-            if (processedBytes == 0) {
-              log_e("Error parsing Zwift data values, hex: ", Utils::getHexString(requestData).c_str());
-              dataIndex++;
-            }
-            returnMap.emplace(currentKey, currentValue);
-          }
-        } else {
-          log_e("Error parsing Zwift data values, length mismatch");
-        }
-      } else if (requestData->at(1) == 0x18) {
-        dataIndex = 2;
-        processedBytes = bfs::DecodeLeb128(requestData->data() + dataIndex, requestData->size() - dataIndex, &currentValue);
-        if (processedBytes == 0) {
-          log_e("Error parsing Zwift data value, hex: ", Utils::getHexString(requestData).c_str());
-        } else {
-          returnMap.emplace(currentKey, currentValue);
-        }
-      }
-    }
-  }
-  return returnMap;
-}
-
-std::map<uint8_t, uint64_t> DirConManager::getUnsignedZwiftDataValues(std::vector<uint8_t> *requestData) {
+std::map<uint8_t, uint64_t> DirConManager::getZwiftDataValues(std::vector<uint8_t> *requestData) {
   std::map<uint8_t, uint64_t> returnMap;
   if (requestData->size() > 2) {
     if (requestData->at(0) == 0x04) {
@@ -431,35 +391,31 @@ std::map<uint8_t, uint64_t> DirConManager::getUnsignedZwiftDataValues(std::vecto
 }
 
 // @Roberto Viola: This is the part you're probably looking for to implement the virtual shifting correctly in qdomyos-zwift :-)
-// The values that are being sent do not specify a specific gear but the ratio from 0.75 to 5.49 in LEB128 encoding!
+// The values that are being sent do not specify a specific gear but the ratio from 0.75 to 5.49 in LEB128 encoding.
 // 0.75 0.87 0.99 1.11 1.23 1.38 1.53 1.68 1.86 2.04 2.22 2.40 2.61 2.82 3.03 3.24 3.49 3.74 3.99 4.24 4.54 4.84 5.14 5.49
-// Feel free to contact me to get more insights.
+// LEB128 is used nearly everywhere here, feel free to contact me to get more insights.
 bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *characteristic, std::vector<uint8_t> *requestData) {
   std::vector<uint8_t> returnData;
   if (requestData->size() >= 3) {
     uint8_t zwiftCommand = requestData->at(0);
     uint8_t zwiftCommandSubtype = requestData->at(1);
     uint8_t zwiftCommandLength = requestData->at(2);
-    std::map<uint8_t, int64_t> requestValues = getZwiftDataValues(requestData);
-    std::map<uint8_t, uint64_t> unsignedRequestValues = getUnsignedZwiftDataValues(requestData);
+    std::map<uint8_t, uint64_t> requestValues = getZwiftDataValues(requestData);
     TrainerMode newZwiftTrainerMode = zwiftTrainerMode;
     // for development purposes
-    /**/
+    /*
     if ((zwiftCommandSubtype != 0x22) && (zwiftCommandSubtype != 0x18)) {
       log_i("Zwift command: %d, commandsubtype: %d", zwiftCommand, zwiftCommandSubtype);
       for (auto requestValue = requestValues.begin(); requestValue != requestValues.end(); requestValue++) {
         log_i("Zwift sync data key: %d, value %d", requestValue->first, requestValue->second);
       }
-      for (auto requestValue = unsignedRequestValues.begin(); requestValue != unsignedRequestValues.end(); requestValue++) {
-        log_i("Unsigned Zwift sync data key: %d, value %d", requestValue->first, requestValue->second);
-      }
     }
-    
+    */
     switch (zwiftCommand) {
       // Status request
       case 0x00:
-        log_e("Zwift 0x41 request, hex value: %s", Utils::getHexString(requestData).c_str());
-        // do nothing
+        log_i("Zwift 0x00 request, hex value: %s", Utils::getHexString(requestData).c_str());
+        // do nothing for the moment but TODO in future
         return true;
         break;
 
@@ -473,8 +429,8 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
               zwiftTrainerMode = TrainerMode::ERG_MODE;
               updateStatusMessage();            
             }
-            if (unsignedRequestValues.find(0x00) != unsignedRequestValues.end()) {
-              zwiftPower = unsignedRequestValues.at(0x00);
+            if (requestValues.find(0x00) != requestValues.end()) {
+              zwiftPower = requestValues.at(0x00);
             }
             log_i("FEC target power: %d", (zwiftPower * 4));
             // FE-C target power is in 0.25W unit
@@ -484,20 +440,23 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
             break;
 
           // SIM/ERG Mode Inclination
+          // TODO: [04 22 09 10 8D 01 18 EC 27 20 90 03] 5100 / 400 what are these values?!
           case 0x22:
             if (requestValues.find(0x10) != requestValues.end()) {
               zwiftGrade = requestValues.at(0x10); 
-              log_i("Zwift grade request with hex value: %s", Utils::getHexString(requestData).c_str());
+              // don't know why but they're using bit 0 for signing...
+              if ((zwiftGrade & 0x01) == 0x01) {
+                zwiftGrade ^= 0x01;
+                zwiftGrade *= -1;
+              }
             }
             updateSIMModeResistance();
             break;
 
           // SIM mode parameter update
           case 0x2A:
-            log_i("Zwift 2A request with hex value: %s", Utils::getHexString(requestData).c_str());
-
-            if (unsignedRequestValues.find(0x10) != unsignedRequestValues.end()) {
-              zwiftGearRatio = unsignedRequestValues.at(0x10);
+            if (requestValues.find(0x10) != requestValues.end()) {
+              zwiftGearRatio = requestValues.at(0x10);
             }
             if (zwiftGearRatio == 0) {
               newZwiftTrainerMode = TrainerMode::SIM_MODE;
@@ -513,10 +472,10 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
               zwiftTrainerMode = newZwiftTrainerMode;
               updateStatusMessage();            
             }
-            if (unsignedRequestValues.find(0x20) != unsignedRequestValues.end()) {
-              zwiftBicycleWeight = unsignedRequestValues.at(0x20);
-              if (unsignedRequestValues.find(0x28) != unsignedRequestValues.end()) {
-                zwiftUserWeight = unsignedRequestValues.at(0x28);
+            if (requestValues.find(0x20) != requestValues.end()) {
+              zwiftBicycleWeight = requestValues.at(0x20);
+              if (requestValues.find(0x28) != requestValues.end()) {
+                zwiftUserWeight = requestValues.at(0x28);
                 if (!BTDeviceManager::writeFECUserConfiguration(zwiftBicycleWeight, zwiftUserWeight, 0xFF, 0x00)) {
                   log_e("Error writing FEC user configuration");
                 }
@@ -524,10 +483,6 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
             }
             updateSIMModeResistance();
             break;
-//[ 16529][I][DirConManager.cpp:490] processZwiftSyncRequest(): Zwift grade request with hex value: [04 22 09 10 8D 01 18 EC 27 20 90 03]
-//Grade: 1.410000
-//Speed: 0.000000
-//Calculated grade 0.847404
 
           // Unknown
           default:
@@ -544,8 +499,7 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
       // Unknown request, similar to 0x00
       case 0x41:
         log_e("Zwift 0x41 request, hex value: %s", Utils::getHexString(requestData).c_str());
-
-        // do nothing
+        // do nothing for the moment but TODO in future
         return true;
         break;
 
@@ -699,7 +653,7 @@ std::vector<uint8_t> DirConManager::generateZwiftAsyncNotificationData(int64_t p
     if (dataBlock == 0x30) {
       currentData = unknown4;
     }
-    leb128Size = bfs::EncodeLeb128(currentData, leb128Buffer, sizeof(leb128Buffer));
+    leb128Size = bfs::EncodeUleb128(currentData, leb128Buffer, sizeof(leb128Buffer));
     for (uint8_t leb128Byte = 0; leb128Byte < leb128Size; leb128Byte++) {
       notificationData.push_back(leb128Buffer[leb128Byte]);
     }

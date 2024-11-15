@@ -93,9 +93,9 @@ In case of $F_{total} >= 0$ the relative gear ratio mentioned above will be appl
 
 $F_{totalGeared} = F_{total} · R_{relative}$
 
-Otherwise in case of $F_{total} < 0$ the relative gear ratio will be subtracted by 1 and then applied by multiplication with the absolute value and added to the original value:
+Otherwise in case of $F_{total} < 0$ the reciprocal of the relative gear ratio will be applied by multiplication:
 
-$F_{totalGeared} = F_{total} + (|F_{total}| · (R_{relative} - 1))$
+$F_{totalGeared} = F_{total} · \frac{1}{R_{relative}}$
 
 The resulting force will then be used to set the trainer's resistance. Depending on the model there is a maximum force the trainer can apply. For a Tacx Vortex this is 50N and for a Tacx Neo 2T this is 200N. On every connection the maximum force is read out of the trainer. The basic resistance can only be set in 0.5% (0-200) and not in N as expected. So before applying the resistance it will be mapped to the correct 0.5% value. 
 
