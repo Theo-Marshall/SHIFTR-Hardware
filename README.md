@@ -1,10 +1,12 @@
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![CI](https://github.com/JuergenLeber/SHIFTR/actions/workflows/main.yml/badge.svg)](https://github.com/JuergenLeber/SHIFTR/actions/workflows/main.yml)
-
 
 # SHIFTR
 A BLE to Direct Connect bridge for bike trainers using a WT32-ETH01 module based on ESP32. Additionally adding Zwift™️ "virtual shifting" functionality to any device supporting FE-C over BLE.
 
 Currently tested with Garmin/Tacx NEO 2T and Vortex but should also work on other trainers supporting FE-C over BLE.
+
+Even if everything is working fine this project is still work in progress!
 
 ## Overview
 Bike trainers heavily evolved over the last years. Tacx (acquired by Garmin some years ago) is one of the market leaders producing bike trainers of a very high quality with special features like e.g. "Road Feeling" to simulate different road surfaces. 
