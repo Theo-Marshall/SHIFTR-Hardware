@@ -9,7 +9,7 @@ IotWebConfParameterGroup SettingsManager::iotWebConfSettingsGroup = IotWebConfPa
 
 IotWebConfNumberParameter SettingsManager::iotWebConfChainringTeethParameter("Chainring teeth", "chainring_teeth", SettingsManager::iotWebConfChainringTeethParameterValue, sizeof(iotWebConfChainringTeethParameterValue), "34", "1..100", "min='1' max='100' step='1'");
 IotWebConfNumberParameter SettingsManager::iotWebConfSprocketTeethParameter("Sprocket teeth", "sprocket_teeth", SettingsManager::iotWebConfSprocketTeethParameterValue, sizeof(iotWebConfSprocketTeethParameterValue), "14", "1..100", "min='1' max='100' step='1'");
-IotWebConfCheckboxParameter SettingsManager::iotWebConfTrackResistanceParameter = IotWebConfCheckboxParameter("Use Track Resistance", "track_resistance", SettingsManager::iotWebConfTrackResistanceParameterValue, sizeof(iotWebConfTrackResistanceParameterValue), true);
+IotWebConfCheckboxParameter SettingsManager::iotWebConfTrackResistanceParameter = IotWebConfCheckboxParameter("Use Track Resistance", "track_resistance", SettingsManager::iotWebConfTrackResistanceParameterValue, sizeof(iotWebConfTrackResistanceParameterValue), false);
 IotWebConfCheckboxParameter SettingsManager::iotWebConfVirtualShiftingParameter = IotWebConfCheckboxParameter("Virtual shifting", "virtual_shifting", SettingsManager::iotWebConfVirtualShiftingParameterValue, sizeof(iotWebConfVirtualShiftingParameterValue), true);
 IotWebConfTextParameter SettingsManager::iotWebConfTrainerDeviceParameter = IotWebConfTextParameter("Trainer device", "trainer_device", iotWebConfTrainerDeviceParameterValue, sizeof(iotWebConfTrainerDeviceParameterValue), "");
 
