@@ -11,11 +11,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       with:
         submodules: 'true'
     - name: Set up Python
-      uses: actions/setup-python@v1
+      uses: actions/setup-python@v5
+    - name: Setup OTA settings file
+      run: |
+        cp ota.ini.example ota.ini
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
