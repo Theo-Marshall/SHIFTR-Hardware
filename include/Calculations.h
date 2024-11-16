@@ -9,7 +9,7 @@ class Calculations {
   static double calculateGearedForce(double force, double gearRatio, double defaultGearRatio);
   static uint8_t calculateFECResistancePercentageValue(double totalWeight, double grade, double speed, double gearRatio, double defaultGearRatio, uint16_t maximumResistance);
   static uint16_t calculateFECTrackResistanceGrade(double totalWeight, double grade, double speed, double gearRatio, double defaultGearRatio);
-  static double calculateGradeFromTotalForce(double force, double totalWeight, double speed);
+  static double calculateGradeFromTotalForce(double force, double totalWeight, double speed, double gearRatio, double defaultGearRatio);
   static double const gravity;
   static double const rollingResistanceCoefficient;
   static double const windResistanceCoefficient;
