@@ -1,3 +1,6 @@
+[![CI](https://github.com/JuergenLeber/SHIFTR/actions/workflows/main.yml/badge.svg)](https://github.com/JuergenLeber/SHIFTR/actions/workflows/main.yml)
+
+
 # SHIFTR
 A BLE to Direct Connect bridge for bike trainers using a WT32-ETH01 module based on ESP32. Additionally adding Zwift™️ "virtual shifting" functionality to any device supporting FE-C over BLE.
 
