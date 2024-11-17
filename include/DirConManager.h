@@ -10,6 +10,7 @@
 #include <ServiceManager.h>
 #include <UUIDs.h>
 #include <arduino-timer.h>
+#include <SettingsManager.h>
 
 typedef enum TrainerMode {
   ERG_MODE = 0,
@@ -59,6 +60,7 @@ class DirConManager {
   static uint8_t zwiftSyncRideOnAnswer[];
 
   static double defaultGearRatio;
+  static VirtualShiftingMode virtualShiftingMode;
 
   static TrainerMode zwiftTrainerMode;
   static uint64_t zwiftPower;

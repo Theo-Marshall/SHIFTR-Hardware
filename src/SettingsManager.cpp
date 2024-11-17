@@ -2,23 +2,59 @@
 
 char SettingsManager::iotWebConfChainringTeethParameterValue[16];
 char SettingsManager::iotWebConfSprocketTeethParameterValue[16];
-char SettingsManager::iotWebConfTrackResistanceParameterValue[16];
+char SettingsManager::iotWebConfVirtualShiftingModeParameterValue[24];
 char SettingsManager::iotWebConfVirtualShiftingParameterValue[16];
 char SettingsManager::iotWebConfTrainerDeviceParameterValue[128];
-IotWebConfParameterGroup SettingsManager::iotWebConfSettingsGroup = IotWebConfParameterGroup("settings", "Device settings");
 
+char SettingsManager::iotWebConfVirtualShiftingModeValues[][24] = { "basic_resistance", "target_power", "track_resistance" };
+char SettingsManager::iotWebConfVirtualShiftingModeNames[][24] = { "Basic Resistance", "Target Power", "Track Resistance" };
+
+IotWebConfParameterGroup SettingsManager::iotWebConfSettingsGroup = IotWebConfParameterGroup("settings", "Device settings");
 IotWebConfNumberParameter SettingsManager::iotWebConfChainringTeethParameter("Chainring teeth", "chainring_teeth", SettingsManager::iotWebConfChainringTeethParameterValue, sizeof(iotWebConfChainringTeethParameterValue), "34", "1..100", "min='1' max='100' step='1'");
 IotWebConfNumberParameter SettingsManager::iotWebConfSprocketTeethParameter("Sprocket teeth", "sprocket_teeth", SettingsManager::iotWebConfSprocketTeethParameterValue, sizeof(iotWebConfSprocketTeethParameterValue), "14", "1..100", "min='1' max='100' step='1'");
-IotWebConfCheckboxParameter SettingsManager::iotWebConfTrackResistanceParameter = IotWebConfCheckboxParameter("Use Track Resistance", "track_resistance", SettingsManager::iotWebConfTrackResistanceParameterValue, sizeof(iotWebConfTrackResistanceParameterValue), false);
+IotWebConfSelectParameter SettingsManager::iotWebConfVirtualShiftingModeParameter = IotWebConfSelectParameter("Virtual Shifting Mode", "virtual_shifting_mode", SettingsManager::iotWebConfVirtualShiftingModeParameterValue, sizeof(iotWebConfVirtualShiftingModeParameterValue), (char*)iotWebConfVirtualShiftingModeValues, (char*)iotWebConfVirtualShiftingModeNames, sizeof(iotWebConfVirtualShiftingModeValues) / sizeof(iotWebConfVirtualShiftingModeParameterValue), sizeof(iotWebConfVirtualShiftingModeParameterValue), "basic_resistance");
 IotWebConfCheckboxParameter SettingsManager::iotWebConfVirtualShiftingParameter = IotWebConfCheckboxParameter("Virtual shifting", "virtual_shifting", SettingsManager::iotWebConfVirtualShiftingParameterValue, sizeof(iotWebConfVirtualShiftingParameterValue), true);
 IotWebConfTextParameter SettingsManager::iotWebConfTrainerDeviceParameter = IotWebConfTextParameter("Trainer device", "trainer_device", iotWebConfTrainerDeviceParameterValue, sizeof(iotWebConfTrainerDeviceParameterValue), "");
 
 void SettingsManager::initialize() {
   iotWebConfSettingsGroup.addItem(&iotWebConfTrainerDeviceParameter);
   iotWebConfSettingsGroup.addItem(&iotWebConfVirtualShiftingParameter);
-  iotWebConfSettingsGroup.addItem(&iotWebConfTrackResistanceParameter);
   iotWebConfSettingsGroup.addItem(&iotWebConfChainringTeethParameter);
   iotWebConfSettingsGroup.addItem(&iotWebConfSprocketTeethParameter);
+  iotWebConfSettingsGroup.addItem(&iotWebConfVirtualShiftingModeParameter);
+}
+
+VirtualShiftingMode SettingsManager::getVirtualShiftingMode() {
+  if (strncmp(iotWebConfVirtualShiftingModeParameterValue, iotWebConfVirtualShiftingModeValues[1], sizeof(iotWebConfVirtualShiftingModeParameterValue)) == 0) {
+    return VirtualShiftingMode::TARGET_POWER;
+  }
+  if (strncmp(iotWebConfVirtualShiftingModeParameterValue, iotWebConfVirtualShiftingModeValues[2], sizeof(iotWebConfVirtualShiftingModeParameterValue)) == 0) {
+    return VirtualShiftingMode::TRACK_RESISTANCE;
+  }
+  return VirtualShiftingMode::BASIC_RESISTANCE;
+}
+
+void SettingsManager::setVirtualShiftingMode(VirtualShiftingMode virtualShiftingMode) {
+  switch (virtualShiftingMode) {
+    case VirtualShiftingMode::TARGET_POWER:
+      strncpy(iotWebConfVirtualShiftingModeParameterValue, iotWebConfVirtualShiftingModeValues[1], sizeof(iotWebConfVirtualShiftingModeParameterValue));
+      break;
+    case VirtualShiftingMode::TRACK_RESISTANCE:
+      strncpy(iotWebConfVirtualShiftingModeParameterValue, iotWebConfVirtualShiftingModeValues[2], sizeof(iotWebConfVirtualShiftingModeParameterValue));
+      break;
+    default:
+      strncpy(iotWebConfVirtualShiftingModeParameterValue, iotWebConfVirtualShiftingModeValues[0], sizeof(iotWebConfVirtualShiftingModeParameterValue));
+      break;
+  }
+}
+
+std::map<size_t, std::string> SettingsManager::getVirtualShiftingModes() {
+  std::map<size_t, std::string> returnMap;
+  for (size_t index = 0; index < (sizeof(iotWebConfVirtualShiftingModeValues) / sizeof(iotWebConfVirtualShiftingModeParameterValue)); index++)
+  {
+    returnMap.emplace(index, iotWebConfVirtualShiftingModeNames[index]);
+  }
+  return returnMap;
 }
 
 uint16_t SettingsManager::getChainringTeeth() {
@@ -39,20 +75,8 @@ void SettingsManager::setSprocketTeeth(uint16_t sprocketTeeth) {
   strncpy(iotWebConfSprocketTeethParameterValue, sprocketTeethString.c_str(), sizeof(iotWebConfSprocketTeethParameterValue));
 }
 
-bool SettingsManager::isTrackResistanceEnabled() {
-  return (strncmp(iotWebConfTrackResistanceParameterValue, "selected", sizeof(iotWebConfTrackResistanceParameterValue)) == 0);
-}
-
 bool SettingsManager::isVirtualShiftingEnabled() {
   return (strncmp(iotWebConfVirtualShiftingParameterValue, "selected", sizeof(iotWebConfVirtualShiftingParameterValue)) == 0);
-}
-
-void SettingsManager::setTrackResistanceEnabled(bool enabled) {
-  String trackResistanceEnabled = "";
-  if (enabled) {
-    trackResistanceEnabled = "selected";
-  }
-  strncpy(iotWebConfTrackResistanceParameterValue, trackResistanceEnabled.c_str(), sizeof(iotWebConfTrackResistanceParameterValue));
 }
 
 void SettingsManager::setVirtualShiftingEnabled(bool enabled) {

@@ -48,9 +48,11 @@ Example:
 
 $R_{relative} = 1.23 / 2.4286 = 0.51$ (rounded)
 
-To set the correct resistance of the trainer, the gravitational, the rolling and the drag force are calculated using formulas. 
+To set the correct resistance of the trainer, the gravitational, the rolling and the drag force are calculated using formulas. There are currently three methods of applying the virtual gears implemented: "***Basic Resistance***", "***Target Power***" and "***Track Resistance***". The feeling may vary from trainer to trainer but whatever mode is being used the reported watts and cadence are never modified and so the measured power in Zwift will always be as correct as before.
 
-The combined weight of you (the cyclist) and your bike is $W$ ($kg$). The gravitational force constant $g$ is 9.8067 ($m/s^2$). There is a dimensionless parameter, called the "Coefficient of Rolling Resistance", or $C_{rr}$, that captures the bumpiness of the road and the quality of your tires. There are some defaults specified in the FE-C docs:
+The different modes can be set in the device configuration - the default is "Basic Resistance".
+
+Getting back to the calculations: The combined weight of you (the cyclist) and your bike is $W$ ($kg$). The gravitational force constant $g$ is 9.8067 ($m/s^2$). There is a dimensionless parameter, called the "Coefficient of Rolling Resistance", or $C_{rr}$, that captures the bumpiness of the road and the quality of your tires. There are some defaults specified in the FE-C docs:
 
 | Terrain | Coefficient of Rolling Resistance | 
   |-|-:|
@@ -61,9 +63,9 @@ The combined weight of you (the cyclist) and your bike is $W$ ($kg$). The gravit
 
 This parameter is set by Zwift in normal SIM mode as `0x53`(= 83 dec) and equals (as the unit is $5·10^{-5}$) a value of 0.00415 which is kind of an "Asphalt Road" and also the default mentioned in the FE-C docs. The steepness of a hill will be provided by Zwift in terms of percentage grade $G$.
 
-Regarding the aerodynamic drag the head/tailwind $V_{hw} (m/s)$ isn't been taken into account from Zwift and is assumed 0. But the faster your groundspeed $V_{gs} (m/s)$ is, the more force the air pushes against you. Your airspeed $V_{as} (m/s)$ is the speed that the wind strikes your face, and it is the sum of your groundspeed $V_{gs}$ and the headwind speed $V_{hw}$. As well, you and your bike present a certain frontal area $A (m^2)$ to the air. The larger this frontal area, the more air you have to displace, and the larger the force the air pushes against you. The air density $Rho (kg/m^3)$ is also important. The more dense the air, the more force it exerts on you. Then there is another dimensionless parameter, called the "Drag Coefficient", or $C_{d}$, that captures other effects, like the slipperyness of your clothing and the degree to which air flows laminarly rather than turbulently around you and your bike. 
+Regarding the aerodynamic drag the head/tailwind $V_{hw} (m/s)$ isn't been taken into account from Zwift and is assumed 0. But the faster your groundspeed $V_{gs} (m/s)$ is, the more force the air pushes against you. Your airspeed $V_{as} (m/s)$ is the speed that the wind strikes your face, and it is the sum of your groundspeed $V_{gs}$ and the headwind speed $V_{hw}$. As well, you and your bike present a certain frontal area $A (m^2)$ to the air. The larger this frontal area, the more air you have to displace, and the larger the force the air pushes against you. The air density $Rho (kg/m^3)$ is also important. The more dense the air, the more force it exerts on you. Then there is another dimensionless parameter, called the "Drag Coefficient", or $C_{d}$, that captures other effects, like the slipperyness of your clothing and the degree to which air flows laminarly rather than turbulently around you and your bike. Having all the values we can calculate as follows:
 
-Having all the values we can calculate as follows:
+#### Calculate total geared force
 
 $F_{gravity} = g · \sin(\arctan(\frac{G}{100})) · W$
 
@@ -102,17 +104,25 @@ Otherwise in case of $F_{total} < 0$ the reciprocal of the relative gear ratio w
 
 $F_{totalGeared} = F_{total} · \frac{1}{R_{relative}}$
 
-The resulting force will then be used to set the trainer's resistance. Depending on the model there is a maximum force the trainer can apply. For a Tacx Vortex this is 50N and for a Tacx Neo 2T this is 200N. On every connection the maximum force is read out of the trainer. The basic resistance can only be set in 0.5% (0-200) and not in N as expected. So before applying the resistance it will be mapped to the correct 0.5% value. 
+In the "Basic resistance" mode the resulting force will then be used to set the trainer's resistance. Depending on the model there is a maximum force the trainer can apply. For a Tacx Vortex this is 50N and for a Tacx Neo 2T this is 200N. On every connection the maximum force is read out of the trainer. The basic resistance can only be set in 0.5% (0-200) and not in N as expected. So before applying the resistance it will be mapped to the correct 0.5% value. 
 
-In the device settings another method of adjusting the trainer can be selected that currently is kind of experimental but is already working good. It's called "Track Resistance" and will use the trainer's track resistance mode instead of the basic resistance mode to set the calculated force. As this mode doesn't accept neither a force nor percent of the force but instead only the percentage grade/slope. So we have to calculate backwards to get a correct percentage of the desired grade/slope with the gear ratio calculated in. 
-
-This is done by first calculating the force as above but then subtracting the rolling and drag force to only have the gravity force with its gearing factor left. From there we are calculating the grade, that would need to be set to achieve the force we calculated before:
+In the "Track Resistance" mode we can only set a grade/slope on the trainer. The resulting "geared" force is being used to calculate backwards to get a correct percentage of the desired grade/slope with the gear ratio calculated in. This is done by first calculating the force as above but then subtracting the rolling and drag force to only have the gravity force with its gearing factor left. From there we are calculating the grade, that would need to be set to achieve the force we calculated before:
 
 $F_{gravity} = F_{totalGeared} - F_{rolling} - F_{drag}$
 
 $G = \tan(\arcsin(F_{gravity} / W / g)) · 100$
 
-This new grade value is then sent to the trainer in the track resistance mode and so will also support the powered decline feature to provide a better feeling.
+This new grade value is then sent to the trainer in the track resistance mode and so will also support the powered decline feature to provide a better feeling especially when riding downhill.
+
+The "Target Power" mode uses a different approach. Here we want to set an expected watts value depending on the current track and speed. To calculate the speed we assume a default wheel diameter $d$ of 0.7m and take the current cadence $c$ from the trainer that is being multiplied with the wanted gear ratio. The product is then being multiplied with the calculated perimeter of the wheel:
+
+$V_{gs} = (c · R_{selected}) · (d * \pi)$
+
+This speed is then taken to calculate the geared total force [as described above](#calculate-total-geared-force) which is then being used to calculate the needed power $P$:
+
+$P = F_{totalGeared} * V_{gs}$
+
+This value is then being sent to the trainer in the target power mode as in ERG mode but of course is updated on every parameter change.
 
 ***Note***: Virtual shifting will be disabled if neither Zwift Play controllers nor a Zwift Click are connected which results in the standard SIM mode with a track resistance of 0%. Then you'd have to shift with your bike but with a Zwift Cog installed this doesn't make sense of course. If the controllers disconnect during a training then the fallback will be this normal SIM mode but as soon as the controllers a reconnected the virtual shifting will be enabled again.
 

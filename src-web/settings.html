@@ -15,7 +15,7 @@
         let deviceName = document.getElementById('device_name');
         let trainerDevice = document.getElementById('trainer_device');
         let virtualShifting = document.getElementById('virtual_shifting');
-        let trackResistance = document.getElementById('track_resistance');
+        let virtualShiftingMode = document.getElementById('virtual_shifting_mode');
         let chainringTeeth = document.getElementById('chainring_teeth');
         let sprocketTeeth = document.getElementById('sprocket_teeth');
 
@@ -31,7 +31,6 @@
             .then(response => {
                 deviceName.value = response.device_name;
                 virtualShifting.checked = response.virtual_shifting;
-                trackResistance.checked = response.track_resistance;
                 chainringTeeth.value = response.chainring_teeth;
                 sprocketTeeth.value = response.sprocket_teeth;
                 while (trainerDevice.options.length > 0) {
@@ -45,6 +44,18 @@
                         element.selected = true;
                     }
                     trainerDevice.add(element);
+                }
+                while (virtualShiftingMode.options.length > 0) {
+                    virtualShiftingMode.remove(0);
+                }
+                for (var index = 0; index < response.virtual_shifting_modes.length; index++) {
+                    var element = document.createElement("option");
+                    element.textContent = response.virtual_shifting_modes[index].name;
+                    element.value = response.virtual_shifting_modes[index].value;
+                    if (response.virtual_shifting_modes[index].value == response.virtual_shifting_mode) {
+                        element.selected = true;
+                    }
+                    virtualShiftingMode.add(element);
                 }
                 settingsContainer.style = '';
                 save.disabled = true;
@@ -93,11 +104,10 @@
                         </label>
                     </div>
                     <div class="form-control">
-                        <label>Track Resistance:</label>
-                        <label class="switch">
-                            <input type="checkbox" id="track_resistance" name="track_resistance" onchange="enableSave()">
-                            <span class="slider round"></span>
-                        </label>
+                        <label>VS mode:</label>
+                        <select id="virtual_shifting_mode" name="virtual_shifting_mode" onchange="enableSave()">
+                            <option id="-1" value=""></option>
+                        </select>
                     </div>
                     <div class="form-control">
                         <label>Chainring teeth:</label>

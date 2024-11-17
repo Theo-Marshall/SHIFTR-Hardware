@@ -21,6 +21,7 @@ uint8_t DirConManager::zwiftAsyncRideOnAnswer[18] = {0x2a, 0x08, 0x03, 0x12, 0x0
 uint8_t DirConManager::zwiftSyncRideOnAnswer[8] = {0x52, 0x69, 0x64, 0x65, 0x4f, 0x6e, 0x02, 0x00};
 
 double DirConManager::defaultGearRatio;
+VirtualShiftingMode DirConManager::virtualShiftingMode;
 
 TrainerMode DirConManager::zwiftTrainerMode;
 uint64_t DirConManager::zwiftPower;
@@ -60,6 +61,7 @@ class DirConServiceManagerCallbacks : public ServiceManagerCallbacks {
 
 void DirConManager::resetValues() {
   defaultGearRatio = (double)SettingsManager::getChainringTeeth() / (double)SettingsManager::getSprocketTeeth();
+  virtualShiftingMode = SettingsManager::getVirtualShiftingMode();
   zwiftTrainerMode = TrainerMode::SIM_MODE;
   zwiftPower = 0;
   zwiftGrade = 0;
@@ -527,7 +529,20 @@ void DirConManager::updateSIMModeResistance() {
       log_e("Error writing FEC track resistance");
     }
   } else if (zwiftTrainerMode == TrainerMode::SIM_MODE_VIRTUAL_SHIFTING) {
-    if (SettingsManager::isTrackResistanceEnabled()) {
+    // Target Power Mode
+    if (virtualShiftingMode == VirtualShiftingMode::TARGET_POWER) {
+      uint16_t trainerTargetPower = Calculations::
+                 calculateFECTargetPowerValue((zwiftBicycleWeight + zwiftUserWeight) / 100.0,
+                                                        zwiftGrade / 100.0,
+                                                        trainerCadence,
+                                                        0.7,
+                                                        zwiftGearRatio / 10000.0,
+                                                        defaultGearRatio);
+      if (!BTDeviceManager::writeFECTargetPower(trainerTargetPower)) {
+        log_e("Error writing SIM+VS FEC target power");
+      }
+    // Track Resistance Mode
+    } else if (virtualShiftingMode == VirtualShiftingMode::TRACK_RESISTANCE) {
       uint16_t trainerTrackResistanceGrade = Calculations::
                 calculateFECTrackResistanceGrade((zwiftBicycleWeight + zwiftUserWeight) / 100.0,
                                                   zwiftGrade / 100.0,
@@ -535,8 +550,10 @@ void DirConManager::updateSIMModeResistance() {
                                                   zwiftGearRatio / 10000.0,
                                                   defaultGearRatio);
       if (!BTDeviceManager::writeFECTrackResistance(trainerTrackResistanceGrade, 0x53)) {
-        log_e("Error writing geared FEC track resistance");
+        log_e("Error writing SIM+VS FEC track resistance");
       }
+
+    // Basic Resistance Mode
     } else {
       uint8_t trainerBasicResistance = Calculations::
                  calculateFECResistancePercentageValue((zwiftBicycleWeight + zwiftUserWeight) / 100.0,
@@ -546,12 +563,11 @@ void DirConManager::updateSIMModeResistance() {
                                                         defaultGearRatio,
                                                         trainerMaximumResistance);
       if (!BTDeviceManager::writeFECBasicResistance(trainerBasicResistance)) {
-        log_e("Error writing FEC basic resistance");
+        log_e("Error writing SIM+VS FEC basic resistance");
       }
     }
   }
 }
-
 
 void DirConManager::notifyDirConCharacteristic(const NimBLEUUID &characteristicUUID, uint8_t *pData, size_t length) {
   notifyDirConCharacteristic(serviceManager->getCharacteristic(characteristicUUID), pData, length);

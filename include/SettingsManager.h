@@ -12,6 +12,13 @@
 #include <Arduino.h>
 #include <IotWebConf.h>
 #include <IotWebConfUsing.h>
+#include <map>
+
+typedef enum VirtualShiftingMode {
+  BASIC_RESISTANCE = 0,
+  TARGET_POWER = 1,
+  TRACK_RESISTANCE = 2
+} virtualShiftingModeType;
 
 class SettingsManager {
  public:
@@ -20,9 +27,10 @@ class SettingsManager {
   static uint16_t getSprocketTeeth();
   static void setChainringTeeth(uint16_t chainringTeeth);
   static void setSprocketTeeth(uint16_t sprocketTeeth);
-  static bool isTrackResistanceEnabled();
   static bool isVirtualShiftingEnabled();
-  static void setTrackResistanceEnabled(bool enabled);
+  static VirtualShiftingMode getVirtualShiftingMode();
+  static void setVirtualShiftingMode(VirtualShiftingMode virtualShiftingMode);
+  static std::map<size_t, std::string> getVirtualShiftingModes();
   static void setVirtualShiftingEnabled(bool enabled);
   static std::string getTrainerDeviceName();
   static void setTrainerDeviceName(std::string trainerDevice);
@@ -31,13 +39,15 @@ class SettingsManager {
  private:
   static char iotWebConfChainringTeethParameterValue[];
   static char iotWebConfSprocketTeethParameterValue[];
-  static char iotWebConfTrackResistanceParameterValue[];
+  static char iotWebConfVirtualShiftingModeParameterValue[];
   static char iotWebConfVirtualShiftingParameterValue[];
   static char iotWebConfTrainerDeviceParameterValue[];
+  static char iotWebConfVirtualShiftingModeValues[][24];
+  static char iotWebConfVirtualShiftingModeNames[][24];
   static IotWebConfParameterGroup iotWebConfSettingsGroup;
   static IotWebConfNumberParameter iotWebConfChainringTeethParameter;
   static IotWebConfNumberParameter iotWebConfSprocketTeethParameter;
-  static IotWebConfCheckboxParameter iotWebConfTrackResistanceParameter;
+  static IotWebConfSelectParameter iotWebConfVirtualShiftingModeParameter;
   static IotWebConfCheckboxParameter iotWebConfVirtualShiftingParameter;
   static IotWebConfTextParameter iotWebConfTrainerDeviceParameter;
 };

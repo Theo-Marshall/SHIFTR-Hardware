@@ -1,6 +1,7 @@
 #include <Calculations.h>
 #include <Arduino.h>
 
+double const Calculations::pi = 3.14159;
 double const Calculations::gravity = 9.81;
 double const Calculations::rollingResistanceCoefficient = 0.00415;
 double const Calculations::windResistanceCoefficient = 0.51;
@@ -58,4 +59,10 @@ double Calculations::calculateGradeFromTotalForce(double force, double totalWeig
   return tan(asin(gravityForce / totalWeight / gravity)) * 100;
 }
 
+uint16_t Calculations::calculateFECTargetPowerValue(double totalWeight, double grade, uint8_t cadence, double wheelDiameter, double gearRatio, double defaultGearRatio) {
+  double speed = ((cadence * gearRatio) * (wheelDiameter * pi) / 60);
+  double gearedTotalForce = calculateGearedForce(calculateTotalForce(totalWeight, grade, speed), gearRatio, defaultGearRatio);
+  double power = gearedTotalForce * speed;
+  return (power * 4);
+}
 

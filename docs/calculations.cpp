@@ -7,7 +7,9 @@ uint8_t calculateFECResistancePercentageValue(double totalWeight, double grade, 
 uint16_t calculateFECTrackResistanceGrade(double totalWeight, double grade, double speed, double gearRatio, double defaultGearRatio);
 double calculateGearedForce(double totalForce, double gearRatio, double defaultGearRatio);
 double calculateGradeFromTotalForce(double force, double totalWeight, double speed, double gearRatio, double defaultGearRatio);
+uint16_t calculateFECTargetPowerValue(double totalWeight, double grade, uint8_t cadence, double wheelDiameter, double gearRatio, double defaultGearRatio);
 
+double const pi = 3.14159;
 double const gravity = 9.81;
 double const rollingResistanceCoefficient = 0.00415;
 double const windResistanceCoefficient = 0.51;
@@ -34,12 +36,12 @@ int main() {
   //printf("Grade: %f\n", calculateGradeFromTotalForce(force, 110, 8));
 
   
-  printf("Track resistance grade: %d\n", calculateFECTrackResistanceGrade(110, 0, 0, 2, 2.4286));
+  //printf("Track resistance grade: %d\n", calculateFECTrackResistanceGrade(110, 0, 0, 2, 2.4286));
   //double gearedTotalForce = calculateGearedForce(calculateTotalForce(110, -7, 12), 2.4286, 2.4286);
   //printf("Geared total force: %f\n", gearedTotalForce);
-  
-
   //printf("CGF: %f", calculateGearedForce(1, 0.75, 2.4286));
+
+  printf("Target power: %d\n", calculateFECTargetPowerValue(110, -5, 90, 0.7, 4.5, 2.4286) / 4);
 
   return 0;
 }
@@ -83,8 +85,8 @@ uint8_t calculateFECResistancePercentageValue(double totalWeight, double grade, 
 uint16_t calculateFECTrackResistanceGrade(double totalWeight, double grade, double speed, double gearRatio, double defaultGearRatio) {
   double gearedTotalForce = calculateGearedForce(calculateTotalForce(totalWeight, grade, speed), gearRatio, defaultGearRatio);
   double calculatedGrade = calculateGradeFromTotalForce(gearedTotalForce, totalWeight, speed, gearRatio, defaultGearRatio);
-  printf("Grade requested: %f\n", grade);    
-  printf("Calculated grade %f\n", calculatedGrade);
+  //printf("Grade requested: %f\n", grade);    
+  //printf("Calculated grade %f\n", calculatedGrade);
   return 0x4E20 + (calculatedGrade * 100);
 }
 
@@ -96,3 +98,11 @@ double calculateGradeFromTotalForce(double force, double totalWeight, double spe
   //printf("Calculated gravity force: %f\n", gravityForce);
   return tan(asin(gravityForce / totalWeight / gravity)) * 100;
 }
+
+uint16_t calculateFECTargetPowerValue(double totalWeight, double grade, uint8_t cadence, double wheelDiameter, double gearRatio, double defaultGearRatio) {
+  double speed = ((cadence * gearRatio) * (wheelDiameter * pi) / 60);
+  double gearedTotalForce = calculateGearedForce(calculateTotalForce(totalWeight, grade, speed), gearRatio, defaultGearRatio);
+  double power = gearedTotalForce * speed;
+  return (power * 4);
+}
+

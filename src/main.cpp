@@ -254,20 +254,34 @@ void handleWebServerSettings() {
   }
   json += ",";
 
+  json += "\"virtual_shifting_mode\": ";
+  json += SettingsManager::getVirtualShiftingMode();
+  json += ",";
+
+  std::map<size_t, std::string> modes = SettingsManager::getVirtualShiftingModes();
+  String modes_json = "\"virtual_shifting_modes\": [";
+  for (auto mode = modes.begin(); mode != modes.end(); mode++) {
+      modes_json += "{\"name\": \"";
+      modes_json += mode->second.c_str();
+      modes_json += "\", \"value\": ";
+      modes_json += mode->first;
+      modes_json += "},";
+  }
+  if (modes_json.endsWith(",")) {
+    modes_json.remove(modes_json.length() - 1);
+  }
+  modes_json += "],";
+
+  json += modes_json;
+
   json += "\"chainring_teeth\": ";
   json += SettingsManager::getChainringTeeth();
   json += ",";
 
   json += "\"sprocket_teeth\": ";
   json += SettingsManager::getSprocketTeeth();
-  json += ",";
+  json += "";
 
-  json += "\"track_resistance\": ";
-  if (SettingsManager::isTrackResistanceEnabled()) {
-    json += "true";
-  } else {
-    json += "false";
-  }
   json += "}";
 
   webServer.send(200, "application/json", json);
@@ -283,10 +297,8 @@ void handleWebServerSettingsPost() {
     } else {
       SettingsManager::setVirtualShiftingEnabled(false);
     }
-    if (webServer.hasArg("track_resistance")) {
-      SettingsManager::setTrackResistanceEnabled(true);
-    } else {
-      SettingsManager::setTrackResistanceEnabled(false);
+    if (webServer.hasArg("virtual_shifting_mode")) {
+      SettingsManager::setVirtualShiftingMode((VirtualShiftingMode)std::atoi(webServer.arg("virtual_shifting_mode").c_str()));
     }
     if (webServer.hasArg("chainring_teeth")) {
       SettingsManager::setChainringTeeth(std::atoi(webServer.arg("chainring_teeth").c_str()));
