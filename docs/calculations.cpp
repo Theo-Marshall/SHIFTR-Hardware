@@ -41,7 +41,7 @@ int main() {
   //printf("Geared total force: %f\n", gearedTotalForce);
   //printf("CGF: %f", calculateGearedForce(1, 0.75, 2.4286));
 
-  printf("Target power: %d\n", calculateFECTargetPowerValue(110, -5, 90, 0.7, 4.5, 2.4286) / 4);
+  printf("Target power: %d\n", calculateFECTargetPowerValue(110, -15, 30, 0.7, 2, 2.4286) / 4);
 
   return 0;
 }
@@ -103,6 +103,9 @@ uint16_t calculateFECTargetPowerValue(double totalWeight, double grade, uint8_t 
   double speed = ((cadence * gearRatio) * (wheelDiameter * pi) / 60);
   double gearedTotalForce = calculateGearedForce(calculateTotalForce(totalWeight, grade, speed), gearRatio, defaultGearRatio);
   double power = gearedTotalForce * speed;
+  if (power < 0) {
+    power = 0;
+  }
   return (power * 4);
 }
 

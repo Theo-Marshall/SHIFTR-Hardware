@@ -546,7 +546,8 @@ void DirConManager::updateSIMModeResistance() {
       uint16_t trainerTrackResistanceGrade = Calculations::
                 calculateFECTrackResistanceGrade((zwiftBicycleWeight + zwiftUserWeight) / 100.0,
                                                   zwiftGrade / 100.0,
-                                                  trainerInstantaneousSpeed / 1000.0,
+                                                  trainerCadence,
+                                                  0.7,
                                                   zwiftGearRatio / 10000.0,
                                                   defaultGearRatio);
       if (!BTDeviceManager::writeFECTrackResistance(trainerTrackResistanceGrade, 0x53)) {
@@ -558,7 +559,8 @@ void DirConManager::updateSIMModeResistance() {
       uint8_t trainerBasicResistance = Calculations::
                  calculateFECResistancePercentageValue((zwiftBicycleWeight + zwiftUserWeight) / 100.0,
                                                         zwiftGrade / 100.0,
-                                                        trainerInstantaneousSpeed / 1000.0,
+                                                        trainerCadence,
+                                                        0.7,
                                                         zwiftGearRatio / 10000.0,
                                                         defaultGearRatio,
                                                         trainerMaximumResistance);

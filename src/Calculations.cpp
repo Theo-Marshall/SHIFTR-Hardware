@@ -30,7 +30,8 @@ double Calculations::calculateGearedForce(double force, double gearRatio, double
   return force * relativeGearRatio;
 }
 
-uint8_t Calculations::calculateFECResistancePercentageValue(double totalWeight, double grade, double speed, double gearRatio, double defaultGearRatio, uint16_t maximumResistance) {
+uint8_t Calculations::calculateFECResistancePercentageValue(double totalWeight, double grade, uint8_t cadence, double wheelDiameter, double gearRatio, double defaultGearRatio, uint16_t maximumResistance) {
+  double speed = calculateSpeed(cadence, wheelDiameter, gearRatio);
   double gearedTotalForce = calculateGearedForce(calculateTotalForce(totalWeight, grade, speed), gearRatio, defaultGearRatio);
   //printf("Geared total force: %f\n", gearedTotalForce);
   if (gearedTotalForce < 0) {
@@ -42,7 +43,8 @@ uint8_t Calculations::calculateFECResistancePercentageValue(double totalWeight, 
   return 200;
 }
 
-uint16_t Calculations::calculateFECTrackResistanceGrade(double totalWeight, double grade, double speed, double gearRatio, double defaultGearRatio) {
+uint16_t Calculations::calculateFECTrackResistanceGrade(double totalWeight, double grade, uint8_t cadence, double wheelDiameter, double gearRatio, double defaultGearRatio) {
+  double speed = calculateSpeed(cadence, wheelDiameter, gearRatio);
   double gearedTotalForce = calculateGearedForce(calculateTotalForce(totalWeight, grade, speed), gearRatio, defaultGearRatio);
   double calculatedGrade = calculateGradeFromTotalForce(gearedTotalForce, totalWeight, speed, gearRatio, defaultGearRatio);
   //printf("Grade requested: %f\n", grade);    
@@ -60,9 +62,16 @@ double Calculations::calculateGradeFromTotalForce(double force, double totalWeig
 }
 
 uint16_t Calculations::calculateFECTargetPowerValue(double totalWeight, double grade, uint8_t cadence, double wheelDiameter, double gearRatio, double defaultGearRatio) {
-  double speed = ((cadence * gearRatio) * (wheelDiameter * pi) / 60);
+  double speed = calculateSpeed(cadence, wheelDiameter, gearRatio);
   double gearedTotalForce = calculateGearedForce(calculateTotalForce(totalWeight, grade, speed), gearRatio, defaultGearRatio);
   double power = gearedTotalForce * speed;
+  if (power < 0) {
+    power = 0;
+  }
   return (power * 4);
+}
+
+double Calculations::calculateSpeed(uint8_t cadence, double wheelDiameter, double gearRatio) {
+  return ((cadence * gearRatio) * (wheelDiameter * pi) / 60);
 }
 
