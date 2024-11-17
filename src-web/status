@@ -1,6 +1,7 @@
 {
     "device_name": "SHIFTR 123456",
-    "version": "1.2.3+456",
+    "version": "v1.2.3",
+    "build_timestamp": "2024-Nov-17 21:11:47",
     "hostname": "SHIFTR-123456.local",
     "ethernet_status": "Connected, IP 1.2.3.4",
     "wifi_status": "Disconnected",

@@ -322,6 +322,10 @@ void handleWebServerStatus() {
   json += VERSION;
   json += "\",";
 
+  json += "\"build_timestamp\": \"";
+  json += VERSION_TIMESTAMP;
+  json += "\",";
+
   json += "\"hostname\": \"";
   json += Utils::getFQDN().c_str();
   json += "\",";
