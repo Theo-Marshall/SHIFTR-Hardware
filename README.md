@@ -41,7 +41,7 @@ As the Zwift Cog has 14 teeth and a standard chainring 34 teeth the default rati
 
 Based on this ratio and the selected ratio from Zwift (e.g. 1.23 ~ "Gear 5") the ratio that will later be applied to the trainer's force will be calculated:
 
-$R_{relative} = R_{selected} / R_{standard}$ 
+$R_{relative} = R_{selected} / R_{standard} $ 
 
 Example: 
 
@@ -115,11 +115,11 @@ This new grade value is then sent to the trainer in the track resistance mode an
 
 The "Target Power" mode uses a different approach. Here we want to set an expected watts value depending on the current track and speed. To calculate the speed we assume a default wheel diameter $d$ of 0.7m and take the current cadence $c$ from the trainer that is being multiplied with the wanted gear ratio. The product is then being multiplied with the calculated perimeter of the wheel:
 
-$V_{gs} = (c · R_{selected}) · (d * \pi)$
+$V_{gs} = (c · R_{selected}) · (d · \pi) $
 
 This speed is then taken to calculate the geared total force [as described above](#calculate-total-geared-force) which is then being used to calculate the needed power $P$:
 
-$P = F_{totalGeared} * V_{gs}$
+$P = F_{totalGeared} · V_{gs}$
 
 This value is then being sent to the trainer in the target power mode as in ERG mode but of course is updated on every parameter change.
 
