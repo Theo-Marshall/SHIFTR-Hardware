@@ -7,7 +7,7 @@ from datetime import datetime
 Import("env")
 
 # determine the latest releasev semver
-latest_release_tag = subprocess.run(["git", "describe", "--tags"], stdout=subprocess.PIPE, text=True)
+latest_release_tag = subprocess.run(["git", "tag", "-l", "--sort=-committerdate"], stdout=subprocess.PIPE, text=True)
 latest_release_tag = latest_release_tag.stdout.strip()
 print ("\033[93;1;4mLatest Release Tag     : " + latest_release_tag + "\033[0m")
 
@@ -19,6 +19,12 @@ latest_release_digits = latest_release_semver.split(".")
 latest_release_main = latest_release_digits[0]
 latest_release_minor = latest_release_digits[1]
 latest_release_patch = latest_release_digits[2]
+
+# increase patch for local development build
+latest_release_patch = str(int(latest_release_patch) + 1)
+latest_release_semver = latest_release_main + "." + latest_release_minor + "." + latest_release_patch
+latest_release_semver_incl_v = "v" + latest_release_semver
+
 print ("\033[93;1;4mLatest Release Main    : " + latest_release_main + "\033[0m")
 print ("\033[93;1;4mLatest Release Minor   : " + latest_release_minor + "\033[0m")
 print ("\033[93;1;4mLatest Release Patch   : " + latest_release_patch + "\033[0m")
