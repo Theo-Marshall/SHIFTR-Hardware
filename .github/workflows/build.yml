@@ -87,7 +87,7 @@ jobs:
               declare -i nextminordigit=0
               declare -i nextpatchdigit=0
               declare buildversion="v$nextmajordigit.$nextminordigit.$nextpatchdigit"
-              declare buildversionfilename=$(echo "SHIFTR-${buildversion//./-}")
+              declare buildversionfilename=$(echo "SHIFTR-${buildversion}")
 
             elif [[ "${{ github.event.head_commit.message }}" == *"minor"* ]]; then
               echo "Incrementing Minor versionDigit"
@@ -95,14 +95,14 @@ jobs:
               declare -i nextminordigit=${{ steps.versioninfo.outputs.lastminordigit }}+1
               declare -i nextpatchdigit=0
               declare buildversion="v$nextmajordigit.$nextminordigit.$nextpatchdigit"
-              declare buildversionfilename=$(echo "SHIFTR-${buildversion//./-}")
+              declare buildversionfilename=$(echo "SHIFTR-${buildversion}")
             else
               echo "Incrementing Patch versionDigit"
               declare -i nextmajordigit=${{ steps.versioninfo.outputs.lastmajordigit }}
               declare -i nextminordigit=${{ steps.versioninfo.outputs.lastminordigit }}
               declare -i nextpatchdigit=${{ steps.versioninfo.outputs.lastpatchdigit }}+1
               declare buildversion="v$nextmajordigit.$nextminordigit.$nextpatchdigit"
-              declare buildversionfilename=$(echo "SHIFTR-${buildversion//./-}")
+              declare buildversionfilename=$(echo "SHIFTR-${buildversion}")
             fi
           else
             echo "Not on main branch -> development version"
@@ -110,7 +110,7 @@ jobs:
             declare -i nextminordigit=${{ steps.versioninfo.outputs.lastminordigit }}
             declare -i nextpatchdigit=${{ steps.versioninfo.outputs.lastpatchdigit }}
             declare buildversion="v$nextmajordigit.$nextminordigit.$nextpatchdigit-${{ steps.versioninfo.outputs.commithash }}"
-            declare buildversionfilename=$(echo "SHIFTR-${buildversion//./-}")
+            declare buildversionfilename=$(echo "SHIFTR-${buildversion}")
           fi
           echo "Building Version : $buildversion"
           echo "  Major          : $nextmajordigit"
