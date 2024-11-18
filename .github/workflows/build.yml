@@ -1,9 +1,9 @@
-#https://piolabs.com/blog/insights/cicd-testing-coverage-versioning.html
+# Nice article: https://piolabs.com/blog/insights/cicd-testing-coverage-versioning.html
 name: Build and Release
 on:
   workflow_dispatch:
   push:
-      branches: [ main ]
+      branches: [ main, develop ]
 
 jobs:
   versioning:
