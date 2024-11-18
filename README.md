@@ -1,6 +1,5 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![CI](https://github.com/JuergenLeber/SHIFTR/actions/workflows/main.yml/badge.svg)](https://github.com/JuergenLeber/SHIFTR/actions/workflows/main.yml)
-
+[![CI](https://github.com/JuergenLeber/SHIFTR/actions/workflows/build.yml/badge.svg)](https://github.com/JuergenLeber/SHIFTR/actions/workflows/build.yml)
 # SHIFTR
 A BLE to Direct Connect bridge for bike trainers using a WT32-ETH01 module based on ESP32. Additionally adding Zwift™️ "virtual shifting" functionality to any device supporting FE-C over BLE.
 
@@ -9,30 +8,30 @@ Currently tested with Garmin/Tacx NEO 2T and Vortex but should also work on othe
 Even if everything is working fine this project is still work in progress!
 
 ## Overview
-Bike trainers heavily evolved over the last years. Tacx (acquired by Garmin some years ago) is one of the market leaders producing bike trainers of a very high quality with special features like e.g. "Road Feeling" to simulate different road surfaces. 
+Bike trainers heavily evolved over the last few years. Tacx (acquired by Garmin some years ago) is one of the market leaders producing bike trainers of a very high quality with special features like e.g. "Road Feeling" to simulate different road surfaces. 
 Other vendors like Zwift came up with cool new features like "virtual shifting" using the "Zwift Cog" and a controller device (Zwift Click/Play) to have a non-mechanical shifting solution which is setting the gears via software that adjusts the resistance in the trainer. 
 Wahoo came up with a technology called "Direct Connect" that allows the trainer devices to be connected via Ethernet (or even WiFi) instead of bluetooth to have a more stable connection.
 
 While other vendors like e.g. Elite or JetBlack are very fast in implementing things like virtual shifting to their newer models Garmin is very slow and unresponsive when it comes to such feature requests. Probably also because they have their own ecosystem that competes with Zwift. 
 
-Using Zwift since many years and owning a "Tacx Vortex" and a "Tacx Neo 2T" bike trainer I have been jealous to features like virtual shifting and the possibility to connect the trainer device via ethernet. So the idea for this project, SHIFTR, was born by having a device between Zwift and the Tacx supporting all this cool new functionality.
+Using Zwift for many years and owning a "Tacx Vortex" and a "Tacx Neo 2T" bike trainer I have been jealous of features like virtual shifting and the possibility to connect the trainer device via ethernet. So the idea for this project, SHIFTR, was born by having a device between Zwift and the Tacx supporting all this cool new functionality.
 
-After many days and nights of searching the internet for a specification of the protocols I was only able to find small parts for "Direct Connect" that has already been reverse engineered by Roberto Viola in his [QDomyos-Zwift](https://github.com/cagnulein/qdomyos-zwift) project. The code helped me a lot to understand the protocol.
+After many days and nights of searching the internet for a specification of the protocols I was only able to find small parts for "Direct Connect" that have already been reverse engineered by Roberto Viola in his [QDomyos-Zwift](https://github.com/cagnulein/qdomyos-zwift) project. The code helped me a lot to understand the protocol.
 Unfortunately there was absolutely no information about the "virtual shifting" to be found. So a very long session of decompiling Zwift apps and sniffing BLE traffic between Zwift and capable trainers (which fortunately a friend had one of) started. It took some weeks but I was able to reverse engineer the used protocols.
 
-As I wanted to have a convenient solution that doesn't require a special program or app to be started to have that functionality I decided to implement everything on an ESP32 micro controler that already features WiFi and Bluetooth onboard and also optionally ethernet. The perfect module for that was the [WT32-ETH01](https://en.wireless-tag.com/product-item-2.html) module that comes with everything I needed. The device will be placed very close to the trainer in a 3D printed case that also has place for step down converter to be able to use the existing power supply from the trainer.
+As I wanted to have a convenient solution that doesn't require a special program or app to be started to have that functionality I decided to implement everything on an ESP32 microcontroller that already features WiFi and Bluetooth onboard and also optionally ethernet. The perfect module for that was the [WT32-ETH01](https://en.wireless-tag.com/product-item-2.html) module that comes with everything I needed. The device will be placed very close to the trainer in a 3D printed case that also has a place for a step down converter to be able to use the existing power supply from the trainer.
 
 Now I have a great setup with a Garmin/Tacx NEO 2T with a Zwift Cog installed and communicating to Zwift via ethernet while still having the "Road Feeling" feature: 
 ![The whole setup](images/tacx_neo_2t_and_zwift_cog_and_device.jpg)
 
-This setup even works great with Zwift running on an Apple TV. Apple TV only support two simultaneous bluetooth connections and those can now be used for the Zwift Play controllers while the trainer itself is being connected through ethernet.
+This setup even works great with Zwift running on an Apple TV. Apple TV only supports two simultaneous bluetooth connections and those can now be used for the Zwift Play controllers while the trainer itself is being connected through ethernet.
 
 ## How it works
 The SHIFTR is working in two modes, "Pass-through" and "Pass-through + virtual shifting":
 ### Pass-through mode
 In this mode the SHIFTR just takes all services from the BLE trainer devices and provides them 1:1 via Direct Connect. It supports SIM and ERG mode as if the device would be connected via bluetooth.
 ### Pass-through + virtual shifting mode
-This mode provides the pass through features as mentioned before and additionally offers a special Zwift service via Direct Connect that allows to behave like a Zwift certified device offering virtual shifting, too. All necessary information like incline, bicycle and user weight, etc. are transmitted by Zwift and used for calculations. SIM and ERG mode are supported but of course virtual shifting only works in SIM mode.
+This mode provides the pass through features as mentioned before and additionally offers a special Zwift service via Direct Connect that allows it to behave like a Zwift certified device offering virtual shifting, too. All necessary information like incline, bicycle and user weight, etc. are transmitted by Zwift and used for calculations. SIM and ERG mode are supported but of course virtual shifting only works in SIM mode.
 ### Virtual shifting 
 The virtual gears are defined inside Zwift and don't need a special handling in SHIFTR. Zwift just sends the corresponding gear ratio (chainring:sprocket) between 0.75 and 5.49 on every shift. 
 
@@ -50,7 +49,7 @@ $R_{relative} = 1.23 / 2.4286 = 0.51$ (rounded)
 
 To set the correct resistance of the trainer, the gravitational, the rolling and the drag force are calculated using formulas. There are currently three methods of applying the virtual gears implemented: "***Basic Resistance***", "***Target Power***" and "***Track Resistance***". The feeling may vary from trainer to trainer but whatever mode is being used the reported watts and cadence are never modified and so the measured power in Zwift will always be as correct as before.
 
-The different modes can be set in the device configuration - the default is "Basic Resistance".
+The different modes can be set in the device configuration - the default is "Target Power".
 
 Getting back to the calculations: The combined weight of you (the cyclist) and your bike is $W$ ($kg$). The gravitational force constant $g$ is 9.8067 ($m/s^2$). There is a dimensionless parameter, called the "Coefficient of Rolling Resistance", or $C_{rr}$, that captures the bumpiness of the road and the quality of your tires. There are some defaults specified in the FE-C docs:
 
@@ -63,7 +62,7 @@ Getting back to the calculations: The combined weight of you (the cyclist) and y
 
 This parameter is set by Zwift in normal SIM mode as `0x53`(= 83 dec) and equals (as the unit is $5·10^{-5}$) a value of 0.00415 which is kind of an "Asphalt Road" and also the default mentioned in the FE-C docs. The steepness of a hill will be provided by Zwift in terms of percentage grade $G$.
 
-Regarding the aerodynamic drag the head/tailwind $V_{hw} (m/s)$ isn't been taken into account from Zwift and is assumed 0. But the faster your groundspeed $V_{gs} (m/s)$ is, the more force the air pushes against you. Your airspeed $V_{as} (m/s)$ is the speed that the wind strikes your face, and it is the sum of your groundspeed $V_{gs}$ and the headwind speed $V_{hw}$. As well, you and your bike present a certain frontal area $A (m^2)$ to the air. The larger this frontal area, the more air you have to displace, and the larger the force the air pushes against you. The air density $Rho (kg/m^3)$ is also important. The more dense the air, the more force it exerts on you. Then there is another dimensionless parameter, called the "Drag Coefficient", or $C_{d}$, that captures other effects, like the slipperyness of your clothing and the degree to which air flows laminarly rather than turbulently around you and your bike. Having all the values we can calculate as follows:
+Regarding the aerodynamic drag the head/tailwind $V_{hw} (m/s)$ isn't taken into account from Zwift and is assumed 0. But the faster your groundspeed $V_{gs} (m/s)$ is, the more force the air pushes against you. Your airspeed $V_{as} (m/s)$ is the speed that the wind strikes your face, and it is the sum of your groundspeed $V_{gs}$ and the headwind speed $V_{hw}$. As well, you and your bike present a certain frontal area $A (m^2)$ to the air. The larger this frontal area, the more air you have to displace, and the larger the force the air pushes against you. The air density $Rho (kg/m^3)$ is also important. The more dense the air, the more force it exerts on you. Then there is another dimensionless parameter, called the "Drag Coefficient", or $C_{d}$, that captures other effects, like the slipperiness of your clothing and the degree to which air flows laminarly rather than turbulently around you and your bike. Having all the values we can calculate as follows:
 
 #### Calculate total geared force
 
@@ -124,7 +123,7 @@ $P = F_{totalGeared} * V_{gs}$
 
 This value is then being sent to the trainer in the target power mode as in ERG mode but of course is updated on every parameter change.
 
-***Note***: Virtual shifting will be disabled if neither Zwift Play controllers nor a Zwift Click are connected which results in the standard SIM mode with a track resistance of 0%. Then you'd have to shift with your bike but with a Zwift Cog installed this doesn't make sense of course. If the controllers disconnect during a training then the fallback will be this normal SIM mode but as soon as the controllers a reconnected the virtual shifting will be enabled again.
+***Note***: Virtual shifting will be disabled if neither Zwift Play controllers nor a Zwift Click are connected which results in the standard SIM mode with a track resistance of 0%. Then you'd have to shift with your bike but with a Zwift Cog installed this doesn't make sense of course. If the controllers disconnect during a training then the fallback will be this normal SIM mode but as soon as the controller(s) are re-connected the virtual shifting will be enabled again.
 
 ## Needed hardware
 - WT32-ETH01 ESP32 board (e.g. from [Amazon](https://www.amazon.de/WT32-ETH01-Embedded-Schnittstelle-Bluetooth-Entwicklungsplatine/dp/B0CW3DDWZ4))
@@ -148,7 +147,7 @@ This value is then being sent to the trainer in the target power mode as in ERG 
 
   It's best to use some breadboard jumper wires that can just be connected without soldering. Use a rubber band to hold them in contact.
 
-  To start the WT32-ETH01 in boot mode it is necessary to connect "IO0" with GND and then to reset the board shortly connect "EN" to GND for a quarter of a second.
+  To start the WT32-ETH01 in boot mode it is necessary to connect "IO0" with GND and then to reset the board, shortly connect "EN" to GND for a quarter of a second.
 
 ## Software installation
 - Make a copy of the provided ``ota.ini.example`` file and name it ``ota.ini`` (you can adjust the values in the file to your needs but also leave it as it is). This is because the credentials shouldn't be committed to GitHub and so they are stored in a separate file that is on the .gitignore list.
@@ -179,7 +178,7 @@ You've made it to the end, hopefully you'll have fun rebuilding the whole thing.
 In case of any questions feel free to contact me!
 
 ## Disclaimer
-Please always check the documentation of the hardware you bought as there are sometimes small changes in pin assignments, voltage and so on. I don't take any liability for damages or injuries. Build this project at you own risk. The linked products and pages are for reference only. I don't get any money from the manufacturers or the (re)sellers.
+Please always check the documentation of the hardware you bought as there are sometimes small changes in pin assignments, voltage and so on. I don't take any liability for damages or injuries. Build this project at your own risk. The linked products and pages are for reference only. I don't get any money from the manufacturers or the (re)sellers.
 
 
 
