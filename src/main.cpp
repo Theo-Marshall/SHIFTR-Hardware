@@ -1,5 +1,4 @@
 #include <Arduino.h>
-#include <ArduinoOTA.h>
 #include <AsyncTCP.h>
 #include <BTDeviceManager.h>
 #include <Config.h>
@@ -27,12 +26,11 @@ bool isMDNSStarted = false;
 bool isBLEConnected = false;
 bool isEthernetConnected = false;
 bool isWiFiConnected = false;
-bool isOTAInProgress = false;
 
 DNSServer dnsServer;
 WebServer webServer(WEB_SERVER_PORT);
 HTTPUpdateServer updateServer;
-IotWebConf iotWebConf(Utils::getDeviceName().c_str(), &dnsServer, &webServer, Utils::getHostName().c_str(), WIFI_CONFIG_VERSION);
+IotWebConf iotWebConf(Utils::getHostName().c_str(), &dnsServer, &webServer, Utils::getHostName().c_str(), WIFI_CONFIG_VERSION);
 
 ServiceManager serviceManager;
 
@@ -49,29 +47,6 @@ void setup() {
   }
   log_i("Bluetooth device manager initialized");
 
-  // initialize OTA
-  ArduinoOTA.onStart([]() {
-    log_i("OTA started");
-    isOTAInProgress = true;
-  });
-  ArduinoOTA.onEnd([]() {
-    log_i("OTA finished, rebooting...");
-    delay(1000);
-    ESP.restart();
-  });
-  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-    log_i("OTA progress: %u%%", (progress / (total / 100)));
-  });
-  ArduinoOTA.onError([](ota_error_t error) {
-    log_e("OTA error: %u, rebooting...", error);
-    delay(1000);
-    ESP.restart();
-  });
-  ArduinoOTA.setHostname(Utils::getHostName().c_str());
-  ArduinoOTA.setMdnsEnabled(false);
-  ArduinoOTA.setPassword(STR(OTA_PASSWORD));
-  log_i("OTA initialized");
-
   // initialize network events
   WiFi.onEvent(networkEvent);
   log_i("Network events initialized");
@@ -81,25 +56,46 @@ void setup() {
   log_i("Ethernet interface initialized");
 
   // initialize settings manager
-  SettingsManager::initialize();
+  SettingsManager::initialize(&iotWebConf);
 
   // initialize wifi manager and web server
   iotWebConf.setStatusPin(WIFI_STATUS_PIN);
   iotWebConf.setConfigPin(WIFI_CONFIG_PIN);
   iotWebConf.addParameterGroup(SettingsManager::getIoTWebConfSettingsParameterGroup());
   iotWebConf.setupUpdateServer(
-      [](const char* updatePath) { updateServer.setup(&webServer, updatePath); },
-      [](const char* userName, char* password) { updateServer.updateCredentials(STR(OTA_USERNAME), STR(OTA_PASSWORD)); });
+      [](const char* updatePath) { updateServer.setup(&webServer, updatePath, SettingsManager::getUsername().c_str(), SettingsManager::getAPPassword().c_str()); },
+      [](const char* userName, char* password) { updateServer.updateCredentials(userName, password); });
   iotWebConf.init();
+
+  // workaround for missing thing name
+  strncpy(iotWebConf.getThingNameParameter()->valueBuffer, Utils::getHostName().c_str(), iotWebConf.getThingNameParameter()->getLength());
+
   webServer.on("/debug", handleWebServerDebug);
   webServer.on("/status", handleWebServerStatus);
   webServer.on("/favicon.ico", [] { handleWebServerFile("favicon.ico"); });
   webServer.on("/style.css", [] { handleWebServerFile("style.css"); });
   webServer.on("/", [] { handleWebServerFile("index.html"); });
-  webServer.on("/settings", HTTP_GET, [] { handleWebServerFile("settings.html"); });
-  webServer.on("/settings", HTTP_POST, [] { handleWebServerSettingsPost(); });
-  webServer.on("/devicesettings", [] { handleWebServerSettings(); });
-  webServer.on("/config", [] { iotWebConf.handleConfig(); });
+  webServer.on("/settings", HTTP_GET, [] { 
+    if (!webServer.authenticate(SettingsManager::getUsername().c_str(), SettingsManager::getAPPassword().c_str())) {
+      return webServer.requestAuthentication();
+    }
+    handleWebServerFile("settings.html"); });
+  webServer.on("/settings", HTTP_POST, [] { 
+    if (!webServer.authenticate(SettingsManager::getUsername().c_str(), SettingsManager::getAPPassword().c_str())) {
+      return webServer.requestAuthentication();
+    }
+    handleWebServerSettingsPost(); });
+  webServer.on("/devicesettings", [] { 
+    if (!webServer.authenticate(SettingsManager::getUsername().c_str(), SettingsManager::getAPPassword().c_str())) {
+      return webServer.requestAuthentication();
+    }
+    handleWebServerSettings(); });
+  webServer.on("/config", [] { 
+    if (!webServer.authenticate(SettingsManager::getUsername().c_str(), SettingsManager::getAPPassword().c_str())) {
+      return webServer.requestAuthentication();
+    }
+    iotWebConf.handleConfig(); });
+  
   webServer.onNotFound([]() { iotWebConf.handleNotFound(); });
   log_i("WiFi manager and web server initialized");
 
@@ -137,13 +133,9 @@ void setup() {
 }
 
 void loop() {
-  if (!isOTAInProgress) {
-    BTDeviceManager::update();
-    DirConManager::update();
-    iotWebConf.doLoop();
-  } else {
-    ArduinoOTA.handle();
-  }
+  BTDeviceManager::update();
+  DirConManager::update();
+  iotWebConf.doLoop();
 }
 
 void networkEvent(WiFiEvent_t event) {
@@ -158,8 +150,6 @@ void networkEvent(WiFiEvent_t event) {
     case ARDUINO_EVENT_ETH_GOT_IP:
       log_i("Ethernet DHCP successful with IP %u.%u.%u.%u", ETH.localIP()[0], ETH.localIP()[1], ETH.localIP()[2], ETH.localIP()[3]);
       isEthernetConnected = true;
-      ArduinoOTA.end();
-      ArduinoOTA.begin();
       break;
     case ARDUINO_EVENT_ETH_DISCONNECTED:
       log_i("Ethernet disconnected");
@@ -172,8 +162,6 @@ void networkEvent(WiFiEvent_t event) {
     case ARDUINO_EVENT_WIFI_STA_GOT_IP:
       log_i("WiFi DHCP successful with IP %u.%u.%u.%u", WiFi.localIP()[0], WiFi.localIP()[1], WiFi.localIP()[2], WiFi.localIP()[3]);
       isWiFiConnected = true;
-      ArduinoOTA.end();
-      ArduinoOTA.begin();
       break;
     case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
       log_i("WiFi disconnected");

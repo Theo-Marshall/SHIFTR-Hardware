@@ -54,7 +54,7 @@ jobs:
           echo "fulltag = [$fulltag]"
           declare versiontag=$(echo $fulltag | cut -d'-' -f1)
           echo "extract SemVer numbers from version tag [$versiontag]"
-          declare -i lastmajordigit=$(echo $versiontag | cut -c 1- | cut -d'.' -f1)
+          declare -i lastmajordigit=$(echo $versiontag | cut -c 2- | cut -d'.' -f1)
           echo "lastmajordigit = $lastmajordigit"
           declare -i lastminordigit=$(echo $versiontag | cut -c 1- | cut -d'.' -f2)
           echo "lastminordigit = $lastminordigit"
@@ -169,10 +169,6 @@ jobs:
       - name: Install PlatformIO Core
         run: pip install --upgrade platformio
 
-      - name: Setup OTA settings file
-        run: |
-          cp ota.ini.example ota.ini
-  
       - name: Build
         run: |
           pio run -e wt32-eth01

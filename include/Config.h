@@ -4,6 +4,8 @@
 #define ST(A) #A
 #define STR(A) ST(A)
 
+#define DEFAULT_USERNAME "admin"
+
 #define DEVICE_NAME_PREFIX "SHIFTR"
 
 #define WEB_SERVER_PORT 80

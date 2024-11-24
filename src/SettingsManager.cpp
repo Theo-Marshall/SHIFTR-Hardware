@@ -1,4 +1,6 @@
 #include <SettingsManager.h>
+#include <Utils.h>
+#include <Config.h>
 
 char SettingsManager::iotWebConfChainringTeethParameterValue[16];
 char SettingsManager::iotWebConfSprocketTeethParameterValue[16];
@@ -16,7 +18,10 @@ IotWebConfSelectParameter SettingsManager::iotWebConfVirtualShiftingModeParamete
 IotWebConfCheckboxParameter SettingsManager::iotWebConfVirtualShiftingParameter = IotWebConfCheckboxParameter("Virtual shifting", "virtual_shifting", SettingsManager::iotWebConfVirtualShiftingParameterValue, sizeof(iotWebConfVirtualShiftingParameterValue), true);
 IotWebConfTextParameter SettingsManager::iotWebConfTrainerDeviceParameter = IotWebConfTextParameter("Trainer device", "trainer_device", iotWebConfTrainerDeviceParameterValue, sizeof(iotWebConfTrainerDeviceParameterValue), "");
 
-void SettingsManager::initialize() {
+IotWebConf* SettingsManager::iotWebConf;
+
+void SettingsManager::initialize(IotWebConf* iotWebConf) {
+  SettingsManager::iotWebConf = iotWebConf;
   iotWebConfSettingsGroup.addItem(&iotWebConfTrainerDeviceParameter);
   iotWebConfSettingsGroup.addItem(&iotWebConfVirtualShiftingParameter);
   iotWebConfSettingsGroup.addItem(&iotWebConfChainringTeethParameter);
@@ -97,4 +102,17 @@ void SettingsManager::setTrainerDeviceName(std::string trainerDevice) {
 
 IotWebConfParameterGroup* SettingsManager::getIoTWebConfSettingsParameterGroup() {
   return &iotWebConfSettingsGroup;
+}
+
+std::string SettingsManager::getUsername() {
+  return std::string(DEFAULT_USERNAME);
+}
+
+std::string SettingsManager::getAPPassword() {
+  iotwebconf::Parameter* aPPasswordParameter = iotWebConf->getApPasswordParameter();
+  std::string aPPassword = std::string(aPPasswordParameter->valueBuffer);
+  if (aPPassword.length() == 0) {
+    aPPassword = Utils::getHostName().c_str();
+  }
+  return aPPassword;
 }

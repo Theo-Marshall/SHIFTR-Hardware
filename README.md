@@ -41,6 +41,7 @@ As the Zwift Cog has 14 teeth and a standard chainring 34 teeth the default rati
 
 Based on this ratio and the selected ratio from Zwift (e.g. 1.23 ~ "Gear 5") the ratio that will later be applied to the trainer's force will be calculated:
 
+
 $R_{relative} = R_{selected} / R_{standard}$ 
 
 Example: 
@@ -115,11 +116,12 @@ This new grade value is then sent to the trainer in the track resistance mode an
 
 The "Target Power" mode uses a different approach. Here we want to set an expected watts value depending on the current track and speed. To calculate the speed we assume a default wheel diameter $d$ of 0.7m and take the current cadence $c$ from the trainer that is being multiplied with the wanted gear ratio. The product is then being multiplied with the calculated perimeter of the wheel:
 
-$V_{gs} = (c · R_{selected}) · (d * \pi)$
+
+$V_{gs} = (c · R_{selected}) · (d · \pi)$
 
 This speed is then taken to calculate the geared total force [as described above](#calculate-total-geared-force) which is then being used to calculate the needed power $P$:
 
-$P = F_{totalGeared} * V_{gs}$
+$P = F_{totalGeared} · V_{gs}$
 
 This value is then being sent to the trainer in the target power mode as in ERG mode but of course is updated on every parameter change.
 
@@ -150,13 +152,13 @@ This value is then being sent to the trainer in the target power mode as in ERG 
   To start the WT32-ETH01 in boot mode it is necessary to connect "IO0" with GND and then to reset the board, shortly connect "EN" to GND for a quarter of a second.
 
 ## Software installation
-- Make a copy of the provided ``ota.ini.example`` file and name it ``ota.ini`` (you can adjust the values in the file to your needs but also leave it as it is). This is because the credentials shouldn't be committed to GitHub and so they are stored in a separate file that is on the .gitignore list.
 - Open the project in [PlatformIO](https://platformio.org) and let it install the dependencies
 - Connect the programmer and upload via the task wt32-eth01 -> Upload and Monitor
 - Connect an ethernet cable and make sure a DHCP server exists in your network
 - After a few seconds you should be able to see the IP address and the hostname (like e.g. "SHIFTR-123456.local") in the monitor log
-- If you don't use the Ethernet interface you can also use the WiFi functionality. For that the device opens an AP with the device name (e.g. "SHIFTR 123456") and the password is the same but with "-" instead of space. Please note that WiFi is provided by an external library called [IoTWebConf](https://github.com/prampec/IotWebConf) and more or less untested
+- If you don't use the Ethernet interface you can also use the WiFi functionality. For that the device opens an AP with the device name (e.g. "SHIFTR-123456") and the password is the same but of course can be changed later. Please note that WiFi is provided by an external library called [IoTWebConf](https://github.com/prampec/IotWebConf) and is more or less untested
 - After that you can configure the device and its network settings in the web interface on e.g. http://SHIFTR-123456.local
+- The status page is accessible without credentials, the settings and firmware update pages need the username "admin" and the password is the configured AP password or just the device name (e.g. "SHIFTR-123456") as default. Note that both are case sensitive!
 - Further updates can be made over ethernet or WiFi so you can disconnect the programming adapter now
 
 ## Finalization
