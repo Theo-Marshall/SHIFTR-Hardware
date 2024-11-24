@@ -1,5 +1,4 @@
 #include <Arduino.h>
-#include <ArduinoOTA.h>
 #include <AsyncTCP.h>
 #include <BTDeviceManager.h>
 #include <Config.h>
@@ -27,7 +26,6 @@ bool isMDNSStarted = false;
 bool isBLEConnected = false;
 bool isEthernetConnected = false;
 bool isWiFiConnected = false;
-bool isOTAInProgress = false;
 
 DNSServer dnsServer;
 WebServer webServer(WEB_SERVER_PORT);
@@ -48,29 +46,6 @@ void setup() {
     ESP.restart();
   }
   log_i("Bluetooth device manager initialized");
-
-  // initialize OTA
-  ArduinoOTA.onStart([]() {
-    log_i("OTA started");
-    isOTAInProgress = true;
-  });
-  ArduinoOTA.onEnd([]() {
-    log_i("OTA finished, rebooting...");
-    delay(1000);
-    ESP.restart();
-  });
-  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-    log_i("OTA progress: %u%%", (progress / (total / 100)));
-  });
-  ArduinoOTA.onError([](ota_error_t error) {
-    log_e("OTA error: %u, rebooting...", error);
-    delay(1000);
-    ESP.restart();
-  });
-  ArduinoOTA.setHostname(Utils::getHostName().c_str());
-  ArduinoOTA.setMdnsEnabled(false);
-  ArduinoOTA.setPassword(STR(OTA_PASSWORD));
-  log_i("OTA initialized");
 
   // initialize network events
   WiFi.onEvent(networkEvent);
@@ -158,13 +133,9 @@ void setup() {
 }
 
 void loop() {
-  if (!isOTAInProgress) {
-    BTDeviceManager::update();
-    DirConManager::update();
-    iotWebConf.doLoop();
-  } else {
-    ArduinoOTA.handle();
-  }
+  BTDeviceManager::update();
+  DirConManager::update();
+  iotWebConf.doLoop();
 }
 
 void networkEvent(WiFiEvent_t event) {
@@ -179,8 +150,6 @@ void networkEvent(WiFiEvent_t event) {
     case ARDUINO_EVENT_ETH_GOT_IP:
       log_i("Ethernet DHCP successful with IP %u.%u.%u.%u", ETH.localIP()[0], ETH.localIP()[1], ETH.localIP()[2], ETH.localIP()[3]);
       isEthernetConnected = true;
-      ArduinoOTA.end();
-      ArduinoOTA.begin();
       break;
     case ARDUINO_EVENT_ETH_DISCONNECTED:
       log_i("Ethernet disconnected");
@@ -193,8 +162,6 @@ void networkEvent(WiFiEvent_t event) {
     case ARDUINO_EVENT_WIFI_STA_GOT_IP:
       log_i("WiFi DHCP successful with IP %u.%u.%u.%u", WiFi.localIP()[0], WiFi.localIP()[1], WiFi.localIP()[2], WiFi.localIP()[3]);
       isWiFiConnected = true;
-      ArduinoOTA.end();
-      ArduinoOTA.begin();
       break;
     case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
       log_i("WiFi disconnected");

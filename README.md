@@ -152,7 +152,6 @@ This value is then being sent to the trainer in the target power mode as in ERG 
   To start the WT32-ETH01 in boot mode it is necessary to connect "IO0" with GND and then to reset the board, shortly connect "EN" to GND for a quarter of a second.
 
 ## Software installation
-- Make a copy of the provided ``ota.ini.example`` file and name it ``ota.ini`` (you can adjust the values in the file to your needs but also leave it as it is). This is because the credentials shouldn't be committed to GitHub and so they are stored in a separate file that is on the .gitignore list.
 - Open the project in [PlatformIO](https://platformio.org) and let it install the dependencies
 - Connect the programmer and upload via the task wt32-eth01 -> Upload and Monitor
 - Connect an ethernet cable and make sure a DHCP server exists in your network
