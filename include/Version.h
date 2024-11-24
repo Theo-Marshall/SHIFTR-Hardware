@@ -11,6 +11,6 @@
 #define VERSION_MAJOR 1
 #define VERSION_MINOR 0
 #define VERSION_PATCH 1
-#define VERSION_BUILD "a11de4c"
-#define VERSION_TIMESTAMP "2024-Nov-18 20:37:45"
+#define VERSION_BUILD "de2bd20"
+#define VERSION_TIMESTAMP "2024-Nov-24 20:38:35"
 #endif

@@ -32,7 +32,7 @@ bool isOTAInProgress = false;
 DNSServer dnsServer;
 WebServer webServer(WEB_SERVER_PORT);
 HTTPUpdateServer updateServer;
-IotWebConf iotWebConf(Utils::getDeviceName().c_str(), &dnsServer, &webServer, Utils::getHostName().c_str(), WIFI_CONFIG_VERSION);
+IotWebConf iotWebConf(Utils::getHostName().c_str(), &dnsServer, &webServer, Utils::getHostName().c_str(), WIFI_CONFIG_VERSION);
 
 ServiceManager serviceManager;
 
@@ -81,25 +81,46 @@ void setup() {
   log_i("Ethernet interface initialized");
 
   // initialize settings manager
-  SettingsManager::initialize();
+  SettingsManager::initialize(&iotWebConf);
 
   // initialize wifi manager and web server
   iotWebConf.setStatusPin(WIFI_STATUS_PIN);
   iotWebConf.setConfigPin(WIFI_CONFIG_PIN);
   iotWebConf.addParameterGroup(SettingsManager::getIoTWebConfSettingsParameterGroup());
   iotWebConf.setupUpdateServer(
-      [](const char* updatePath) { updateServer.setup(&webServer, updatePath); },
-      [](const char* userName, char* password) { updateServer.updateCredentials(STR(OTA_USERNAME), STR(OTA_PASSWORD)); });
+      [](const char* updatePath) { updateServer.setup(&webServer, updatePath, SettingsManager::getUsername().c_str(), SettingsManager::getAPPassword().c_str()); },
+      [](const char* userName, char* password) { updateServer.updateCredentials(userName, password); });
   iotWebConf.init();
+
+  // workaround for missing thing name
+  strncpy(iotWebConf.getThingNameParameter()->valueBuffer, Utils::getHostName().c_str(), iotWebConf.getThingNameParameter()->getLength());
+
   webServer.on("/debug", handleWebServerDebug);
   webServer.on("/status", handleWebServerStatus);
   webServer.on("/favicon.ico", [] { handleWebServerFile("favicon.ico"); });
   webServer.on("/style.css", [] { handleWebServerFile("style.css"); });
   webServer.on("/", [] { handleWebServerFile("index.html"); });
-  webServer.on("/settings", HTTP_GET, [] { handleWebServerFile("settings.html"); });
-  webServer.on("/settings", HTTP_POST, [] { handleWebServerSettingsPost(); });
-  webServer.on("/devicesettings", [] { handleWebServerSettings(); });
-  webServer.on("/config", [] { iotWebConf.handleConfig(); });
+  webServer.on("/settings", HTTP_GET, [] { 
+    if (!webServer.authenticate(SettingsManager::getUsername().c_str(), SettingsManager::getAPPassword().c_str())) {
+      return webServer.requestAuthentication();
+    }
+    handleWebServerFile("settings.html"); });
+  webServer.on("/settings", HTTP_POST, [] { 
+    if (!webServer.authenticate(SettingsManager::getUsername().c_str(), SettingsManager::getAPPassword().c_str())) {
+      return webServer.requestAuthentication();
+    }
+    handleWebServerSettingsPost(); });
+  webServer.on("/devicesettings", [] { 
+    if (!webServer.authenticate(SettingsManager::getUsername().c_str(), SettingsManager::getAPPassword().c_str())) {
+      return webServer.requestAuthentication();
+    }
+    handleWebServerSettings(); });
+  webServer.on("/config", [] { 
+    if (!webServer.authenticate(SettingsManager::getUsername().c_str(), SettingsManager::getAPPassword().c_str())) {
+      return webServer.requestAuthentication();
+    }
+    iotWebConf.handleConfig(); });
+  
   webServer.onNotFound([]() { iotWebConf.handleNotFound(); });
   log_i("WiFi manager and web server initialized");
 

@@ -22,7 +22,7 @@ typedef enum VirtualShiftingMode {
 
 class SettingsManager {
  public:
-  static void initialize();
+  static void initialize(IotWebConf* iotWebConf);
   static uint16_t getChainringTeeth();
   static uint16_t getSprocketTeeth();
   static void setChainringTeeth(uint16_t chainringTeeth);
@@ -35,6 +35,8 @@ class SettingsManager {
   static std::string getTrainerDeviceName();
   static void setTrainerDeviceName(std::string trainerDevice);
   static IotWebConfParameterGroup* getIoTWebConfSettingsParameterGroup();
+  static std::string getUsername();
+  static std::string getAPPassword();
 
  private:
   static char iotWebConfChainringTeethParameterValue[];
@@ -50,6 +52,7 @@ class SettingsManager {
   static IotWebConfSelectParameter iotWebConfVirtualShiftingModeParameter;
   static IotWebConfCheckboxParameter iotWebConfVirtualShiftingParameter;
   static IotWebConfTextParameter iotWebConfTrainerDeviceParameter;
+  static IotWebConf* iotWebConf;
 };
 
 #endif
