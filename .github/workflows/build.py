@@ -9,6 +9,8 @@ Import("env")
 # determine the latest releasev semver
 latest_release_tag = subprocess.run(["git", "tag", "-l", "--sort=-committerdate"], stdout=subprocess.PIPE, text=True)
 latest_release_tag = latest_release_tag.stdout.strip()
+latest_release_tag = latest_release_tag.split("\n")[0]
+
 print ("\033[93;1;4mLatest Release Tag     : " + latest_release_tag + "\033[0m")
 
 # determine last release version
