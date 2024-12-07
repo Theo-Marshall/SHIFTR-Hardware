@@ -536,8 +536,7 @@ void DirConManager::updateSIMModeResistance() {
                                                         zwiftGrade / 100.0,
                                                         trainerCadence,
                                                         0.7,
-                                                        zwiftGearRatio / 10000.0,
-                                                        defaultGearRatio);
+                                                        zwiftGearRatio / 10000.0);
       if (!BTDeviceManager::writeFECTargetPower(trainerTargetPower)) {
         log_e("Error writing SIM+VS FEC target power");
       }
