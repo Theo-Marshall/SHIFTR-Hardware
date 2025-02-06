@@ -62,10 +62,10 @@ double Calculations::calculateGradeFromTotalForce(double force, double totalWeig
   return tan(asin(gravityForce / totalWeight / gravity)) * 100;
 }
 
-uint16_t Calculations::calculateFECTargetPowerValue(double totalWeight, double grade, uint8_t cadence, double wheelDiameter, double gearRatio) {
+uint16_t Calculations::calculateFECTargetPowerValue(double totalWeight, double grade, uint8_t cadence, double wheelDiameter, double gearRatio, double defaultGearRatio) {
   double speed = calculateSpeed(cadence, wheelDiameter, gearRatio);
-  double totalForce = calculateTotalForce(totalWeight, grade, speed);
-  double power = totalForce * speed;
+  double gearedTotalForce = calculateGearedForce(calculateTotalForce(totalWeight, grade, speed), gearRatio, defaultGearRatio);
+  double power = gearedTotalForce * speed;
   if (power < 0) {
     power = 0;
   }
