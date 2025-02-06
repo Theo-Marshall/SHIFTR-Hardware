@@ -7,10 +7,10 @@
 
 #ifndef VERSION_H
 #define VERSION_H
-#define VERSION "v1.1.1"
+#define VERSION "v1.2.1"
 #define VERSION_MAJOR 1
-#define VERSION_MINOR 1
+#define VERSION_MINOR 2
 #define VERSION_PATCH 1
-#define VERSION_BUILD "4e63435"
-#define VERSION_TIMESTAMP "2024-Dec-07 14:21:04"
+#define VERSION_BUILD "0cd2a7d"
+#define VERSION_TIMESTAMP "2025-Feb-06 19:11:27"
 #endif
