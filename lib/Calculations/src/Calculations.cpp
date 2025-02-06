@@ -1,5 +1,6 @@
 #include <Calculations.h>
-#include <Arduino.h>
+#include <cmath>
+#include <stdio.h>
 
 double const Calculations::pi = 3.14159;
 double const Calculations::gravity = 9.81;
@@ -8,16 +9,16 @@ double const Calculations::windResistanceCoefficient = 0.51;
 
 double Calculations::calculateTotalForce(double totalWeight, double grade, double speed) {
   double gravityForce = gravity * sin(atan(grade/100)) * totalWeight;
-  //printf("Gravity force: %f\n", gravityForce);
-  //printf("Grade: %f\n", grade);    
-  //printf("Speed: %f\n", speed);
+  printf("Gravity force: %f\n", gravityForce);
+  printf("Grade: %f\n", grade);    
+  printf("Speed: %f\n", speed);
   double rollingForce = gravity * totalWeight * rollingResistanceCoefficient;
-  //printf("Rolling force: %f\n", rollingForce);
+  printf("Rolling force: %f\n", rollingForce);
 
   double dragForce = 0.5 * windResistanceCoefficient * pow(speed, 2);
-  //printf("Drag force: %f\n", dragForce);
+  printf("Drag force: %f\n", dragForce);
 
-  //printf("Total force: %f\n", gravityForce + rollingForce + dragForce);
+  printf("Total force: %f\n", gravityForce + rollingForce + dragForce);
   return gravityForce + rollingForce + dragForce;
 }
 
