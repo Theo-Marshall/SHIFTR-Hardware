@@ -29,6 +29,10 @@ int64_t DirConManager::zwiftGrade;
 uint64_t DirConManager::zwiftGearRatio;
 uint16_t DirConManager::zwiftBicycleWeight;
 uint16_t DirConManager::zwiftUserWeight;
+
+int64_t DirConManager::smoothedZwiftGrade;
+std::deque<int64_t> DirConManager::smoothedZwiftGradeValues;
+
 uint16_t DirConManager::trainerInstantaneousPower;
 uint16_t DirConManager::trainerInstantaneousSpeed;
 uint8_t DirConManager::trainerCadence;
@@ -68,6 +72,10 @@ void DirConManager::resetValues() {
   zwiftGearRatio = 0;
   zwiftBicycleWeight = 1000;
   zwiftUserWeight = 7500;
+
+  smoothedZwiftGrade = 0;
+  smoothedZwiftGradeValues.clear();
+  
   trainerInstantaneousPower = 0;
   trainerInstantaneousSpeed = 0;
   trainerCadence = 0;
@@ -451,6 +459,15 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
                 zwiftGrade ^= 0x01;
                 zwiftGrade *= -1;
               }
+              if (smoothedZwiftGradeValues.size() >= ZWIFT_GRADE_SMOOTHING_VALUES) {
+                smoothedZwiftGradeValues.pop_front();
+              }
+              smoothedZwiftGradeValues.push_back(zwiftGrade);
+              smoothedZwiftGrade = 0;
+              for (int64_t smoothedZwiftGradeValue : smoothedZwiftGradeValues) {
+                smoothedZwiftGrade += smoothedZwiftGradeValue;
+              }
+              smoothedZwiftGrade = smoothedZwiftGrade / smoothedZwiftGradeValues.size();
             }
             updateSIMModeResistance();
             break;
