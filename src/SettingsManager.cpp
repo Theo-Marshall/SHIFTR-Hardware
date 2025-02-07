@@ -7,6 +7,7 @@ char SettingsManager::iotWebConfSprocketTeethParameterValue[16];
 char SettingsManager::iotWebConfVirtualShiftingModeParameterValue[24];
 char SettingsManager::iotWebConfVirtualShiftingParameterValue[16];
 char SettingsManager::iotWebConfTrainerDeviceParameterValue[128];
+char SettingsManager::iotWebConfGradeSmoothingParameterValue[16];
 
 char SettingsManager::iotWebConfVirtualShiftingModeValues[][24] = { "basic_resistance", "target_power", "track_resistance" };
 char SettingsManager::iotWebConfVirtualShiftingModeNames[][24] = { "Basic Resistance", "Target Power", "Track Resistance" };
@@ -17,6 +18,7 @@ IotWebConfNumberParameter SettingsManager::iotWebConfSprocketTeethParameter("Spr
 IotWebConfSelectParameter SettingsManager::iotWebConfVirtualShiftingModeParameter = IotWebConfSelectParameter("Virtual Shifting Mode", "virtual_shifting_mode", SettingsManager::iotWebConfVirtualShiftingModeParameterValue, sizeof(iotWebConfVirtualShiftingModeParameterValue), (char*)iotWebConfVirtualShiftingModeValues, (char*)iotWebConfVirtualShiftingModeNames, sizeof(iotWebConfVirtualShiftingModeValues) / sizeof(iotWebConfVirtualShiftingModeParameterValue), sizeof(iotWebConfVirtualShiftingModeParameterValue), "target_power");
 IotWebConfCheckboxParameter SettingsManager::iotWebConfVirtualShiftingParameter = IotWebConfCheckboxParameter("Virtual shifting", "virtual_shifting", SettingsManager::iotWebConfVirtualShiftingParameterValue, sizeof(iotWebConfVirtualShiftingParameterValue), true);
 IotWebConfTextParameter SettingsManager::iotWebConfTrainerDeviceParameter = IotWebConfTextParameter("Trainer device", "trainer_device", iotWebConfTrainerDeviceParameterValue, sizeof(iotWebConfTrainerDeviceParameterValue), "");
+IotWebConfCheckboxParameter SettingsManager::iotWebConfGradeSmoothingParameter = IotWebConfCheckboxParameter("Grade smoothing", "grade_smoothing", SettingsManager::iotWebConfGradeSmoothingParameterValue, sizeof(iotWebConfGradeSmoothingParameterValue), true);
 
 IotWebConf* SettingsManager::iotWebConf;
 
@@ -27,6 +29,8 @@ void SettingsManager::initialize(IotWebConf* iotWebConf) {
   iotWebConfSettingsGroup.addItem(&iotWebConfChainringTeethParameter);
   iotWebConfSettingsGroup.addItem(&iotWebConfSprocketTeethParameter);
   iotWebConfSettingsGroup.addItem(&iotWebConfVirtualShiftingModeParameter);
+  iotWebConfSettingsGroup.addItem(&iotWebConfGradeSmoothingParameter);
+
 }
 
 VirtualShiftingMode SettingsManager::getVirtualShiftingMode() {
@@ -115,4 +119,16 @@ std::string SettingsManager::getAPPassword() {
     aPPassword = Utils::getHostName().c_str();
   }
   return aPPassword;
+}
+
+bool SettingsManager::isGradeSmoothingEnabled() {
+  return (strncmp(iotWebConfGradeSmoothingParameterValue, "selected", sizeof(iotWebConfGradeSmoothingParameterValue)) == 0);
+}
+
+void SettingsManager::setGradeSmoothingEnabled(bool enabled) {
+  String gradeSmoothingEnabled = "";
+  if (enabled) {
+    gradeSmoothingEnabled = "selected";
+  }
+  strncpy(iotWebConfGradeSmoothingParameterValue, gradeSmoothingEnabled.c_str(), sizeof(iotWebConfGradeSmoothingParameterValue));
 }

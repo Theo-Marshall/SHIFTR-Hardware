@@ -550,7 +550,7 @@ void DirConManager::updateSIMModeResistance() {
     if (virtualShiftingMode == VirtualShiftingMode::TARGET_POWER) {
       uint16_t trainerTargetPower = Calculations::
                  calculateFECTargetPowerValue((zwiftBicycleWeight + zwiftUserWeight) / 100.0,
-                                                        zwiftGrade / 100.0,
+                                                        (SettingsManager::isGradeSmoothingEnabled() ? smoothedZwiftGrade : zwiftGrade) / 100.0,
                                                         trainerCadence,
                                                         0.7,
                                                         zwiftGearRatio / 10000.0,
@@ -562,7 +562,7 @@ void DirConManager::updateSIMModeResistance() {
     } else if (virtualShiftingMode == VirtualShiftingMode::TRACK_RESISTANCE) {
       uint16_t trainerTrackResistanceGrade = Calculations::
                 calculateFECTrackResistanceGrade((zwiftBicycleWeight + zwiftUserWeight) / 100.0,
-                                                  zwiftGrade / 100.0,
+                                                  (SettingsManager::isGradeSmoothingEnabled() ? smoothedZwiftGrade : zwiftGrade) / 100.0,
                                                   trainerCadence,
                                                   0.7,
                                                   zwiftGearRatio / 10000.0,
@@ -575,7 +575,7 @@ void DirConManager::updateSIMModeResistance() {
     } else {
       uint8_t trainerBasicResistance = Calculations::
                  calculateFECResistancePercentageValue((zwiftBicycleWeight + zwiftUserWeight) / 100.0,
-                                                        zwiftGrade / 100.0,
+                                                        (SettingsManager::isGradeSmoothingEnabled() ? smoothedZwiftGrade : zwiftGrade) / 100.0,
                                                         trainerCadence,
                                                         0.7,
                                                         zwiftGearRatio / 10000.0,

@@ -28,10 +28,12 @@ class SettingsManager {
   static void setChainringTeeth(uint16_t chainringTeeth);
   static void setSprocketTeeth(uint16_t sprocketTeeth);
   static bool isVirtualShiftingEnabled();
+  static bool isGradeSmoothingEnabled();
   static VirtualShiftingMode getVirtualShiftingMode();
   static void setVirtualShiftingMode(VirtualShiftingMode virtualShiftingMode);
   static std::map<size_t, std::string> getVirtualShiftingModes();
   static void setVirtualShiftingEnabled(bool enabled);
+  static void setGradeSmoothingEnabled(bool enabled);
   static std::string getTrainerDeviceName();
   static void setTrainerDeviceName(std::string trainerDevice);
   static IotWebConfParameterGroup* getIoTWebConfSettingsParameterGroup();
@@ -46,12 +48,14 @@ class SettingsManager {
   static char iotWebConfTrainerDeviceParameterValue[];
   static char iotWebConfVirtualShiftingModeValues[][24];
   static char iotWebConfVirtualShiftingModeNames[][24];
+  static char iotWebConfGradeSmoothingParameterValue[];
   static IotWebConfParameterGroup iotWebConfSettingsGroup;
   static IotWebConfNumberParameter iotWebConfChainringTeethParameter;
   static IotWebConfNumberParameter iotWebConfSprocketTeethParameter;
   static IotWebConfSelectParameter iotWebConfVirtualShiftingModeParameter;
   static IotWebConfCheckboxParameter iotWebConfVirtualShiftingParameter;
   static IotWebConfTextParameter iotWebConfTrainerDeviceParameter;
+  static IotWebConfCheckboxParameter iotWebConfGradeSmoothingParameter;
   static IotWebConf* iotWebConf;
 };
 

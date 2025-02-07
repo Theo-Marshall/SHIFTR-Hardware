@@ -18,6 +18,7 @@
         let virtualShiftingMode = document.getElementById('virtual_shifting_mode');
         let chainringTeeth = document.getElementById('chainring_teeth');
         let sprocketTeeth = document.getElementById('sprocket_teeth');
+        let gradeSmoothing = document.getElementById('grade_smoothing');
 
         fetch('/devicesettings', {
             method: 'GET',
@@ -33,6 +34,7 @@
                 virtualShifting.checked = response.virtual_shifting;
                 chainringTeeth.value = response.chainring_teeth;
                 sprocketTeeth.value = response.sprocket_teeth;
+                gradeSmoothing.checked = response.grade_smoothing;
                 while (trainerDevice.options.length > 0) {
                     trainerDevice.remove(0);
                 }
@@ -117,6 +119,13 @@
                     <div class="form-control">
                         <label>Sprocket teeth:</label>
                         <input type="number" id="sprocket_teeth" name="sprocket_teeth" min="1" max="100" onchange="enableSave()">
+                    </div>
+                    <div class="form-control">
+                        <label>Grade smoothing:</label>
+                        <label class="switch">
+                            <input type="checkbox" id="grade_smoothing" name="grade_smoothing" onchange="enableSave()">
+                            <span class="slider round"></span>
+                        </label>
                     </div>
                     <div class="button-container">
                         <button type="submit" class="btn" id="save_btn" onclick="waitForReboot()">
