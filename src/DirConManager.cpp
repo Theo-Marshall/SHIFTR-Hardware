@@ -31,7 +31,6 @@ uint16_t DirConManager::zwiftBicycleWeight;
 uint16_t DirConManager::zwiftUserWeight;
 
 int64_t DirConManager::smoothedZwiftGrade;
-std::deque<int64_t> DirConManager::smoothedZwiftGradeValues;
 
 uint16_t DirConManager::trainerInstantaneousPower;
 uint16_t DirConManager::trainerInstantaneousSpeed;
@@ -74,7 +73,6 @@ void DirConManager::resetValues() {
   zwiftUserWeight = 7500;
 
   smoothedZwiftGrade = 0;
-  smoothedZwiftGradeValues.clear();
   
   trainerInstantaneousPower = 0;
   trainerInstantaneousSpeed = 0;
@@ -459,15 +457,8 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
                 zwiftGrade ^= 0x01;
                 zwiftGrade *= -1;
               }
-              if (smoothedZwiftGradeValues.size() >= ZWIFT_GRADE_SMOOTHING_VALUES) {
-                smoothedZwiftGradeValues.pop_front();
-              }
-              smoothedZwiftGradeValues.push_back(zwiftGrade);
-              smoothedZwiftGrade = 0;
-              for (int64_t smoothedZwiftGradeValue : smoothedZwiftGradeValues) {
-                smoothedZwiftGrade += smoothedZwiftGradeValue;
-              }
-              smoothedZwiftGrade = smoothedZwiftGrade / smoothedZwiftGradeValues.size();
+              smoothedZwiftGrade += zwiftGrade;
+              smoothedZwiftGrade = smoothedZwiftGrade / 2;
             }
             updateSIMModeResistance();
             break;
@@ -551,8 +542,8 @@ void DirConManager::updateSIMModeResistance() {
       uint16_t trainerTargetPower = Calculations::
                  calculateFECTargetPowerValue((zwiftBicycleWeight + zwiftUserWeight) / 100.0,
                                                         (SettingsManager::isGradeSmoothingEnabled() ? smoothedZwiftGrade : zwiftGrade) / 100.0,
+                                                        trainerInstantaneousSpeed / 1000.0,
                                                         trainerCadence,
-                                                        0.7,
                                                         zwiftGearRatio / 10000.0,
                                                         defaultGearRatio);
       if (!BTDeviceManager::writeFECTargetPower(trainerTargetPower)) {
@@ -563,21 +554,25 @@ void DirConManager::updateSIMModeResistance() {
       uint16_t trainerTrackResistanceGrade = Calculations::
                 calculateFECTrackResistanceGrade((zwiftBicycleWeight + zwiftUserWeight) / 100.0,
                                                   (SettingsManager::isGradeSmoothingEnabled() ? smoothedZwiftGrade : zwiftGrade) / 100.0,
+                                                  trainerInstantaneousSpeed / 1000.0,
                                                   trainerCadence,
-                                                  0.7,
                                                   zwiftGearRatio / 10000.0,
                                                   defaultGearRatio);
-      if (!BTDeviceManager::writeFECTrackResistance(trainerTrackResistanceGrade, 0x53)) {
+
+      if (!BTDeviceManager::writeFECUserConfiguration((uint16_t)(zwiftBicycleWeight / 5), zwiftUserWeight, (uint8_t)((Calculations::wheelDiameter * ((zwiftGearRatio / 10000.0) / defaultGearRatio)) / 0.01), (uint8_t)round(defaultGearRatio / 0.03))) {
+        log_e("Error writing SIM+VS FEC user configuration");
+      }
+      if (!BTDeviceManager::writeFECTrackResistance((uint16_t)(0x4E20 + zwiftGrade), 0x53)) {
         log_e("Error writing SIM+VS FEC track resistance");
       }
 
     // Basic Resistance Mode
     } else {
       uint8_t trainerBasicResistance = Calculations::
-                 calculateFECResistancePercentageValue((zwiftBicycleWeight + zwiftUserWeight) / 100.0,
+                 calculateFECBasicResistancePercentageValue((zwiftBicycleWeight + zwiftUserWeight) / 100.0,
                                                         (SettingsManager::isGradeSmoothingEnabled() ? smoothedZwiftGrade : zwiftGrade) / 100.0,
-                                                        trainerCadence,
-                                                        0.7,
+                                                        trainerInstantaneousSpeed / 1000.0,
+                                                        trainerCadence,                              
                                                         zwiftGearRatio / 10000.0,
                                                         defaultGearRatio,
                                                         trainerMaximumResistance);

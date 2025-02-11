@@ -71,7 +71,6 @@ class DirConManager {
   static uint16_t zwiftUserWeight;
 
   static int64_t smoothedZwiftGrade;
-  static std::deque<int64_t> smoothedZwiftGradeValues;
 
   static uint16_t trainerInstantaneousPower;
   static uint16_t trainerInstantaneousSpeed;
