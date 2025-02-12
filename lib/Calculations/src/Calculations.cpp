@@ -86,13 +86,46 @@ uint8_t Calculations::calculateFECBasicResistancePercentageValue(double totalWei
   return 200;
 }
 
+/**
+ * Calculates the FE-C resistance grade for the track simulation
+ * 
+ * @param totalWeight Total weight of the bike and the rider in kg
+ * @param grade Grade in percentage
+ * @param measuredSpeed Speed in m/s
+ * @param cadence Cadence in RPM
+ * @param gearRatio Requested gear ratio
+ * @param defaultGearRatio Default gear ratio of the bike (chainring / sprocket)
+ * @return FE-C resistance grade in 0.01% (0x4E20 = 0%)
+ */
 uint16_t Calculations::calculateFECTrackResistanceGrade(double totalWeight, double grade, double measuredSpeed, uint8_t cadence, double gearRatio, double defaultGearRatio) {
-  double relativeGearRatio = gearRatio / defaultGearRatio;
+  uint16_t trackResistanceGrade = 0x4E20;
+  
+  // calculate the relative gear ratio
+  double relativeGearRatio = calculateRelativeGearRatio(gearRatio, defaultGearRatio);
+
+  // calculate the total resistance 
+  double gravitationalResistance = calculateGravitationalResistance(totalWeight, grade);
+  double rollingResistance = calculateRollingResistance(totalWeight);
+  double windResistance = calculateWindResistance(measuredSpeed, 0);
+
+  // calculate the total resistance (that would normally be requested with the specified grade)
+  double totalResistance = gravitationalResistance + rollingResistance + windResistance;
+  
+  // calculate the geared speed and wind resistance as the gear ratio affects the speed
   double gearedSpeed = calculateGearedValue(measuredSpeed, relativeGearRatio);
-  double totalForce = calculateTotalResistance(totalWeight, grade, gearedSpeed);
-  double gearedTotalForce = calculateGearedForce(totalForce, gearRatio, defaultGearRatio);
-  double calculatedGrade = calculateGradeFromTotalForce(gearedTotalForce, totalWeight, measuredSpeed, gearRatio, defaultGearRatio);
-  return 0x4E20 + (calculatedGrade * 100);
+  double gearedWindResistance = calculateWindResistance(gearedSpeed, 0);
+
+  // calculate the geared gravitational and total resistance (that would apply with the specified gear ratio)
+  double gearedGravitationalResistance = calculateGearedValue(gravitationalResistance, relativeGearRatio);
+  double gearedTotalResistance = gearedGravitationalResistance + rollingResistance + gearedWindResistance;
+
+  // calculate the geared grade based on the theoretical gravitational resistance
+  double theoreticalGravitationalResistance = gearedTotalResistance - rollingResistance - windResistance;
+  double calculatedGrade = tan(asin(theoreticalGravitationalResistance / totalWeight / gravity)) * 100;
+
+  trackResistanceGrade += (calculatedGrade * 100);
+  log_d("FE-C Track resistance grade: %d (%f%)", trackResistanceGrade, calculatedGrade);
+  return trackResistanceGrade;
 }
 
 double Calculations::calculateGradeFromTotalForce(double force, double totalWeight, double speed, double gearRatio, double defaultGearRatio) {
@@ -116,6 +149,14 @@ uint16_t Calculations::calculateFECTargetPowerValue(double totalWeight, double g
   return (power * 4);
 }
 
+/**
+ * Calculates the speed based on the cadence, wheel diameter and gear ratio
+ * 
+ * @param cadence Cadence in RPM
+ * @param wheelDiameter Wheel diameter in m
+ * @param gearRatio Gear ratio
+ * @return Speed in m/s
+ */
 double Calculations::calculateSpeed(uint8_t cadence, double wheelDiameter, double gearRatio) {
   return ((cadence * gearRatio) * (wheelDiameter * pi) / 60);
 }
@@ -129,6 +170,22 @@ double Calculations::calculateSpeed(uint8_t cadence, double wheelDiameter, doubl
  */
 double Calculations::calculateGearedValue(double originalValue, double gearRatio) {
   double gearedValue = originalValue * gearRatio;
-  log_d("Original / Gear ratio / Geared: %f / %f / %f", originalValue, gearRatio, gearedValue);
+  if (originalValue < 0) {
+    gearedValue = originalValue * (1 / gearRatio);
+  }
+  log_d("Original / Ratio / Geared: %f / %f / %f", originalValue, gearRatio, gearedValue);
   return gearedValue;
+}
+
+/**
+ * Calculates the relative gear ratio based on the software requested and hardware installed gear ratio
+ * 
+ * @param gearRatio Requested gear ratio
+ * @param defaultGearRatio Default gear ratio of the bike (chainring / sprocket)
+ * @return Relative gear ratio
+ */
+double Calculations::calculateRelativeGearRatio(double gearRatio, double defaultGearRatio) {
+  double relativeGearRatio = gearRatio / defaultGearRatio;
+  log_d("Relative gear ratio: %f (%f / %f)", relativeGearRatio, gearRatio, defaultGearRatio);
+  return relativeGearRatio;
 }

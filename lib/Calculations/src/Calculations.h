@@ -19,7 +19,8 @@ class Calculations {
   static double calculateGradeFromTotalForce(double force, double totalWeight, double speed, double gearRatio, double defaultGearRatio);
   static double calculateSpeed(uint8_t cadence, double wheelDiameter, double gearRatio);
   static double calculateGearedValue(double originalValue, double gearRatio);
-  
+  static double calculateRelativeGearRatio(double gearRatio, double defaultGearRatio);
+
   static double const pi;
   static double const gravity;
   static double const rollingResistanceCoefficient;
