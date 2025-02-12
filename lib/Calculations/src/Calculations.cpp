@@ -17,7 +17,7 @@ double const Calculations::wheelDiameter = 0.7;
  */
 double Calculations::calculateGravitationalResistance(double totalWeight, double grade) {
   double gravitationalResistance = gravity * sin(atan(grade/100)) * totalWeight;
-  Logger::logDebug("Gravitational resistance: %f", gravitationalResistance);
+  log_d("Gravitational resistance: %f", gravitationalResistance);
   return gravitationalResistance;
 }
 
@@ -29,7 +29,7 @@ double Calculations::calculateGravitationalResistance(double totalWeight, double
  */
 double Calculations::calculateRollingResistance(double totalWeight) {
   double rollingResistance = gravity * totalWeight * rollingResistanceCoefficient;
-  Logger::logDebug("Rolling resistance: %f", rollingResistance);
+  log_d("Rolling resistance: %f", rollingResistance);
   return rollingResistance;
 }
 
@@ -42,7 +42,7 @@ double Calculations::calculateRollingResistance(double totalWeight) {
  */
 double Calculations::calculateWindResistance(double bicycleSpeed, double windSpeed) {
   double windResistance = 0.5 * windResistanceCoefficient * pow(bicycleSpeed + windSpeed, 2);
-  Logger::logDebug("Wind resistance: %f", windResistance);
+  log_d("Wind resistance: %f", windResistance);
   return windResistance;
 }
 
@@ -59,7 +59,7 @@ double Calculations::calculateTotalResistance(double totalWeight, double grade, 
   double rollingResistance = calculateRollingResistance(totalWeight);
   double windResistance = calculateWindResistance(bicycleSpeed, 0);
   double totalResistance = gravitationalResistance + rollingResistance + windResistance;
-  Logger::logDebug("Total resistance: %f", totalResistance);
+  log_d("Total resistance: %f", totalResistance);
   return totalResistance;
 }
 
@@ -74,7 +74,7 @@ double Calculations::calculateGearedForce(double force, double gearRatio, double
 
 uint8_t Calculations::calculateFECBasicResistancePercentageValue(double totalWeight, double grade, double measuredSpeed, uint8_t cadence, double gearRatio, double defaultGearRatio, uint16_t maximumResistance) {
   double relativeGearRatio = gearRatio / defaultGearRatio;
-  double gearedSpeed = calculateGearedSpeed(measuredSpeed, relativeGearRatio);
+  double gearedSpeed = calculateGearedValue(measuredSpeed, relativeGearRatio);
   double gearedTotalForce = calculateGearedForce(calculateTotalResistance(totalWeight, grade, gearedSpeed), gearRatio, defaultGearRatio);
   //printf("Geared total force: %f\n", gearedTotalForce);
   if (gearedTotalForce < 0) {
@@ -88,7 +88,7 @@ uint8_t Calculations::calculateFECBasicResistancePercentageValue(double totalWei
 
 uint16_t Calculations::calculateFECTrackResistanceGrade(double totalWeight, double grade, double measuredSpeed, uint8_t cadence, double gearRatio, double defaultGearRatio) {
   double relativeGearRatio = gearRatio / defaultGearRatio;
-  double gearedSpeed = calculateGearedSpeed(measuredSpeed, relativeGearRatio);
+  double gearedSpeed = calculateGearedValue(measuredSpeed, relativeGearRatio);
   double totalForce = calculateTotalResistance(totalWeight, grade, gearedSpeed);
   double gearedTotalForce = calculateGearedForce(totalForce, gearRatio, defaultGearRatio);
   double calculatedGrade = calculateGradeFromTotalForce(gearedTotalForce, totalWeight, measuredSpeed, gearRatio, defaultGearRatio);
@@ -106,7 +106,7 @@ double Calculations::calculateGradeFromTotalForce(double force, double totalWeig
 
 uint16_t Calculations::calculateFECTargetPowerValue(double totalWeight, double grade, double measuredSpeed, uint8_t cadence, double gearRatio, double defaultGearRatio) {
   double relativeGearRatio = gearRatio / defaultGearRatio;
-  double gearedSpeed = calculateGearedSpeed(measuredSpeed, relativeGearRatio);
+  double gearedSpeed = calculateGearedValue(measuredSpeed, relativeGearRatio);
   double gearedTotalForce = calculateGearedForce(calculateTotalResistance(totalWeight, grade, gearedSpeed), gearRatio, defaultGearRatio);
   double power = gearedTotalForce * gearedSpeed;
   if (power < 0) {
@@ -121,16 +121,14 @@ double Calculations::calculateSpeed(uint8_t cadence, double wheelDiameter, doubl
 }
 
 /**
- * Calculates the geared speed based on the measured speed and the relative gear ratio
+ * Calculates the geared value based on the relative gear ratio
  * 
- * @param measuredSpeed Measured speed in m/s
- * @param relativeGearRatio Relative gear ratio (gearRatio / defaultGearRatio)
- * @return Geared speed in m/s
+ * @param originalValue Original value (unit doesn't matter)
+ * @param gearRatio Gear ratio
+ * @return Geared value (unit as original value)
  */
-double Calculations::calculateGearedSpeed(double measuredSpeed, double relativeGearRatio) {
-  double gearedSpeed = measuredSpeed * relativeGearRatio;
-  Logger::logDebug("Measured speed: %f", measuredSpeed);
-  Logger::logDebug("Realtive gear ratio: %f", relativeGearRatio);
-  Logger::logDebug("Geared speed: %f", gearedSpeed);
-  return gearedSpeed;
+double Calculations::calculateGearedValue(double originalValue, double gearRatio) {
+  double gearedValue = originalValue * gearRatio;
+  log_d("Original / Gear ratio / Geared: %f / %f / %f", originalValue, gearRatio, gearedValue);
+  return gearedValue;
 }

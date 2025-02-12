@@ -1,25 +1,25 @@
-#include <cstdarg>
 #ifndef LOGGER_H
 #define LOGGER_H
 
+#define LOG_LEVEL_NONE    (0)
+#define LOG_LEVEL_ERROR   (1)
+#define LOG_LEVEL_WARN    (2)
+#define LOG_LEVEL_INFO    (3)
+#define LOG_LEVEL_DEBUG   (4)
+#define LOG_LEVEL_VERBOSE (5)
+
 #ifndef CORE_DEBUG_LEVEL
-  #define CORE_DEBUG_LEVEL 4
+  #define CORE_DEBUG_LEVEL LOG_LEVEL_VERBOSE
 #endif
 
-//#define logTest(format,__VA_ARGS__...) log_printf(ARDUHAL_LOG_FORMAT(E, format), ## __VA_ARGS__)
+#ifndef ESP32
+  #define log_e(format, __VA_ARGS__...) logger_printf(LOG_LEVEL_ERROR, __FUNCTION__, format, ## __VA_ARGS__)
+  #define log_w(format, __VA_ARGS__...) logger_printf(LOG_LEVEL_WARN, __FUNCTION__, format, ## __VA_ARGS__)
+  #define log_i(format, __VA_ARGS__...) logger_printf(LOG_LEVEL_INFO, __FUNCTION__, format, ## __VA_ARGS__)
+  #define log_d(format, __VA_ARGS__...) logger_printf(LOG_LEVEL_DEBUG, __FUNCTION__, format, ## __VA_ARGS__)
+  #define log_v(format, __VA_ARGS__...) logger_printf(LOG_LEVEL_VERBOSE, __FUNCTION__, format, ## __VA_ARGS__)
+#endif
 
-/**
- * Logger class for logging debug messages
- * Logging is based on CORE_DEBUG_LEVEL values
- * 0 - no logging
- * 1 - errors only
- * 2 - errors and warnings
- * 3 - errors, warnings and info
- * 4 - errors, warnings, info and debug
- */
-class Logger {
- public:
-  static void logDebug(const char *format, ...);
-};
+int logger_printf(int logLevel, const char *functionName, const char *fmt, ...);
 
 #endif

@@ -1,19 +1,25 @@
 #include <Logger.h>
 #include <cstdio>
+#include <stdarg.h>
 
 /**
- * Logs a debug message including a new line
- * CORE_DEBUG_LEVEL must be set to at least 4
+ * Logs a message including a new line
  * 
- * @param format Format string
- * @param args Arguments
+ * @param logLevel Log level
+ * @param functionName Function name
+ * @param fmt Format string
+ * @param ... Arguments
+ * @return Length of the logged message
  */
-void Logger::logDebug(const char *format, ...) {
-  if (CORE_DEBUG_LEVEL >= 4) {
+int logger_printf(int logLevel, const char *functionName, const char *fmt, ...) {
+  int length = 0;
+  if (CORE_DEBUG_LEVEL >= logLevel) {
+    length += printf("%s(): ", functionName);
     va_list args;
-    va_start (args, format);
-    vprintf (format, args);
+    va_start (args, fmt);
+    length = vprintf(fmt, args);
     va_end (args);
-    printf("\n");
+    length += printf("\n");
   }
+  return length;
 }
