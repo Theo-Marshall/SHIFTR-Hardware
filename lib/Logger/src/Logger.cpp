@@ -2,6 +2,12 @@
 #include <cstdio>
 #include <stdarg.h>
 
+#ifdef CORE_DEBUG_LEVEL
+int Logger::defaultLogLevel = CORE_DEBUG_LEVEL;
+#else
+int Logger::defaultLogLevel = LOG_LEVEL_VERBOSE;
+#endif
+
 /**
  * Logs a message including a new line
  * 
@@ -11,9 +17,9 @@
  * @param ... Arguments
  * @return Length of the logged message
  */
-int logger_printf(int logLevel, const char *functionName, const char *fmt, ...) {
+int Logger::logger_printf(int logLevel, const char *functionName, const char *fmt, ...) {
   int length = 0;
-  if (CORE_DEBUG_LEVEL >= logLevel) {
+  if (Logger::defaultLogLevel >= logLevel) {
     length += printf("%s(): ", functionName);
     va_list args;
     va_start (args, fmt);
