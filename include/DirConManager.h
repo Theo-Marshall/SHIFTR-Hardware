@@ -76,6 +76,9 @@ class DirConManager {
   static uint16_t trainerInstantaneousSpeed;
   static uint8_t trainerCadence;
   static uint16_t trainerMaximumResistance;
+
+  static uint16_t difficulty;
+
 };
 
 #endif

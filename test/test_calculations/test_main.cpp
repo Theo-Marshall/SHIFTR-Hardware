@@ -12,9 +12,10 @@ double gearRatio = 2.4;
 double pi = 3.14159;
 double grade = 1;
 double measuredSpeed = 7;
+uint16_t maximumResistance = 250; // 250 N
 
-void test_calculations(void) {
-  Logger::defaultLogLevel = LOG_LEVEL_INFO;
+void test_trackresistance(void) {
+  //Logger::defaultLogLevel = LOG_LEVEL_DEBUG;
 
   uint16_t resistanceGrade;
   double gearedGrade;
@@ -29,9 +30,42 @@ void test_calculations(void) {
   TEST_ASSERT(true);
 }
 
+void test_basicresistance(void) {
+  //Logger::defaultLogLevel = LOG_LEVEL_DEBUG;
+
+  uint8_t basicResistancePercentageValue;
+  double gearedResistance;
+  int gearNumber = 1;
+  for(double zwiftGear : zwiftGears) {
+    basicResistancePercentageValue = Calculations::calculateFECBasicResistancePercentageValue(totalWeight, grade, measuredSpeed, cadence, zwiftGear, defaultGearRatio, maximumResistance);
+    gearedResistance = basicResistancePercentageValue / 200.0 * maximumResistance;
+    log_i("Zwift gear %d (%f) -> Resistance: %fN (%f%% of %dN)", gearNumber, zwiftGear, gearedResistance, basicResistancePercentageValue / 2.0, maximumResistance);
+    gearNumber++;
+  }
+  
+  TEST_ASSERT(true);
+}
+
+void test_targetpower(void) {
+  //Logger::defaultLogLevel = LOG_LEVEL_DEBUG;
+
+  uint16_t targetPowerValue;
+  int gearNumber = 1;
+  for(double zwiftGear : zwiftGears) {
+    targetPowerValue = Calculations::calculateFECTargetPowerValue(totalWeight, grade, measuredSpeed, cadence, zwiftGear, defaultGearRatio);
+    log_i("Zwift gear %d (%f) -> Target power value: %d (%dW)", gearNumber, zwiftGear, targetPowerValue, targetPowerValue / 4);
+    gearNumber++;
+  }
+  
+  TEST_ASSERT(true);
+}
+
 int main(int argc, char **argv) {
+  Logger::defaultLogLevel = LOG_LEVEL_INFO;
   UNITY_BEGIN();
-  RUN_TEST(test_calculations);
+  RUN_TEST(test_trackresistance);
+  RUN_TEST(test_basicresistance);
+  RUN_TEST(test_targetpower);
   UNITY_END();
   return 0;
 }
