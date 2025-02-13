@@ -276,8 +276,12 @@ void handleWebServerSettings() {
   } else {
     json += "false";
   }
-  json += "";
+  json += ",";
 
+  json += "\"difficulty\": ";
+  json += SettingsManager::getDifficulty();
+  json += "";
+  
   json += "}";
 
   webServer.send(200, "application/json", json);
@@ -306,6 +310,9 @@ void handleWebServerSettingsPost() {
       SettingsManager::setGradeSmoothingEnabled(true);
     } else {
       SettingsManager::setGradeSmoothingEnabled(false);
+    }
+    if (webServer.hasArg("difficulty")) {
+      SettingsManager::setDifficulty(std::atoi(webServer.arg("difficulty").c_str()));
     }
     iotWebConf.saveConfig();
     delay(500);
