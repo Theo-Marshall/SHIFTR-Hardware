@@ -58,19 +58,25 @@ double Calculations::calculateWindResistance(double bicycleSpeed, double windSpe
  * @param maximumResistance Maximum resistance in N from trainer
  * @return FE-C basic resistance percentage value in 0.5% (0x00 = 0%, 0xC8 = 100%)
  */
-uint8_t Calculations::calculateFECBasicResistancePercentageValue(double totalWeight, double grade, double measuredSpeed, uint8_t cadence, double gearRatio, double defaultGearRatio, uint16_t maximumResistance) {
+uint8_t Calculations::calculateFECBasicResistancePercentageValue(double totalWeight, double grade, double measuredSpeed, uint8_t cadence, double gearRatio, double defaultGearRatio, uint16_t maximumResistance, uint16_t difficulty) {
   uint8_t basicResistancePercentageValue = 200;
 
   // calculate the relative gear ratio
   double relativeGearRatio = calculateRelativeGearRatio(gearRatio, defaultGearRatio);
 
-  // calculate the geared speed and wind resistance as the gear ratio affects the speed
+  // calculate the speed, geared speed and wind resistance as the gear ratio affects the speed
+  double speed = calculateSpeed(cadence, wheelDiameter, gearRatio);
   double gearedSpeed = calculateGearedValue(measuredSpeed, relativeGearRatio);
-  double gearedWindResistance = calculateWindResistance(gearedSpeed, 0);
-  
+  double gearedWindResistance = calculateWindResistance(speed, 0);
+  log_d("Geared speed: %f vs. calculated speed: %f", gearedSpeed, speed);
+
   // calculate the resistances 
   double gravitationalResistance = calculateGravitationalResistance(totalWeight, grade);
   double rollingResistance = calculateRollingResistance(totalWeight);
+
+  // apply the difficulty to the gravitational and wind resistance
+  gravitationalResistance = gravitationalResistance * (difficulty / 100.0);
+  gearedWindResistance = gearedWindResistance * (difficulty / 100.0);
 
   // calculate the geared gravitational and total resistance (that would apply with the specified gear ratio)
   double gearedGravitationalResistance = calculateGearedValue(gravitationalResistance, relativeGearRatio);
@@ -78,11 +84,10 @@ uint8_t Calculations::calculateFECBasicResistancePercentageValue(double totalWei
   
   if (gearedTotalResistance < 0) {
     basicResistancePercentageValue = 0;
-  }
-  if ((maximumResistance != 0) && (gearedTotalResistance <= maximumResistance)) {
+  } else if ((maximumResistance != 0) && (gearedTotalResistance <= maximumResistance)) {
     basicResistancePercentageValue = round(gearedTotalResistance / maximumResistance * 200);
   } 
-  log_d("FE-C Basic resistance value: %d (%f%% of %dN)", basicResistancePercentageValue, basicResistancePercentageValue / 2.0, maximumResistance);
+  log_d("FE-C Basic resistance value: %d (%fN = %f%% of %dN)", basicResistancePercentageValue, gearedTotalResistance, basicResistancePercentageValue / 2.0, maximumResistance);
   return basicResistancePercentageValue;
 }
 

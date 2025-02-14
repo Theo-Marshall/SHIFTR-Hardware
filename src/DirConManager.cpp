@@ -416,12 +416,13 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
     TrainerMode newZwiftTrainerMode = zwiftTrainerMode;
     // for development purposes
     /*
-    if ((zwiftCommandSubtype != 0x22) && (zwiftCommandSubtype != 0x18)) {
+    if ((zwiftCommandSubtype == 0x22) && (zwiftCommandSubtype != 0x18)) {
       log_i("Zwift command: %d, commandsubtype: %d", zwiftCommand, zwiftCommandSubtype);
       for (auto requestValue = requestValues.begin(); requestValue != requestValues.end(); requestValue++) {
         log_i("Zwift sync data key: %d, value %d", requestValue->first, requestValue->second);
       }
     }
+    log_i("Zwift request: %s", Utils::getHexString(requestData).c_str());
     */
     switch (zwiftCommand) {
       // Status request
@@ -576,7 +577,8 @@ void DirConManager::updateSIMModeResistance() {
         trainerCadence,
         zwiftGearRatio / 10000.0,
         defaultGearRatio,
-        trainerMaximumResistance);
+        trainerMaximumResistance,
+        difficulty);
       if (!BTDeviceManager::writeFECBasicResistance(trainerBasicResistance)) {
         log_e("Error writing SIM+VS FEC basic resistance");
       }
