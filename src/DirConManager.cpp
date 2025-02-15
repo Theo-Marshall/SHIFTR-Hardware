@@ -550,7 +550,8 @@ void DirConManager::updateSIMModeResistance() {
         trainerInstantaneousSpeed / 1000.0,
         trainerCadence,
         zwiftGearRatio / 10000.0,
-        defaultGearRatio);
+        defaultGearRatio,
+        difficulty);
       if (!BTDeviceManager::writeFECTargetPower(trainerTargetPower)) {
         log_e("Error writing SIM+VS FEC target power");
       }
@@ -563,7 +564,8 @@ void DirConManager::updateSIMModeResistance() {
         trainerInstantaneousSpeed / 1000.0,
         trainerCadence,
         zwiftGearRatio / 10000.0,
-        defaultGearRatio);
+        defaultGearRatio,
+        difficulty);
       if (!BTDeviceManager::writeFECTrackResistance(trainerTrackResistanceGrade, 0x53)) {
         log_e("Error writing SIM+VS FEC track resistance");
       }
