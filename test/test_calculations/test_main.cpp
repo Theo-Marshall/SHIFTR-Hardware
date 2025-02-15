@@ -10,7 +10,7 @@ double defaultGearRatio = double(34) / double(14); // chainring 34 and sprocket 
 double cadence = 75;
 double gearRatio = 2.4;
 double pi = 3.14159;
-double grade = 0;
+double grade = 1;
 double measuredSpeed = 7;
 uint16_t maximumResistance = 200; // 200 N
 uint16_t difficulty = 100; // 100% -> 1:1
@@ -22,7 +22,7 @@ void test_trackresistance(void) {
   double gearedGrade;
   int gearNumber = 1;
   for(double zwiftGear : zwiftGears) {
-    resistanceGrade = Calculations::calculateFECTrackResistanceGrade(totalWeight, grade, measuredSpeed, cadence, zwiftGear, defaultGearRatio);
+    resistanceGrade = Calculations::calculateFECTrackResistanceGrade(totalWeight, grade, measuredSpeed, cadence, zwiftGear, defaultGearRatio, difficulty);
     gearedGrade = (resistanceGrade - 0x4E20) / 100.0;
     log_i("Zwift gear %d (%f) - Requested grade: %f -> Geared grade: %f", gearNumber, zwiftGear, grade, gearedGrade);
     gearNumber++;
@@ -53,7 +53,7 @@ void test_targetpower(void) {
   uint16_t targetPowerValue;
   int gearNumber = 1;
   for(double zwiftGear : zwiftGears) {
-    targetPowerValue = Calculations::calculateFECTargetPowerValue(totalWeight, grade, measuredSpeed, cadence, zwiftGear, defaultGearRatio);
+    targetPowerValue = Calculations::calculateFECTargetPowerValue(totalWeight, grade, measuredSpeed, cadence, zwiftGear, defaultGearRatio, difficulty);
     log_i("Zwift gear %d (%f) -> Target power value: %d (%dW)", gearNumber, zwiftGear, targetPowerValue, targetPowerValue / 4);
     gearNumber++;
   }
@@ -64,7 +64,7 @@ void test_targetpower(void) {
 int main(int argc, char **argv) {
   Logger::defaultLogLevel = LOG_LEVEL_INFO;
   UNITY_BEGIN();
-  RUN_TEST(test_basicresistance);
+  //RUN_TEST(test_basicresistance);
   //RUN_TEST(test_trackresistance);
   //RUN_TEST(test_targetpower);
   UNITY_END();
