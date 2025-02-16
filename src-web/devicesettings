@@ -22,5 +22,7 @@
         }
     ],
     "chainring_teeth": 34,
-    "sprocket_teeth": 14
+    "sprocket_teeth": 14,
+    "grade_smoothing": true,
+    "difficulty": 100
 }

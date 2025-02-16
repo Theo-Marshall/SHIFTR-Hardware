@@ -29,10 +29,15 @@ int64_t DirConManager::zwiftGrade;
 uint64_t DirConManager::zwiftGearRatio;
 uint16_t DirConManager::zwiftBicycleWeight;
 uint16_t DirConManager::zwiftUserWeight;
+
+int64_t DirConManager::smoothedZwiftGrade;
+
 uint16_t DirConManager::trainerInstantaneousPower;
 uint16_t DirConManager::trainerInstantaneousSpeed;
 uint8_t DirConManager::trainerCadence;
 uint16_t DirConManager::trainerMaximumResistance;
+
+uint16_t DirConManager::difficulty;
 
 class DirConServiceManagerCallbacks : public ServiceManagerCallbacks {
   void onServiceAdded(Service *service) {
@@ -68,10 +73,15 @@ void DirConManager::resetValues() {
   zwiftGearRatio = 0;
   zwiftBicycleWeight = 1000;
   zwiftUserWeight = 7500;
+
+  smoothedZwiftGrade = 0;
+  
   trainerInstantaneousPower = 0;
   trainerInstantaneousSpeed = 0;
   trainerCadence = 0;
   trainerMaximumResistance = 0;
+
+  difficulty = SettingsManager::getDifficulty();
 }
 
 void DirConManager::setServiceManager(ServiceManager *serviceManager) {
@@ -406,12 +416,13 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
     TrainerMode newZwiftTrainerMode = zwiftTrainerMode;
     // for development purposes
     /*
-    if ((zwiftCommandSubtype != 0x22) && (zwiftCommandSubtype != 0x18)) {
+    if ((zwiftCommandSubtype == 0x22) && (zwiftCommandSubtype != 0x18)) {
       log_i("Zwift command: %d, commandsubtype: %d", zwiftCommand, zwiftCommandSubtype);
       for (auto requestValue = requestValues.begin(); requestValue != requestValues.end(); requestValue++) {
         log_i("Zwift sync data key: %d, value %d", requestValue->first, requestValue->second);
       }
     }
+    log_i("Zwift request: %s", Utils::getHexString(requestData).c_str());
     */
     switch (zwiftCommand) {
       // Status request
@@ -451,6 +462,8 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
                 zwiftGrade ^= 0x01;
                 zwiftGrade *= -1;
               }
+              smoothedZwiftGrade += zwiftGrade;
+              smoothedZwiftGrade = smoothedZwiftGrade / 2;
             }
             updateSIMModeResistance();
             break;
@@ -478,7 +491,7 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
               zwiftBicycleWeight = requestValues.at(0x20);
               if (requestValues.find(0x28) != requestValues.end()) {
                 zwiftUserWeight = requestValues.at(0x28);
-                if (!BTDeviceManager::writeFECUserConfiguration(zwiftBicycleWeight, zwiftUserWeight, 0xFF, 0x00)) {
+                if (!BTDeviceManager::writeFECUserConfiguration((uint16_t)(zwiftBicycleWeight / 5), zwiftUserWeight, (uint8_t)(Calculations::wheelDiameter / 0.01), (uint8_t)round(defaultGearRatio / 0.03))) {
                   log_e("Error writing FEC user configuration");
                 }
               }
@@ -531,38 +544,43 @@ void DirConManager::updateSIMModeResistance() {
   } else if (zwiftTrainerMode == TrainerMode::SIM_MODE_VIRTUAL_SHIFTING) {
     // Target Power Mode
     if (virtualShiftingMode == VirtualShiftingMode::TARGET_POWER) {
-      uint16_t trainerTargetPower = Calculations::
-                 calculateFECTargetPowerValue((zwiftBicycleWeight + zwiftUserWeight) / 100.0,
-                                                        zwiftGrade / 100.0,
-                                                        trainerCadence,
-                                                        0.7,
-                                                        zwiftGearRatio / 10000.0);
+      uint16_t trainerTargetPower = Calculations::calculateFECTargetPowerValue(
+        (zwiftBicycleWeight + zwiftUserWeight) / 100.0,
+        (SettingsManager::isGradeSmoothingEnabled() ? smoothedZwiftGrade : zwiftGrade) / 100.0,
+        trainerInstantaneousSpeed / 1000.0,
+        trainerCadence,
+        zwiftGearRatio / 10000.0,
+        defaultGearRatio,
+        difficulty);
       if (!BTDeviceManager::writeFECTargetPower(trainerTargetPower)) {
         log_e("Error writing SIM+VS FEC target power");
       }
+    
     // Track Resistance Mode
     } else if (virtualShiftingMode == VirtualShiftingMode::TRACK_RESISTANCE) {
-      uint16_t trainerTrackResistanceGrade = Calculations::
-                calculateFECTrackResistanceGrade((zwiftBicycleWeight + zwiftUserWeight) / 100.0,
-                                                  zwiftGrade / 100.0,
-                                                  trainerCadence,
-                                                  0.7,
-                                                  zwiftGearRatio / 10000.0,
-                                                  defaultGearRatio);
+      uint16_t trainerTrackResistanceGrade = Calculations::calculateFECTrackResistanceGrade(
+        (zwiftBicycleWeight + zwiftUserWeight) / 100.0,
+        (SettingsManager::isGradeSmoothingEnabled() ? smoothedZwiftGrade : zwiftGrade) / 100.0,
+        trainerInstantaneousSpeed / 1000.0,
+        trainerCadence,
+        zwiftGearRatio / 10000.0,
+        defaultGearRatio,
+        difficulty);
       if (!BTDeviceManager::writeFECTrackResistance(trainerTrackResistanceGrade, 0x53)) {
         log_e("Error writing SIM+VS FEC track resistance");
       }
 
     // Basic Resistance Mode
     } else {
-      uint8_t trainerBasicResistance = Calculations::
-                 calculateFECResistancePercentageValue((zwiftBicycleWeight + zwiftUserWeight) / 100.0,
-                                                        zwiftGrade / 100.0,
-                                                        trainerCadence,
-                                                        0.7,
-                                                        zwiftGearRatio / 10000.0,
-                                                        defaultGearRatio,
-                                                        trainerMaximumResistance);
+      uint8_t trainerBasicResistance = Calculations::calculateFECBasicResistancePercentageValue(
+        (zwiftBicycleWeight + zwiftUserWeight) / 100.0,
+        (SettingsManager::isGradeSmoothingEnabled() ? smoothedZwiftGrade : zwiftGrade) / 100.0,
+        trainerInstantaneousSpeed / 1000.0,
+        trainerCadence,
+        zwiftGearRatio / 10000.0,
+        defaultGearRatio,
+        trainerMaximumResistance,
+        difficulty);
       if (!BTDeviceManager::writeFECBasicResistance(trainerBasicResistance)) {
         log_e("Error writing SIM+VS FEC basic resistance");
       }

@@ -11,6 +11,7 @@
 #include <UUIDs.h>
 #include <arduino-timer.h>
 #include <SettingsManager.h>
+#include <deque>
 
 typedef enum TrainerMode {
   ERG_MODE = 0,
@@ -69,10 +70,15 @@ class DirConManager {
   static uint16_t zwiftBicycleWeight;
   static uint16_t zwiftUserWeight;
 
+  static int64_t smoothedZwiftGrade;
+
   static uint16_t trainerInstantaneousPower;
   static uint16_t trainerInstantaneousSpeed;
   static uint8_t trainerCadence;
   static uint16_t trainerMaximumResistance;
+
+  static uint16_t difficulty;
+
 };
 
 #endif

@@ -18,6 +18,8 @@
         let virtualShiftingMode = document.getElementById('virtual_shifting_mode');
         let chainringTeeth = document.getElementById('chainring_teeth');
         let sprocketTeeth = document.getElementById('sprocket_teeth');
+        let gradeSmoothing = document.getElementById('grade_smoothing');
+        let difficulty = document.getElementById('difficulty');
 
         fetch('/devicesettings', {
             method: 'GET',
@@ -33,6 +35,8 @@
                 virtualShifting.checked = response.virtual_shifting;
                 chainringTeeth.value = response.chainring_teeth;
                 sprocketTeeth.value = response.sprocket_teeth;
+                gradeSmoothing.checked = response.grade_smoothing;
+                difficulty.value = response.difficulty;
                 while (trainerDevice.options.length > 0) {
                     trainerDevice.remove(0);
                 }
@@ -110,14 +114,25 @@
                         </select>
                     </div>
                     <div class="form-control">
-                        <label>Chainring teeth:</label>
-                        <input type="number" id="chainring_teeth" name="chainring_teeth" min="1" max="100" onchange="enableSave()">
+                        <label for="chainring_teeth">Chainring:</label>
+                        <input type="number" id="chainring_teeth" name="chainring_teeth" min="1" max="100" class="short" onchange="enableSave()"><span>&nbsp; teeth</span>
                         </span>
                     </div>
                     <div class="form-control">
-                        <label>Sprocket teeth:</label>
-                        <input type="number" id="sprocket_teeth" name="sprocket_teeth" min="1" max="100" onchange="enableSave()">
+                        <label for="sprocket_teeth">Sprocket:</label>
+                        <input type="number" id="sprocket_teeth" name="sprocket_teeth" min="1" max="100" class="short" onchange="enableSave()"><span>&nbsp; teeth</span>
                     </div>
+                    <div class="form-control">
+                        <label>Grade smoothing:</label>
+                        <label class="switch">
+                            <input type="checkbox" id="grade_smoothing" name="grade_smoothing" onchange="enableSave()">
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                    <div class="form-control">
+                        <label for="difficulty">Difficulty:</label>
+                        <input type="number" id="difficulty" min="1" max="200" class="short" onchange="enableSave()"><span>&nbsp; %</span>
+                      </div>
                     <div class="button-container">
                         <button type="submit" class="btn" id="save_btn" onclick="waitForReboot()">
                             <label>Save</label>

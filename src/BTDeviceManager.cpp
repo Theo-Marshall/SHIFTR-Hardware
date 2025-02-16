@@ -426,13 +426,13 @@ bool BTDeviceManager::writeFECUserConfiguration(uint16_t bicycleWeight, uint16_t
   std::vector<uint8_t> fecData;
   fecData.push_back(0xA4);  // SYNC
   fecData.push_back(0x09);  // MSG_LEN
-  fecData.push_back(0x4E);  // MSG_ID
+  fecData.push_back(0x4F);  // MSG_ID -> ACKNOWLEDGED
   fecData.push_back(0x05);  // CONTENT_START
   fecData.push_back(0x37);  // PAGE 55 (0x37)
   fecData.push_back((uint8_t)userWeight);
   fecData.push_back((uint8_t)(userWeight >> 8));
   fecData.push_back(0xFF);
-  fecData.push_back((uint8_t)bicycleWeight);
+  fecData.push_back((uint8_t)bicycleWeight << 4);
   fecData.push_back((uint8_t)(bicycleWeight >> 8));
   fecData.push_back(wheelDiameter);
   fecData.push_back(gearRatio);

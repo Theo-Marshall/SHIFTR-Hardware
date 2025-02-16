@@ -268,8 +268,20 @@ void handleWebServerSettings() {
 
   json += "\"sprocket_teeth\": ";
   json += SettingsManager::getSprocketTeeth();
-  json += "";
+  json += ",";
 
+  json += "\"grade_smoothing\": ";
+  if (SettingsManager::isGradeSmoothingEnabled()) {
+    json += "true";
+  } else {
+    json += "false";
+  }
+  json += ",";
+
+  json += "\"difficulty\": ";
+  json += SettingsManager::getDifficulty();
+  json += "";
+  
   json += "}";
 
   webServer.send(200, "application/json", json);
@@ -293,6 +305,14 @@ void handleWebServerSettingsPost() {
     }
     if (webServer.hasArg("sprocket_teeth")) {
       SettingsManager::setSprocketTeeth(std::atoi(webServer.arg("sprocket_teeth").c_str()));
+    }
+    if (webServer.hasArg("grade_smoothing")) {
+      SettingsManager::setGradeSmoothingEnabled(true);
+    } else {
+      SettingsManager::setGradeSmoothingEnabled(false);
+    }
+    if (webServer.hasArg("difficulty")) {
+      SettingsManager::setDifficulty(std::atoi(webServer.arg("difficulty").c_str()));
     }
     iotWebConf.saveConfig();
     delay(500);
