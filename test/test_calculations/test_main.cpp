@@ -64,9 +64,9 @@ void test_targetpower(void) {
 int main(int argc, char **argv) {
   Logger::defaultLogLevel = LOG_LEVEL_INFO;
   UNITY_BEGIN();
-  //RUN_TEST(test_basicresistance);
-  //RUN_TEST(test_trackresistance);
-  //RUN_TEST(test_targetpower);
+  RUN_TEST(test_basicresistance);
+  RUN_TEST(test_trackresistance);
+  RUN_TEST(test_targetpower);
   UNITY_END();
   return 0;
 }

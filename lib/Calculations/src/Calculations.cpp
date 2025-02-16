@@ -164,12 +164,13 @@ uint16_t Calculations::calculateFECTargetPowerValue(double totalWeight, double g
 
   // calculate the speed based on cadence, wheel diameter and gear ratio
   double speed = calculateSpeed(cadence, wheelDiameter, gearRatio);
+  double trainerSpeed = calculateSpeed(cadence, wheelDiameter, defaultGearRatio);
 
   // calculate the geared total resistance
   double gearedTotalResistance = calculateGearedResistance(totalWeight, grade, speed, gearRatio, defaultGearRatio, difficulty);
 
   // calculate the power based on the total resistance and speed
-  double power = gearedTotalResistance * speed;
+  double power = gearedTotalResistance * trainerSpeed;
   if (power < 0) {
     power = 0;
   }
