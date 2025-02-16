@@ -11,6 +11,6 @@
 #define VERSION_MAJOR 1
 #define VERSION_MINOR 2
 #define VERSION_PATCH 1
-#define VERSION_BUILD "dfbf60c"
-#define VERSION_TIMESTAMP "2025-Feb-15 16:10:57"
+#define VERSION_BUILD "ccfc846"
+#define VERSION_TIMESTAMP "2025-Feb-15 16:12:22"
 #endif
