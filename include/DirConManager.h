@@ -51,6 +51,10 @@ class DirConManager {
   static void updateStatusMessage();
   static void resetValues();
   static void updateSIMModeResistance();
+  static std::vector<uint8_t> processFTMSReadRequest(Service* service, Characteristic* characteristic, std::vector<uint8_t>* requestData); 
+  static std::vector<uint8_t> processFTMSWriteRequest(Service* service, Characteristic* characteristic, std::vector<uint8_t>* requestData);
+  static std::vector<uint8_t> generateIndoorBikeDataNotificationData(uint16_t instantaneousSpeed, uint16_t instantaneousCadence, int16_t instantaneousPower);
+  
   static ServiceManager* serviceManager;
   static Timer<> notificationTimer;
   static AsyncServer* dirConServer;
@@ -78,6 +82,12 @@ class DirConManager {
   static uint16_t trainerMaximumResistance;
 
   static uint16_t difficulty;
+
+  static int16_t ftmsPower;
+  static int16_t ftmsWindSpeed;
+  static int16_t ftmsGrade;
+  static uint8_t ftmsCrr;
+  static uint8_t ftmsCw;
 
 };
 

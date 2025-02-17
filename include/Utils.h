@@ -14,6 +14,7 @@ class Utils {
   static std::string getDeviceName();
   static std::string getHostName();
   static std::string getFQDN();
+  static std::vector<uint8_t> getVectorFromStruct(void* data, size_t length);
 
  private:
   static uint64_t macAddress;

@@ -107,6 +107,17 @@ void setup() {
     zwiftCustomService->addCharacteristic(new Characteristic(NimBLEUUID(ZWIFT_SYNCTX_CHARACTERISTIC_UUID), INDICATE));
     serviceManager.addService(zwiftCustomService);
   }
+
+  // initialize service manager FTMS service if enabled
+  if (SettingsManager::isFTMSEnabled()) {
+    Service* fitnessMachineService = new Service(NimBLEUUID(FITNESS_MACHINE_SERVICE_UUID), true, true);
+    fitnessMachineService->addCharacteristic(new Characteristic(NimBLEUUID(FITNESS_MACHINE_FEATURE_CHARACTERISTIC_UUID), READ));
+    fitnessMachineService->addCharacteristic(new Characteristic(NimBLEUUID(INDOOR_BIKE_DATA_CHARACTERISTIC_UUID), NOTIFY));
+    fitnessMachineService->addCharacteristic(new Characteristic(NimBLEUUID(TRAINING_STATUS_CHARACTERISTIC_UUID), READ | NOTIFY));
+    fitnessMachineService->addCharacteristic(new Characteristic(NimBLEUUID(FITNESS_MACHINE_CONTROL_POINT_CHARACTERISTIC_UUID), WRITE | INDICATE));
+    fitnessMachineService->addCharacteristic(new Characteristic(NimBLEUUID(FITNESS_MACHINE_STATUS_CHARACTERISTIC_UUID), NOTIFY));
+    serviceManager.addService(fitnessMachineService);
+  }
   log_i("Service manager initialized");
 
   // set BTDeviceManager selected trainer device
@@ -280,8 +291,16 @@ void handleWebServerSettings() {
 
   json += "\"difficulty\": ";
   json += SettingsManager::getDifficulty();
-  json += "";
+  json += ",";
   
+  json += "\"ftms_emulation\": ";
+  if (SettingsManager::isFTMSEnabled()) {
+    json += "true";
+  } else {
+    json += "false";
+  }
+  json += "";
+
   json += "}";
 
   webServer.send(200, "application/json", json);
@@ -313,6 +332,12 @@ void handleWebServerSettingsPost() {
     }
     if (webServer.hasArg("difficulty")) {
       SettingsManager::setDifficulty(std::atoi(webServer.arg("difficulty").c_str()));
+    }
+    if (webServer.hasArg("ftms_emulation")) {
+      SettingsManager::setFTMSEnabled(true);
+      SettingsManager::setVirtualShiftingEnabled(false);
+    } else {
+      SettingsManager::setFTMSEnabled(false);
     }
     iotWebConf.saveConfig();
     delay(500);
@@ -392,6 +417,9 @@ void handleWebServerStatus() {
 
   json += "\"mode\": \"";
   json += "Pass-through";
+  if (SettingsManager::isFTMSEnabled()) {
+    json += " + FTMS emulation";
+  }
   if (SettingsManager::isVirtualShiftingEnabled()) {
     json += " + virtual shifting";
   }
