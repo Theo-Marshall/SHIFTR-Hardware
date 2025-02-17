@@ -155,31 +155,33 @@ bool BTDeviceManager::connectRemoteDevice(NimBLEAdvertisedDevice* remoteDevice) 
   if (serviceManager != nullptr) {
     std::vector<NimBLERemoteService*>* remoteServices = nimBLEClient->getServices(true);
     for (auto remoteService = remoteServices->begin(); remoteService != remoteServices->end(); remoteService++) {
-      Service* service = serviceManager->getService((*remoteService)->getUUID());
-      bool isAdvertising = remoteDevice->isAdvertisingService((*remoteService)->getUUID());
-      // little hack for service advertising that gets truncated
-      if (!isAdvertising) {
-        if ((*remoteService)->getUUID().equals(NimBLEUUID(TACX_FEC_PRIMARY_SERVICE_UUID))) {
-          isAdvertising = true;
+      // if FTMS emulation is enabled skip the FTMS service
+      if (!(SettingsManager::isFTMSEnabled() && (*remoteService)->getUUID().equals(NimBLEUUID(FITNESS_MACHINE_SERVICE_UUID)))) {
+        Service* service = serviceManager->getService((*remoteService)->getUUID());
+        bool isAdvertising = remoteDevice->isAdvertisingService((*remoteService)->getUUID());
+        // little hack for service advertising that gets truncated
+        if (!isAdvertising) {
+          if ((*remoteService)->getUUID().equals(NimBLEUUID(TACX_FEC_PRIMARY_SERVICE_UUID))) {
+            isAdvertising = true;
+          }
         }
-      }
-      if (service == nullptr) {
-        service = new Service((*remoteService)->getUUID(), isAdvertising, false);
-        serviceManager->addService(service);
-      }
-      service->Advertise = isAdvertising;
-      std::vector<NimBLERemoteCharacteristic*>* remoteCharacteristics = (*remoteService)->getCharacteristics(true);
-      for (auto remoteCharacterisic = remoteCharacteristics->begin(); remoteCharacterisic != remoteCharacteristics->end(); remoteCharacterisic++) {
-        Characteristic* characteristic = service->getCharacteristic((*remoteCharacterisic)->getUUID());
-        uint32_t properties = 0;
-        if (characteristic == nullptr) {
-          characteristic = new Characteristic((*remoteCharacterisic)->getUUID(), getProperties((*remoteCharacterisic)));
-          service->addCharacteristic(characteristic);
+        if (service == nullptr) {
+          service = new Service((*remoteService)->getUUID(), isAdvertising, false);
+          serviceManager->addService(service);
         }
-        characteristic->setProperties(getProperties((*remoteCharacterisic)));
+        service->Advertise = isAdvertising;
+        std::vector<NimBLERemoteCharacteristic*>* remoteCharacteristics = (*remoteService)->getCharacteristics(true);
+        for (auto remoteCharacterisic = remoteCharacteristics->begin(); remoteCharacterisic != remoteCharacteristics->end(); remoteCharacterisic++) {
+          Characteristic* characteristic = service->getCharacteristic((*remoteCharacterisic)->getUUID());
+          uint32_t properties = 0;
+          if (characteristic == nullptr) {
+            characteristic = new Characteristic((*remoteCharacterisic)->getUUID(), getProperties((*remoteCharacterisic)));
+            service->addCharacteristic(characteristic);
+          }
+          characteristic->setProperties(getProperties((*remoteCharacterisic)));
+        }
       }
     }
-
   } else {
     log_e("Connection to BLE device failed, service manager not available");
     nimBLEClient->disconnect();

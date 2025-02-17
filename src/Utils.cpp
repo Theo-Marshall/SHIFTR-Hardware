@@ -59,3 +59,11 @@ std::string Utils::getHexString(std::vector<uint8_t> data) {
 std::string Utils::getHexString(std::vector<uint8_t>* data) {
   return Utils::getHexString(data->data(), data->size());
 }
+
+std::vector<uint8_t> Utils::getVectorFromStruct(void* data, size_t length) {
+  std::vector<uint8_t> returnVector;
+  for (size_t index = 0; index < length; index++) {
+    returnVector.push_back(((uint8_t*)data)[index]);
+  }
+  return returnVector;
+}

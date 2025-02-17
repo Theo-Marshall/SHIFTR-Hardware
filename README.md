@@ -1,13 +1,13 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![CI](https://github.com/JuergenLeber/SHIFTR/actions/workflows/build.yml/badge.svg)](https://github.com/JuergenLeber/SHIFTR/actions/workflows/build.yml)
 # SHIFTR 
-A BLE to Direct Connect bridge for bike trainers using a WT32-ETH01 module based on ESP32. Increases connection stability and additionally adding Zwift "virtual shifting" functionality to any device supporting FE-C over BLE.
+A BLE to Direct Connect bridge for bike trainers using a WT32-ETH01 module based on ESP32. Increases connection stability and additionally adding Zwift "virtual shifting" functionality to any device supporting FE-C over BLE. Also adding FTMS emulation via DirCon for non-FE-C compatible software like MyWhoosh.
 
 Currently tested with Garmin/Tacx NEO 2T and Vortex but should also work on other trainers supporting FE-C over BLE.
 
 Tested bike trainer software so far:
 - &#x2611; Zwift (Pass-through + virtual shifting mode)
-- &#x2612; MyWhoosh (Pass-through mode only) -> Controllable not working with TACX Neo 2T as MyWhoosh probably relies on FTMS via DirCon. Maybe in an upcoming version I'll implement a FTMS emulator. May already work today with other trainers (supporting FTMS via BLE). 
+- &#x2611; MyWhoosh (Pass-through mode only / TACX Neo 2T and Vortex only with FTMS emulation enabled) 
 
 Disclaimer: Even if everything is working fine this project is still work in progress. Feel free to provide feedback if you encounter any issues.
 
@@ -40,6 +40,9 @@ This mode provides the pass through features as mentioned before and additionall
 Details about the virtual shifting function and calculations can be found [here](./VirtualShifting.md).
 
 ***Note***: Virtual shifting will be disabled if neither Zwift Play controllers nor a Zwift Click are connected which results in the standard SIM mode with a track resistance of 0%. Then you'd have to shift with your bike but with a Zwift Cog installed this doesn't make sense of course. If the controllers disconnect during a training then the fallback will be this normal SIM mode but as soon as the controller(s) are re-connected the virtual shifting will be enabled again.
+
+### Pass-through + FTMS emulation
+This mode provides all services from the BLE trainer and additionally offers a FTMS emulation that internally sends the commands to the BLE FE-C trainer. This makes software like MyWhoosh also working. Doesn't (at least not yet) work with virtual shifting as this is a Zwift-only feature at the moment.
 
 ## Needed hardware
 - WT32-ETH01 ESP32 board (e.g. from [Amazon](https://www.amazon.de/WT32-ETH01-Embedded-Schnittstelle-Bluetooth-Entwicklungsplatine/dp/B0CW3DDWZ4))

@@ -41,6 +41,8 @@ class SettingsManager {
   static IotWebConfParameterGroup* getIoTWebConfSettingsParameterGroup();
   static std::string getUsername();
   static std::string getAPPassword();
+  static bool isFTMSEnabled();
+  static void setFTMSEnabled(bool enabled);
 
  private:
   static char iotWebConfChainringTeethParameterValue[];
@@ -52,6 +54,7 @@ class SettingsManager {
   static char iotWebConfVirtualShiftingModeNames[][24];
   static char iotWebConfGradeSmoothingParameterValue[];
   static char iotWebConfDifficultyParameterValue[];
+  static char iotWebConfFTMSParameterValue[];
   static IotWebConfParameterGroup iotWebConfSettingsGroup;
   static IotWebConfNumberParameter iotWebConfChainringTeethParameter;
   static IotWebConfNumberParameter iotWebConfSprocketTeethParameter;
@@ -60,6 +63,7 @@ class SettingsManager {
   static IotWebConfTextParameter iotWebConfTrainerDeviceParameter;
   static IotWebConfCheckboxParameter iotWebConfGradeSmoothingParameter;
   static IotWebConfNumberParameter iotWebConfDifficultyParameter;
+  static IotWebConfCheckboxParameter iotWebConfFTMSParameter;
   static IotWebConf* iotWebConf;
 };
 

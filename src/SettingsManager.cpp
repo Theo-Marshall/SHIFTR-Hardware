@@ -9,6 +9,7 @@ char SettingsManager::iotWebConfVirtualShiftingParameterValue[16];
 char SettingsManager::iotWebConfTrainerDeviceParameterValue[128];
 char SettingsManager::iotWebConfGradeSmoothingParameterValue[16];
 char SettingsManager::iotWebConfDifficultyParameterValue[16];
+char SettingsManager::iotWebConfFTMSParameterValue[16];
 
 char SettingsManager::iotWebConfVirtualShiftingModeValues[][24] = { "basic_resistance", "target_power", "track_resistance" };
 char SettingsManager::iotWebConfVirtualShiftingModeNames[][24] = { "Basic Resistance", "Target Power", "Track Resistance" };
@@ -21,6 +22,7 @@ IotWebConfCheckboxParameter SettingsManager::iotWebConfVirtualShiftingParameter 
 IotWebConfTextParameter SettingsManager::iotWebConfTrainerDeviceParameter = IotWebConfTextParameter("Trainer device", "trainer_device", iotWebConfTrainerDeviceParameterValue, sizeof(iotWebConfTrainerDeviceParameterValue), "");
 IotWebConfCheckboxParameter SettingsManager::iotWebConfGradeSmoothingParameter = IotWebConfCheckboxParameter("Grade smoothing", "grade_smoothing", SettingsManager::iotWebConfGradeSmoothingParameterValue, sizeof(iotWebConfGradeSmoothingParameterValue), true);
 IotWebConfNumberParameter SettingsManager::iotWebConfDifficultyParameter("Difficulty", "difficulty", SettingsManager::iotWebConfDifficultyParameterValue, sizeof(iotWebConfDifficultyParameterValue), "100", "1..200", "min='1' max='200' step='1'");
+IotWebConfCheckboxParameter SettingsManager::iotWebConfFTMSParameter = IotWebConfCheckboxParameter("FTMS Emulation", "ftms_emulation", SettingsManager::iotWebConfFTMSParameterValue, sizeof(iotWebConfFTMSParameterValue), false);
 
 IotWebConf* SettingsManager::iotWebConf;
 
@@ -33,6 +35,7 @@ void SettingsManager::initialize(IotWebConf* iotWebConf) {
   iotWebConfSettingsGroup.addItem(&iotWebConfVirtualShiftingModeParameter);
   iotWebConfSettingsGroup.addItem(&iotWebConfGradeSmoothingParameter);
   iotWebConfSettingsGroup.addItem(&iotWebConfDifficultyParameter);
+  iotWebConfSettingsGroup.addItem(&iotWebConfFTMSParameter);
 }
 
 VirtualShiftingMode SettingsManager::getVirtualShiftingMode() {
@@ -146,4 +149,16 @@ uint16_t SettingsManager::getDifficulty() {
 void SettingsManager::setDifficulty(uint16_t difficulty) {
   std::string difficultyString = std::to_string(difficulty);
   strncpy(iotWebConfDifficultyParameterValue, difficultyString.c_str(), sizeof(iotWebConfDifficultyParameterValue));
+}
+
+bool SettingsManager::isFTMSEnabled() {
+  return (strncmp(iotWebConfFTMSParameterValue, "selected", sizeof(iotWebConfFTMSParameterValue)) == 0);
+}
+
+void SettingsManager::setFTMSEnabled(bool enabled) {
+  String fTMSEnabled = "";
+  if (enabled) {
+    fTMSEnabled = "selected";
+  }
+  strncpy(iotWebConfFTMSParameterValue, fTMSEnabled.c_str(), sizeof(iotWebConfFTMSParameterValue));
 }

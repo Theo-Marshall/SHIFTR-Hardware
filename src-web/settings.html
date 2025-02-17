@@ -20,6 +20,7 @@
         let sprocketTeeth = document.getElementById('sprocket_teeth');
         let gradeSmoothing = document.getElementById('grade_smoothing');
         let difficulty = document.getElementById('difficulty');
+        let ftmsEmulation = document.getElementById('ftms_emulation');
 
         fetch('/devicesettings', {
             method: 'GET',
@@ -37,6 +38,7 @@
                 sprocketTeeth.value = response.sprocket_teeth;
                 gradeSmoothing.checked = response.grade_smoothing;
                 difficulty.value = response.difficulty;
+                ftmsEmulation.checked = response.ftms_emulation;
                 while (trainerDevice.options.length > 0) {
                     trainerDevice.remove(0);
                 }
@@ -67,6 +69,11 @@
 
     }
     function enableSave() {
+        let virtualShifting = document.getElementById('virtual_shifting');
+        let ftmsEmulation = document.getElementById('ftms_emulation');
+        if (ftmsEmulation.checked) {
+            virtualShifting.checked = false;
+        }
         let save = document.getElementById('save_btn');
         save.disabled = false;
     }
@@ -133,6 +140,13 @@
                         <label for="difficulty">Difficulty:</label>
                         <input type="number" id="difficulty" min="1" max="200" class="short" onchange="enableSave()"><span>&nbsp; %</span>
                       </div>
+                    <div class="form-control">
+                        <label>FTMS Emulation:</label>
+                        <label for="ftms_emulation" class="switch">
+                            <input type="checkbox" id="ftms_emulation" name="ftms_emulation" onchange="enableSave()">
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
                     <div class="button-container">
                         <button type="submit" class="btn" id="save_btn" onclick="waitForReboot()">
                             <label>Save</label>

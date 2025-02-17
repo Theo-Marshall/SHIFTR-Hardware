@@ -9,6 +9,7 @@
 #include <uleb128.h>
 #include <SettingsManager.h>
 #include <Calculations.h>
+#include <FTMS.h>
 
 ServiceManager *DirConManager::serviceManager{};
 Timer<> DirConManager::notificationTimer = timer_create_default();
@@ -38,6 +39,12 @@ uint8_t DirConManager::trainerCadence;
 uint16_t DirConManager::trainerMaximumResistance;
 
 uint16_t DirConManager::difficulty;
+
+int16_t DirConManager::ftmsPower;
+int16_t DirConManager::ftmsWindSpeed;
+int16_t DirConManager::ftmsGrade;
+uint8_t DirConManager::ftmsCrr;
+uint8_t DirConManager::ftmsCw;
 
 class DirConServiceManagerCallbacks : public ServiceManagerCallbacks {
   void onServiceAdded(Service *service) {
@@ -82,6 +89,12 @@ void DirConManager::resetValues() {
   trainerMaximumResistance = 0;
 
   difficulty = SettingsManager::getDifficulty();
+
+  ftmsPower = 0;
+  ftmsWindSpeed = 0;
+  ftmsGrade = 0;
+  ftmsCrr = 0;
+  ftmsCw = 0;
 }
 
 void DirConManager::setServiceManager(ServiceManager *serviceManager) {
@@ -131,16 +144,32 @@ bool DirConManager::doNotifications(void *arg) {
 
 void DirConManager::handleNewClient(void *arg, AsyncClient *client) {
   bool clientAccepted = false;
+  size_t clientAcceptedIndex = 0;
   log_i("New DirCon connection from %s", client->remoteIP().toString().c_str());
   for (size_t clientIndex = 0; clientIndex < DIRCON_MAX_CLIENTS; clientIndex++) {
     if ((dirConClients[clientIndex] == nullptr) || ((dirConClients[clientIndex] != nullptr) && (!dirConClients[clientIndex]->connected()))) {
       dirConClients[clientIndex] = client;
       clientAccepted = true;
-      // enable notifications for FE-C characteristics if virtual shifting is enabled
-      if (SettingsManager::isVirtualShiftingEnabled()) {
+      clientAcceptedIndex = clientIndex;
+      // enable notifications for FE-C and internal characteristics if virtual shifting or FTMS emulation is enabled
+      if (SettingsManager::isVirtualShiftingEnabled() || SettingsManager::isFTMSEnabled()) {
         Characteristic* tacxFECReadCharacteristic = serviceManager->getCharacteristic(NimBLEUUID(TACX_FEC_READ_CHARACTERISTIC_UUID));
         if (tacxFECReadCharacteristic != nullptr) {
           tacxFECReadCharacteristic->addSubscription(clientIndex);
+        } else {
+          log_e("Error enabling notifications for FE-C, characteristic not found, disconnecting client");
+          removeSubscriptions(client);
+          client->stop();
+          client->abort();
+          return;
+        }
+        Characteristic* zwiftAsyncCharacteristic = serviceManager->getCharacteristic(NimBLEUUID(ZWIFT_ASYNC_CHARACTERISTIC_UUID));
+        if (zwiftAsyncCharacteristic != nullptr) {
+          zwiftAsyncCharacteristic->addSubscription(clientIndex);
+        }
+        Characteristic* indoorBikeDataCharacteristic = serviceManager->getCharacteristic(NimBLEUUID(INDOOR_BIKE_DATA_CHARACTERISTIC_UUID));
+        if (indoorBikeDataCharacteristic != nullptr) {
+          indoorBikeDataCharacteristic->addSubscription(clientIndex);
         }
       }
       // send the FE-C request to receive the capabilities
@@ -152,7 +181,7 @@ void DirConManager::handleNewClient(void *arg, AsyncClient *client) {
   }
   updateStatusMessage();
   if (clientAccepted) {
-    log_i("Free connection slot found, DirCon connection from %s accepted", client->remoteIP().toString().c_str());
+    log_i("Free connection slot found (%d), DirCon connection from %s accepted", clientAcceptedIndex, client->remoteIP().toString().c_str());
     client->onData(&DirConManager::handleDirConData, NULL);
     client->onError(&DirConManager::handleDirConError, NULL);
     client->onDisconnect(&DirConManager::handleDirConDisconnect, NULL);
@@ -298,9 +327,18 @@ bool DirConManager::processDirConMessage(DirConMessage *dirConMessage, AsyncClie
             break;
           }
         } else {
-          if (!processZwiftSyncRequest(characteristic->getService(), characteristic, &dirConMessage->AdditionalData)) {
-            returnMessage.Identifier = DIRCON_RESPCODE_CHARACTERISTIC_OPERATION_NOT_SUPPORTED;
-            break;
+          if (characteristic->UUID.equals(NimBLEUUID(ZWIFT_SYNCRX_CHARACTERISTIC_UUID))) {
+            if (!processZwiftSyncRequest(characteristic->getService(), characteristic, &dirConMessage->AdditionalData)) {
+              returnMessage.Identifier = DIRCON_RESPCODE_CHARACTERISTIC_OPERATION_NOT_SUPPORTED;
+              break;
+            }
+          }
+          if (characteristic->UUID.equals(NimBLEUUID(FITNESS_MACHINE_CONTROL_POINT_CHARACTERISTIC_UUID))) {
+            returnMessage.AdditionalData = processFTMSWriteRequest(characteristic->getService(), characteristic, &dirConMessage->AdditionalData);
+            if (returnMessage.AdditionalData.size() == 0) {
+              returnMessage.Identifier = DIRCON_RESPCODE_CHARACTERISTIC_OPERATION_NOT_SUPPORTED;
+              break;
+            }
           }
           break;
         }
@@ -324,8 +362,15 @@ bool DirConManager::processDirConMessage(DirConMessage *dirConMessage, AsyncClie
             break;
           }
         } else {
-          log_e("DirCon read to internal characteristic, not implemented!");
-          // There shouldn't be any need to read internal characteristics
+          if (characteristic->getService()->UUID.equals(NimBLEUUID(FITNESS_MACHINE_SERVICE_UUID))) {
+            returnMessage.AdditionalData = processFTMSReadRequest(characteristic->getService(), characteristic, &dirConMessage->AdditionalData);
+            if (returnMessage.AdditionalData.size() == 0) {
+              returnMessage.Identifier = DIRCON_RESPCODE_CHARACTERISTIC_OPERATION_NOT_SUPPORTED;
+              break;
+            }
+          } else {
+            log_e("DirCon read to internal characteristic %s not implemented!", characteristic->UUID.toString().c_str());
+          }
         }
       } else {
         returnMessage.ResponseCode = DIRCON_RESPCODE_CHARACTERISTIC_NOT_FOUND;
@@ -650,10 +695,15 @@ void DirConManager::notifyInternalCharacteristics() {
   for (Service *service : serviceManager->getServices()) {
     if (service->isInternal()) {
       for (Characteristic *characteristic : service->getCharacteristics()) {
-        if (characteristic->UUID.equals(NimBLEUUID(ZWIFT_ASYNC_CHARACTERISTIC_UUID))) {
-          //std::vector<uint8_t> notificationData = generateZwiftAsyncNotificationData(trainerPower, calculatedCadence, 0, 0, 0);
-          std::vector<uint8_t> notificationData = generateZwiftAsyncNotificationData(trainerInstantaneousPower, trainerCadence, 0, 0, 0);
-          notifyDirConCharacteristic(characteristic, notificationData.data(), notificationData.size());
+        if (characteristic->getSubscriptions().size() > 0) {
+          if (characteristic->UUID.equals(NimBLEUUID(ZWIFT_ASYNC_CHARACTERISTIC_UUID))) {
+            std::vector<uint8_t> notificationData = generateZwiftAsyncNotificationData(trainerInstantaneousPower, trainerCadence, 0, 0, 0);
+            notifyDirConCharacteristic(characteristic, notificationData.data(), notificationData.size());
+          }
+          if (characteristic->UUID.equals(NimBLEUUID(INDOOR_BIKE_DATA_CHARACTERISTIC_UUID))) {
+            std::vector<uint8_t> notificationData = generateIndoorBikeDataNotificationData((uint16_t)(trainerInstantaneousSpeed * 36 / 100), (uint16_t)(trainerCadence * 2), (int16_t)trainerInstantaneousPower);
+            notifyDirConCharacteristic(characteristic, notificationData.data(), notificationData.size());
+          }
         }
       }
     }
@@ -725,4 +775,164 @@ void DirConManager::updateStatusMessage() {
 
 TrainerMode DirConManager::getZwiftTrainerMode() {
   return zwiftTrainerMode;
+}
+
+std::vector<uint8_t> DirConManager::processFTMSReadRequest(Service* service, Characteristic* characteristic, std::vector<uint8_t>* requestData) {
+  std::vector<uint8_t> returnData;
+  if (characteristic->UUID.equals(NimBLEUUID(FITNESS_MACHINE_FEATURE_CHARACTERISTIC_UUID))) {
+    FITNESS_MACHINE_FEATURES_TYPE fitnessMachineFeaturesType;
+
+    fitnessMachineFeaturesType.fitnessMachineFeatures = 
+    FITNESS_MACHINE_FEATURES::cadence_supported |
+    FITNESS_MACHINE_FEATURES::power_measurement_supported;
+
+    fitnessMachineFeaturesType.targetSettingFeatures = 
+    TARGET_SETTING_FEATURES::inclination_target_setting_supported |
+    TARGET_SETTING_FEATURES::resistance_target_setting_supported |
+    TARGET_SETTING_FEATURES::power_target_setting_supported |
+    TARGET_SETTING_FEATURES::indoor_bike_simulation_parameters_supported;
+
+    returnData = Utils::getVectorFromStruct(&fitnessMachineFeaturesType, sizeof(fitnessMachineFeaturesType));
+  }
+  return returnData;
+}
+
+std::vector<uint8_t> DirConManager::processFTMSWriteRequest(Service* service, Characteristic* characteristic, std::vector<uint8_t>* requestData) {
+  std::vector<uint8_t> returnData;
+  //log_i("FTMS write request to characteristic %s with data %s", characteristic->UUID.toString().c_str(), Utils::getHexString(requestData).c_str());
+  if (requestData->size() > 0) {
+    bool success = false;
+    uint8_t opCode = requestData->at(0);
+    std::vector<uint8_t> parameter;
+    if (requestData->size() > 1) {
+      parameter = std::vector<uint8_t>(requestData->begin() + 1, requestData->end());
+    }
+    returnData.push_back(0x80);
+    returnData.push_back(opCode);
+    switch (opCode)
+    {
+      // request control
+      case 0x00:
+        zwiftTrainerMode = TrainerMode::SIM_MODE;
+        log_i("SIM mode requested");
+        success = true;
+        break;
+
+      // reset
+      case 0x01:
+        zwiftTrainerMode = TrainerMode::SIM_MODE;
+        log_i("SIM mode requested");
+        ftmsPower = 0;
+        ftmsWindSpeed = 0;
+        ftmsGrade = 0;
+        ftmsCrr = 0;
+        ftmsCw = 0;
+        success = true;
+        break;
+
+      // target power
+      case 0x05:
+        if (parameter.size() == 2) {
+          if (zwiftTrainerMode != TrainerMode::ERG_MODE) {
+            zwiftTrainerMode = TrainerMode::ERG_MODE;
+            log_i("ERG mode requested");
+          }
+          // target power in 1W 
+          ftmsPower = (parameter.at(1) << 8) | parameter.at(0);
+          if (ftmsPower < 0) {
+            log_e("FTMS target power is negative, setting to 0");
+            ftmsPower = 0;
+          }
+          if (!BTDeviceManager::writeFECTargetPower(ftmsPower * 4)) {
+            log_e("Error writing ERG FEC target power");
+          }
+          success = true;
+        } else {
+          success = false;
+        }
+        break;
+
+      // start or resume
+      case 0x07:
+        // todo: start or resume
+        success = true;
+        break;
+
+      // stop or pause
+      case 0x08:
+        // todo: stop or pause  
+        success = true;
+        break;
+      // set indoor bike simulation parameters
+      case 0x11:
+        // [11 00 00 14 00 32 33]
+        if (parameter.size() == 6) {
+          if (zwiftTrainerMode != TrainerMode::SIM_MODE) {
+            zwiftTrainerMode = TrainerMode::SIM_MODE;
+            log_i("SIM mode requested");
+          }
+          zwiftTrainerMode = TrainerMode::SIM_MODE;
+          // wind speed in 0.001 m/s
+          ftmsWindSpeed = (parameter.at(1) << 8) | parameter.at(0);
+          // grade in 0.01%
+          ftmsGrade = (parameter.at(3) << 8) | parameter.at(2);
+          // crr in 0.0001
+          ftmsCrr = parameter.at(4);
+          // cw in 0.01
+          ftmsCw = parameter.at(5);
+          if (!BTDeviceManager::writeFECTrackResistance((uint16_t)(0x4E20 + ftmsGrade), ftmsCrr)) {
+            log_e("Error writing SIM FEC track resistance");
+          }
+          success = true;
+        } else {
+          success = false;
+        }
+        break;
+
+      default:
+        log_e("Unknown FTMS opcode %d with parameter data %s received, discarding", opCode, Utils::getHexString(parameter).c_str());
+        break;
+    }
+    if (success) {
+      returnData.push_back(FITNESS_MACHINE_CONTROL_POINT_RESULT_CODE::success);
+    } else {
+      returnData.push_back(FITNESS_MACHINE_CONTROL_POINT_RESULT_CODE::op_code_not_supported);
+    }
+  }
+
+  //log_i("FTMS write request to characteristic %s returning data %s", characteristic->UUID.toString().c_str(), Utils::getHexString(returnData).c_str());
+
+  return returnData;
+}
+
+/**
+ * @brief Generate the IndoorBikeData notification data
+ * 
+ * @param instantaneousSpeed Instantaneous speed in kph with a resolution of 0.01
+ * @param instantaneousCadence Instantaneous cadence in rpm with a resolution of 0.5
+ * @param instantaneousPower Instantaneous power in watts with a resolution of 1
+ * @return std::vector<uint8_t> The notification data
+ */
+std::vector<uint8_t> DirConManager::generateIndoorBikeDataNotificationData(uint16_t instantaneousSpeed, uint16_t instantaneousCadence, int16_t instantaneousPower) {
+  std::vector<uint8_t> notificationData;
+  
+  // enable instantaneous speed, instantaneous cadence and instantaneous power
+  uint16_t flags =  INDOOR_BIKE_DATA_CHARACTERISTICS_FLAGS::instantaneous_cadence_present |
+                    INDOOR_BIKE_DATA_CHARACTERISTICS_FLAGS::instantaneous_power_present;
+
+  notificationData.push_back((uint8_t)(flags & 0xFF));
+  notificationData.push_back((uint8_t)(flags >> 8));
+
+  // add instantaneous speed (kph with a resolution of 0.01)
+  notificationData.push_back((uint8_t)(instantaneousSpeed & 0xFF));
+  notificationData.push_back((uint8_t)(instantaneousSpeed >> 8));
+
+  // add instantaneous cadence (rpm with a resolution of 0.5)
+  notificationData.push_back((uint8_t)(instantaneousCadence & 0xFF));
+  notificationData.push_back((uint8_t)(instantaneousCadence >> 8));
+
+  // add instantaneous power (watts with a resolution of 1)
+  notificationData.push_back((uint8_t)(instantaneousPower & 0xFF));
+  notificationData.push_back((uint8_t)(instantaneousPower >> 8));
+  return notificationData;
 }
