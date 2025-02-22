@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="color-scheme" content="dark light">
+    <link rel="shortcut icon" type="image/x-icon" href="favicon.ico">
+    <link rel="stylesheet" type="text/css" href="style.css">
+</head>
+
+<body>
+    <div class="container" id="header_container">
+        <a class="helpbadge" href="https://github.com/JuergenLeber/SHIFTR" target="_blank">?</a>
+        <div id="header_wrapper">
+            <div id="logo_container">
+                <img src="favicon.ico" width=64 alt="logo" />
+                <h1 class="title">&nbsp;<b>SHIFTR</b>&nbsp;<span id="version"></span></h1>
+            </div>
+        </div>
+        <h2 id="device_name"></h2>
+    </div>
+    <div class="container" id="connection_container">
+        <div id="connection_status" class="statusred">Disconnected</div>
+    </div>
+    <div class="container" id="status_container">
+        <h1>Gear control</h1>
+        <div class="form">
+            <div>
+                <div class="button-container">
+                    <button class="btn" id="shift_up_btn" style="font-size: 250%;" onclick="shiftUp()">
+                        <label><b>UP</b></label>
+                    </button>
+                </div>
+                <div class="button-container">
+                    <span id="current_gear" style="font-size: 650%; font-weight: 400;">-</span>
+                </div>
+                <div class="button-container">
+                    <button class="btn" id="shift_down_btn" style="font-size: 250%;" onclick="shiftDown()">
+                        <label><b>DOWN</b></label>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <h1>&nbsp;</h1>
+    </div>
+    <script src="script.js"></script>
+</body>
+
+</html>

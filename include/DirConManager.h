@@ -12,6 +12,7 @@
 #include <arduino-timer.h>
 #include <SettingsManager.h>
 #include <deque>
+#include "DirConManagerCallbacks.h"
 
 typedef enum TrainerMode {
   ERG_MODE = 0,
@@ -28,6 +29,11 @@ class DirConManager {
   static void notifyDirConCharacteristic(const NimBLEUUID& characteristicUUID, uint8_t* pData, size_t length);
   static String getStatusMessage();
   static TrainerMode getZwiftTrainerMode();
+  static void shiftGearUp();
+  static void shiftGearDown();
+  static uint8_t getCurrentGear();
+  static double getCurrentGearRatio();
+  static void subscribeCallbacks(DirConManagerCallbacks* callbacks);
 
  private:
   friend class DirConServiceManagerCallbacks;
@@ -54,6 +60,9 @@ class DirConManager {
   static std::vector<uint8_t> processFTMSReadRequest(Service* service, Characteristic* characteristic, std::vector<uint8_t>* requestData); 
   static std::vector<uint8_t> processFTMSWriteRequest(Service* service, Characteristic* characteristic, std::vector<uint8_t>* requestData);
   static std::vector<uint8_t> generateIndoorBikeDataNotificationData(uint16_t instantaneousSpeed, uint16_t instantaneousCadence, int16_t instantaneousPower);
+  static void doGearChangeCallbacks(uint8_t currentGear);
+
+  static std::vector<DirConManagerCallbacks*> dirConManagerCallbacks;
   
   static ServiceManager* serviceManager;
   static Timer<> notificationTimer;
@@ -88,6 +97,9 @@ class DirConManager {
   static int16_t ftmsGrade;
   static uint8_t ftmsCrr;
   static uint8_t ftmsCw;
+
+  static double manualGears[];
+  static uint8_t currentGear;
 
 };
 

@@ -59,6 +59,11 @@ button {
     border: none;
     cursor: pointer;
     background: var(--primary);
+    touch-action: manipulation;
+}
+
+button:active {
+    background: var(--switch-enabled);
 }
 
 .button-container {

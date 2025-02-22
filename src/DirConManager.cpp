@@ -11,6 +11,8 @@
 #include <Calculations.h>
 #include <FTMS.h>
 
+std::vector<DirConManagerCallbacks*> DirConManager::dirConManagerCallbacks;
+
 ServiceManager *DirConManager::serviceManager{};
 Timer<> DirConManager::notificationTimer = timer_create_default();
 bool DirConManager::started = false;
@@ -46,6 +48,9 @@ int16_t DirConManager::ftmsGrade;
 uint8_t DirConManager::ftmsCrr;
 uint8_t DirConManager::ftmsCw;
 
+double DirConManager::manualGears[] = MANUAL_GEARS;
+uint8_t DirConManager::currentGear;
+
 class DirConServiceManagerCallbacks : public ServiceManagerCallbacks {
   void onServiceAdded(Service *service) {
     if (service->isAdvertised()) {
@@ -71,6 +76,16 @@ class DirConServiceManagerCallbacks : public ServiceManagerCallbacks {
   };
 };
 
+void DirConManager::subscribeCallbacks(DirConManagerCallbacks* callbacks) {
+  DirConManager::dirConManagerCallbacks.push_back(callbacks);
+}
+
+void DirConManager::doGearChangeCallbacks(uint8_t currentGear) {
+  for (size_t callbackIndex = 0; callbackIndex < dirConManagerCallbacks.size(); callbackIndex++) {
+    dirConManagerCallbacks.at(callbackIndex)->onGearChanged(currentGear);
+  }
+}
+
 void DirConManager::resetValues() {
   defaultGearRatio = (double)SettingsManager::getChainringTeeth() / (double)SettingsManager::getSprocketTeeth();
   virtualShiftingMode = SettingsManager::getVirtualShiftingMode();
@@ -95,6 +110,8 @@ void DirConManager::resetValues() {
   ftmsGrade = 0;
   ftmsCrr = 0;
   ftmsCw = 0;
+
+  currentGear = 8;
 }
 
 void DirConManager::setServiceManager(ServiceManager *serviceManager) {
@@ -583,7 +600,7 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
 void DirConManager::updateSIMModeResistance() {
   // normal SIM mode w/o virtual shifting, use normal track resistance mode
   if (zwiftTrainerMode == TrainerMode::SIM_MODE) {
-    if (!BTDeviceManager::writeFECTrackResistance((uint16_t)(0x4E20 + zwiftGrade), 0x53)) {
+    if (!BTDeviceManager::writeFECTrackResistance((0x4E20 + zwiftGrade))) {
       log_e("Error writing FEC track resistance");
     }
   } else if (zwiftTrainerMode == TrainerMode::SIM_MODE_VIRTUAL_SHIFTING) {
@@ -936,3 +953,31 @@ std::vector<uint8_t> DirConManager::generateIndoorBikeDataNotificationData(uint1
   notificationData.push_back((uint8_t)(instantaneousPower >> 8));
   return notificationData;
 }
+
+void DirConManager::shiftGearUp() {
+  currentGear++;
+  if (currentGear > MANUAL_GEAR_MAX) {
+    currentGear = MANUAL_GEAR_MAX;
+  }
+  doGearChangeCallbacks(currentGear);
+  log_i("Gear %d selected", currentGear);
+}
+
+void DirConManager::shiftGearDown() {
+  currentGear--;
+  if (currentGear < MANUAL_GEAR_MIN) {
+    currentGear = MANUAL_GEAR_MIN;
+  }
+  log_i("Gear %d selected", currentGear);
+  doGearChangeCallbacks(currentGear);
+}
+
+uint8_t DirConManager::getCurrentGear() {
+  return currentGear;
+}
+
+double DirConManager::getCurrentGearRatio() {
+  return manualGears[currentGear];
+}
+
+  

@@ -18,4 +18,11 @@
 #define BLE_CONNECT_INTERVAL 1000
 #define BLE_CONNECT_TIMEOUT 10
 
+#define GEAR_UP_PIN IO2
+#define GEAR_DOWN_PIN IO4
+
+#define MANUAL_GEAR_MIN 1
+#define MANUAL_GEAR_MAX 24
+#define MANUAL_GEARS {0.75, 0.87, 0.99, 1.11, 1.23, 1.38, 1.53, 1.68, 1.86, 2.04, 2.22, 2.40, 2.61, 2.82, 3.03, 3.24, 3.49, 3.74, 3.99, 4.24, 4.54, 4.84, 5.14, 5.49}
+
 #endif
