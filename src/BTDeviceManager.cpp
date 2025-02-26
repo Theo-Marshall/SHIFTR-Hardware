@@ -299,13 +299,13 @@ bool BTDeviceManager::writeBLECharacteristic(const NimBLEUUID& serviceUUID, cons
           return true;
         }
       } else {
-        log_e("BLE characteristic write failed: Remote characteristic not writable");
+        log_e("BLE characteristic write failed: Remote characteristic %s not writable", characteristicUUID.toString().c_str());
       }
     } else {
-      log_e("BLE characteristic write failed: Remote characteristic not found");
+      log_e("BLE characteristic write failed: Remote characteristic %s not found", characteristicUUID.toString().c_str());
     }
   } else {
-    log_e("BLE characteristic write failed: Remote service not found");
+    log_e("BLE characteristic write failed: Remote service %s not found", serviceUUID.toString().c_str());
   }
   return false;
 }
@@ -369,6 +369,7 @@ bool BTDeviceManager::changeBLENotify(Characteristic* characteristic, bool remov
 // BLE write characteristic 6e40fec3-b5a3-f393-e0a9-e50e24dcca9e with data [A4 09 4E 05 31 FF FF FF FF FF CC 01 54] =115W
 
 bool BTDeviceManager::writeFECTargetPower(uint16_t targetPower) {
+  log_i("FEC target power: %d", targetPower);
   std::vector<uint8_t> fecData;
   fecData.push_back(0xA4);  // SYNC
   fecData.push_back(0x09);  // MSG_LEN
@@ -389,6 +390,7 @@ bool BTDeviceManager::writeFECTargetPower(uint16_t targetPower) {
 // BLE write characteristic 6e40fec3-b5a3-f393-e0a9-e50e24dcca9e with data [A4 09 4E 05 33 FF FF FF FF 20 4E FF F9]
 
 bool BTDeviceManager::writeFECTrackResistance(uint16_t grade, uint8_t rollingResistance) {
+  log_i("FEC track resistance: Grade %d, Crr %d", grade, rollingResistance);
   std::vector<uint8_t> fecData;
   fecData.push_back(0xA4);  // SYNC
   fecData.push_back(0x09);  // MSG_LEN
@@ -407,6 +409,7 @@ bool BTDeviceManager::writeFECTrackResistance(uint16_t grade, uint8_t rollingRes
 }
 
 bool BTDeviceManager::writeFECBasicResistance(uint8_t totalResistance) {
+  log_i("FEC basic resistance: %d", totalResistance);
   std::vector<uint8_t> fecData;
   fecData.push_back(0xA4);  // SYNC
   fecData.push_back(0x09);  // MSG_LEN
@@ -425,6 +428,7 @@ bool BTDeviceManager::writeFECBasicResistance(uint8_t totalResistance) {
 }
 
 bool BTDeviceManager::writeFECUserConfiguration(uint16_t bicycleWeight, uint16_t userWeight, uint8_t wheelDiameter, uint8_t gearRatio) {
+  log_i("FEC user configuration: Bike %d, User %d, Wheel %d, Gear %d", bicycleWeight, userWeight, wheelDiameter, gearRatio);
   std::vector<uint8_t> fecData;
   fecData.push_back(0xA4);  // SYNC
   fecData.push_back(0x09);  // MSG_LEN
@@ -443,6 +447,7 @@ bool BTDeviceManager::writeFECUserConfiguration(uint16_t bicycleWeight, uint16_t
 }
 
 bool BTDeviceManager::writeFECCapabilitiesRequest() {
+  log_i("FEC capabilities request");
   std::vector<uint8_t> fecData;
   fecData.push_back(0xA4);  // SYNC
   fecData.push_back(0x09);  // MSG_LEN

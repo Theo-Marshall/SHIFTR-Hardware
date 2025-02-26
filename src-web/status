@@ -8,7 +8,7 @@
     "service_status": "12 services registered",
     "dircon_status": "ERG mode, 2/3 clients",
     "ble_status": "Scanning...",
-    "mode": "Pass-through",
+    "mode": "Pass-through + zwiftless shifting",
     "free_heap": 123456
 }
 

@@ -12,9 +12,11 @@
     function setup() {
         let save = document.getElementById('save_btn');
         let settingsContainer = document.getElementById('settings_container');
+        let advancedContainer = document.getElementById('advanced_container');
         let deviceName = document.getElementById('device_name');
         let trainerDevice = document.getElementById('trainer_device');
         let virtualShifting = document.getElementById('virtual_shifting');
+        let zwiftlessVirtualShifting = document.getElementById('zwiftless_virtual_shifting');
         let virtualShiftingMode = document.getElementById('virtual_shifting_mode');
         let chainringTeeth = document.getElementById('chainring_teeth');
         let sprocketTeeth = document.getElementById('sprocket_teeth');
@@ -34,6 +36,7 @@
             .then(response => {
                 deviceName.value = response.device_name;
                 virtualShifting.checked = response.virtual_shifting;
+                zwiftlessVirtualShifting.checked = response.zwiftless_virtual_shifting;
                 chainringTeeth.value = response.chainring_teeth;
                 sprocketTeeth.value = response.sprocket_teeth;
                 gradeSmoothing.checked = response.grade_smoothing;
@@ -64,23 +67,53 @@
                     virtualShiftingMode.add(element);
                 }
                 settingsContainer.style = '';
+                advancedContainer.style = '';
                 save.disabled = true;
             })
 
     }
+    
     function enableSave() {
-        let virtualShifting = document.getElementById('virtual_shifting');
-        let ftmsEmulation = document.getElementById('ftms_emulation');
-        if (ftmsEmulation.checked) {
-            virtualShifting.checked = false;
-        }
         let save = document.getElementById('save_btn');
         save.disabled = false;
     }
-    
+
+    function checkFTMSEmulationOptions() {
+        let virtualShifting = document.getElementById('virtual_shifting');
+        let ftmsEmulation = document.getElementById('ftms_emulation');
+        if (virtualShifting.checked && ftmsEmulation.checked) {
+            virtualShifting.checked = false;
+        }
+        enableSave();
+    }
+
+    function checkVirtualShiftingOptions() {
+        let virtualShifting = document.getElementById('virtual_shifting');
+        let zwiftlessVirtualShifting = document.getElementById('zwiftless_virtual_shifting');
+        let ftmsEmulation = document.getElementById('ftms_emulation');
+        if (virtualShifting.checked && zwiftlessVirtualShifting.checked) {
+            zwiftlessVirtualShifting.checked = false;
+        }
+        if (virtualShifting.checked && ftmsEmulation.checked) {
+            ftmsEmulation.checked = false;
+        }
+        enableSave();
+    }
+
+    function checkZwiftlessVirtualShiftingOptions() {
+        let virtualShifting = document.getElementById('virtual_shifting');
+        let zwiftlessVirtualShifting = document.getElementById('zwiftless_virtual_shifting');
+        if (virtualShifting.checked && zwiftlessVirtualShifting.checked) {
+            virtualShifting.checked = false;
+        }
+        enableSave();
+    }
+
     function waitForReboot() {
+        let advancedContainer = document.getElementById('advanced_container');
         let settingsContainer = document.getElementById('settings_container');
         let rebootContainer = document.getElementById('reboot_container');
+        advancedContainer.style = 'display: none';
         settingsContainer.style = 'display: none';
         rebootContainer.style = '';
         setTimeout(function () {window.location.href = '/'}, 5000)
@@ -110,7 +143,14 @@
                     <div class="form-control">
                         <label>Virtual shifting:</label>
                         <label class="switch">
-                            <input type="checkbox" id="virtual_shifting" name="virtual_shifting" onchange="enableSave()">
+                            <input type="checkbox" id="virtual_shifting" name="virtual_shifting" onchange="checkVirtualShiftingOptions()">
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                    <div class="form-control">
+                        <label>Zwiftless shifting:</label>
+                        <label class="switch">
+                            <input type="checkbox" id="zwiftless_virtual_shifting" name="zwiftless_virtual_shifting" onchange="checkZwiftlessVirtualShiftingOptions()">
                             <span class="slider round"></span>
                         </label>
                     </div>
@@ -143,7 +183,7 @@
                     <div class="form-control">
                         <label>FTMS Emulation:</label>
                         <label for="ftms_emulation" class="switch">
-                            <input type="checkbox" id="ftms_emulation" name="ftms_emulation" onchange="enableSave()">
+                            <input type="checkbox" id="ftms_emulation" name="ftms_emulation" onchange="checkFTMSEmulationOptions()">
                             <span class="slider round"></span>
                         </label>
                     </div>
@@ -151,7 +191,7 @@
                         <button type="submit" class="btn" id="save_btn" onclick="waitForReboot()">
                             <label>Save</label>
                         </button>
-                        <button class="btn" id="cancel_btn" formaction="/">
+                        <button class="btn" id="cancel_btn" type="button" onclick="location.href = '/'">
                             <label>Cancel</label>
                         </button>
                     </div>
@@ -159,7 +199,11 @@
             </div>
         </div>
     </div>
-
+    <div class="container" id="advanced_container" style="display: none">
+        <button class="btn" id="advanced_configuration_btn" style="width: 100%; background: grey;" onclick="location.href = '/config'">
+            <label>Advanced Configuration</label>
+        </button>
+    </div>
 </body>
 
 </html>

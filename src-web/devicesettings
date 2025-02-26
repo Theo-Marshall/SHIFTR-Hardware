@@ -25,5 +25,6 @@
     "sprocket_teeth": 14,
     "grade_smoothing": true,
     "difficulty": 100,
-    "ftms_emulation": true
+    "ftms_emulation": false,
+    "zwiftless_virtual_shifting": false
 }

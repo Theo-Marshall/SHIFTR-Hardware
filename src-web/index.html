@@ -15,6 +15,7 @@
         let buildTimestamp = document.getElementById('build_timestamp');
         let deviceName = document.getElementById('device_name');
         let statusContainer = document.getElementById('status_container');
+        let controlButtonContainer = document.getElementById('control_button_container');
         let hostName = document.getElementById('hostname');
         let ethernet = document.getElementById('ethernet');
         let wifi = document.getElementById('wifi');
@@ -50,6 +51,11 @@
                 mode.innerHTML = response.mode;
                 freeheap.innerHTML = response.free_heap;
                 statusContainer.style = '';
+                if (response.mode.includes("zwiftless")) {
+                    controlButtonContainer.style = '';
+                } else {
+                    controlButtonContainer.style = 'display: none';
+                }
             })
             .catch(reason => {
                 connectionStatus.innerHTML = 'Disconnected';
@@ -126,6 +132,11 @@
                     </button>
                     <button class="btn" id="firmware_btn">
                         <label>Firmware update</label>
+                    </button>
+                </div>
+                <div class="button-container" id="control_button_container" style="display: none">
+                    <button class="btn" id="control_btn" onclick="location.href='/control'">
+                        <label>Gear control</label>
                     </button>
                 </div>
             </div>

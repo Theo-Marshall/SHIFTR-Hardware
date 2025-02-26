@@ -10,24 +10,17 @@
 
 <body>
     <div class="container" id="header_container">
-        <a class="helpbadge" href="https://github.com/JuergenLeber/SHIFTR" target="_blank">?</a>
-        <div id="header_wrapper">
-            <div id="logo_container">
-                <img src="favicon.ico" width=64 alt="logo" />
-                <h1 class="title">&nbsp;<b>SHIFTR</b>&nbsp;<span id="version"></span></h1>
-            </div>
-        </div>
-        <h2 id="device_name"></h2>
+        <h2 id="device_name">SHIFTR</h2>
     </div>
     <div class="container" id="connection_container">
         <div id="connection_status" class="statusred">Disconnected</div>
     </div>
-    <div class="container" id="status_container">
+    <div class="container" id="control_container" style="display: none;">
         <h1>Gear control</h1>
         <div class="form">
             <div>
                 <div class="button-container">
-                    <button class="btn" id="shift_up_btn" style="font-size: 250%;" onclick="shiftUp()">
+                    <button class="btn" id="shift_up_btn" style="font-size: 250%;" onclick="shiftUp()" disabled="true">
                         <label><b>UP</b></label>
                     </button>
                 </div>
@@ -35,13 +28,18 @@
                     <span id="current_gear" style="font-size: 650%; font-weight: 400;">-</span>
                 </div>
                 <div class="button-container">
-                    <button class="btn" id="shift_down_btn" style="font-size: 250%;" onclick="shiftDown()">
+                    <button class="btn" id="shift_down_btn" style="font-size: 250%;" onclick="shiftDown()" disabled="true">
                         <label><b>DOWN</b></label>
                     </button>
                 </div>
             </div>
         </div>
-        <h1>&nbsp;</h1>
+        <h3>&nbsp;</h3>
+    </div>
+    <div class="container">
+            <button class="btn" id="back_btn" style="width: 100%;" onclick="location.href = '/'">
+                <label>Back</label>
+            </button>
     </div>
     <script src="script.js"></script>
 </body>

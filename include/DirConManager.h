@@ -12,13 +12,8 @@
 #include <arduino-timer.h>
 #include <SettingsManager.h>
 #include <deque>
+#include "TrainerMode.h"
 #include "DirConManagerCallbacks.h"
-
-typedef enum TrainerMode {
-  ERG_MODE = 0,
-  SIM_MODE = 1,
-  SIM_MODE_VIRTUAL_SHIFTING = 2
-} trainerModeType;
 
 class DirConManager {
  public:
@@ -56,11 +51,16 @@ class DirConManager {
   static void sendDirConCharacteristicNotification(Characteristic* characteristic, uint8_t* pData, size_t length, bool onlySubscribers);
   static void updateStatusMessage();
   static void resetValues();
-  static void updateSIMModeResistance();
+  static void updateZwiftSIMModeResistance();
   static std::vector<uint8_t> processFTMSReadRequest(Service* service, Characteristic* characteristic, std::vector<uint8_t>* requestData); 
   static std::vector<uint8_t> processFTMSWriteRequest(Service* service, Characteristic* characteristic, std::vector<uint8_t>* requestData);
   static std::vector<uint8_t> generateIndoorBikeDataNotificationData(uint16_t instantaneousSpeed, uint16_t instantaneousCadence, int16_t instantaneousPower);
-  static void doGearChangeCallbacks(uint8_t currentGear);
+  static void doGearChangeCallbacks(uint8_t currentGear, double currentGearRatio);
+  static void setGearByNumber(uint8_t gearNumber);
+  static void setGearByRatio(double gearRatio);
+  static void doTrainerModeChangeCallbacks(TrainerMode trainerMode);
+  static void updateSIMModeParameters(TrainerMode trainerMode, bool zwiftlessShifting, double bicycleWeight, double userWeight, double grade, uint8_t crr, double measuredSpeed, uint8_t cadence, double gearRatio, double defaultGearRatio, uint16_t difficulty, uint16_t maximumResistance);
+  static void initializeSIMModeUserConfiguration();
 
   static std::vector<DirConManagerCallbacks*> dirConManagerCallbacks;
   
@@ -100,6 +100,8 @@ class DirConManager {
 
   static double manualGears[];
   static uint8_t currentGear;
+  static double currentGearRatio;
+  static bool zwiftlessShiftingEnabled;
 
 };
 

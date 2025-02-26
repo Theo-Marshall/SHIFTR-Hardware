@@ -50,6 +50,8 @@ uint8_t DirConManager::ftmsCw;
 
 double DirConManager::manualGears[] = MANUAL_GEARS;
 uint8_t DirConManager::currentGear;
+double DirConManager::currentGearRatio;
+bool DirConManager::zwiftlessShiftingEnabled;
 
 class DirConServiceManagerCallbacks : public ServiceManagerCallbacks {
   void onServiceAdded(Service *service) {
@@ -80,16 +82,38 @@ void DirConManager::subscribeCallbacks(DirConManagerCallbacks* callbacks) {
   DirConManager::dirConManagerCallbacks.push_back(callbacks);
 }
 
-void DirConManager::doGearChangeCallbacks(uint8_t currentGear) {
+void DirConManager::doGearChangeCallbacks(uint8_t currentGear, double currentGearRatio) {
+  log_i("Gear %d with ratio %f selected", currentGear, currentGearRatio);
   for (size_t callbackIndex = 0; callbackIndex < dirConManagerCallbacks.size(); callbackIndex++) {
-    dirConManagerCallbacks.at(callbackIndex)->onGearChanged(currentGear);
+    dirConManagerCallbacks.at(callbackIndex)->onGearChanged(currentGear, currentGearRatio);
+  }
+}
+
+void DirConManager::doTrainerModeChangeCallbacks(TrainerMode trainerMode) {
+  String trainerModeString = "ERG";
+  switch (trainerMode) {
+    case TrainerMode::SIM_MODE:
+      trainerModeString = "SIM";
+      break;
+    case TrainerMode::SIM_MODE_VIRTUAL_SHIFTING:
+      trainerModeString = "SIM + VS";
+      break;
+    default:
+      break;
+  }
+  log_i("%s mode (%d) requested", trainerModeString, trainerMode);
+  for (size_t callbackIndex = 0; callbackIndex < dirConManagerCallbacks.size(); callbackIndex++) {
+    dirConManagerCallbacks.at(callbackIndex)->onTrainerModeChanged(trainerMode);
   }
 }
 
 void DirConManager::resetValues() {
   defaultGearRatio = (double)SettingsManager::getChainringTeeth() / (double)SettingsManager::getSprocketTeeth();
   virtualShiftingMode = SettingsManager::getVirtualShiftingMode();
+  
   zwiftTrainerMode = TrainerMode::SIM_MODE;
+  doTrainerModeChangeCallbacks(zwiftTrainerMode);
+
   zwiftPower = 0;
   zwiftGrade = 0;
   zwiftGearRatio = 0;
@@ -111,7 +135,8 @@ void DirConManager::resetValues() {
   ftmsCrr = 0;
   ftmsCw = 0;
 
-  currentGear = 8;
+  zwiftlessShiftingEnabled = SettingsManager::isZwiftlessVirtualShiftingEnabled();
+  setGearByNumber(MANUAL_GEAR_DEFAULT);
 }
 
 void DirConManager::setServiceManager(ServiceManager *serviceManager) {
@@ -500,16 +525,15 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
           // ERG Mode
           case 0x18:
             if ((zwiftTrainerMode == TrainerMode::SIM_MODE) || (zwiftTrainerMode == TrainerMode::SIM_MODE_VIRTUAL_SHIFTING)) {
-              log_i("ERG mode requested");
+              //log_i("ERG mode requested");
               zwiftTrainerMode = TrainerMode::ERG_MODE;
+              doTrainerModeChangeCallbacks(zwiftTrainerMode);
               updateStatusMessage();            
             }
             if (requestValues.find(0x00) != requestValues.end()) {
               zwiftPower = requestValues.at(0x00);
             }
-            log_i("FEC target power: %d", (zwiftPower * 4));
-            // FE-C target power is in 0.25W unit
-            if (!BTDeviceManager::writeFECTargetPower((zwiftPower * 4))) {
+            if (!BTDeviceManager::writeFECTargetPower((uint16_t)(zwiftPower * 4))) {
               log_e("Error writing FEC target power");
             }
             break;
@@ -527,7 +551,7 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
               smoothedZwiftGrade += zwiftGrade;
               smoothedZwiftGrade = smoothedZwiftGrade / 2;
             }
-            updateSIMModeResistance();
+            updateZwiftSIMModeResistance();
             break;
 
           // SIM mode parameter update
@@ -537,28 +561,31 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
             }
             if (zwiftGearRatio == 0) {
               newZwiftTrainerMode = TrainerMode::SIM_MODE;
+              setGearByNumber(MANUAL_GEAR_DEFAULT);
             } else {
               newZwiftTrainerMode = TrainerMode::SIM_MODE_VIRTUAL_SHIFTING;
+              setGearByRatio(zwiftGearRatio / 10000.0);
             }
             if (zwiftTrainerMode != newZwiftTrainerMode) {
               if (newZwiftTrainerMode == TrainerMode::SIM_MODE) {
-                log_i("SIM mode requested");
+                //log_i("SIM mode requested");
+                zwiftTrainerMode = newZwiftTrainerMode;
+                doTrainerModeChangeCallbacks(zwiftTrainerMode);
               } else {
-                log_i("SIM + VS mode requested");
+                //log_i("SIM + VS mode requested");
+                zwiftTrainerMode = newZwiftTrainerMode;
+                doTrainerModeChangeCallbacks(zwiftTrainerMode);
               }
-              zwiftTrainerMode = newZwiftTrainerMode;
               updateStatusMessage();            
             }
             if (requestValues.find(0x20) != requestValues.end()) {
               zwiftBicycleWeight = requestValues.at(0x20);
               if (requestValues.find(0x28) != requestValues.end()) {
                 zwiftUserWeight = requestValues.at(0x28);
-                if (!BTDeviceManager::writeFECUserConfiguration((uint16_t)(zwiftBicycleWeight / 5), zwiftUserWeight, (uint8_t)(Calculations::wheelDiameter / 0.01), (uint8_t)round(defaultGearRatio / 0.03))) {
-                  log_e("Error writing FEC user configuration");
-                }
+                initializeSIMModeUserConfiguration();
               }
             }
-            updateSIMModeResistance();
+            updateZwiftSIMModeResistance();
             break;
 
           // Unknown
@@ -597,57 +624,84 @@ bool DirConManager::processZwiftSyncRequest(Service *service, Characteristic *ch
   return false;
 }
 
-void DirConManager::updateSIMModeResistance() {
-  // normal SIM mode w/o virtual shifting, use normal track resistance mode
-  if (zwiftTrainerMode == TrainerMode::SIM_MODE) {
-    if (!BTDeviceManager::writeFECTrackResistance((0x4E20 + zwiftGrade))) {
+void DirConManager::updateSIMModeParameters(TrainerMode trainerMode, bool zwiftlessShifting, double bicycleWeight, double userWeight, double grade, uint8_t crr, double measuredSpeed, uint8_t cadence, double gearRatio, double defaultGearRatio, uint16_t difficulty, uint16_t maximumResistance) {
+  // if ERG mode directly exit - this is not supported and should never happen
+  if (trainerMode == TrainerMode::ERG_MODE) {
+    return;
+  }
+
+  // normal SIM mode without zwiftless virtual shifting
+  if (trainerMode == TrainerMode::SIM_MODE && !zwiftlessShifting) {
+    if (!BTDeviceManager::writeFECTrackResistance((0x4E20 + round(grade * 100)), crr)) {
       log_e("Error writing FEC track resistance");
     }
-  } else if (zwiftTrainerMode == TrainerMode::SIM_MODE_VIRTUAL_SHIFTING) {
-    // Target Power Mode
-    if (virtualShiftingMode == VirtualShiftingMode::TARGET_POWER) {
-      uint16_t trainerTargetPower = Calculations::calculateFECTargetPowerValue(
-        (zwiftBicycleWeight + zwiftUserWeight) / 100.0,
-        (SettingsManager::isGradeSmoothingEnabled() ? smoothedZwiftGrade : zwiftGrade) / 100.0,
-        trainerInstantaneousSpeed / 1000.0,
-        trainerCadence,
-        zwiftGearRatio / 10000.0,
-        defaultGearRatio,
-        difficulty);
-      if (!BTDeviceManager::writeFECTargetPower(trainerTargetPower)) {
-        log_e("Error writing SIM+VS FEC target power");
-      }
-    
-    // Track Resistance Mode
-    } else if (virtualShiftingMode == VirtualShiftingMode::TRACK_RESISTANCE) {
-      uint16_t trainerTrackResistanceGrade = Calculations::calculateFECTrackResistanceGrade(
-        (zwiftBicycleWeight + zwiftUserWeight) / 100.0,
-        (SettingsManager::isGradeSmoothingEnabled() ? smoothedZwiftGrade : zwiftGrade) / 100.0,
-        trainerInstantaneousSpeed / 1000.0,
-        trainerCadence,
-        zwiftGearRatio / 10000.0,
-        defaultGearRatio,
-        difficulty);
-      if (!BTDeviceManager::writeFECTrackResistance(trainerTrackResistanceGrade, 0x53)) {
-        log_e("Error writing SIM+VS FEC track resistance");
-      }
-
-    // Basic Resistance Mode
-    } else {
-      uint8_t trainerBasicResistance = Calculations::calculateFECBasicResistancePercentageValue(
-        (zwiftBicycleWeight + zwiftUserWeight) / 100.0,
-        (SettingsManager::isGradeSmoothingEnabled() ? smoothedZwiftGrade : zwiftGrade) / 100.0,
-        trainerInstantaneousSpeed / 1000.0,
-        trainerCadence,
-        zwiftGearRatio / 10000.0,
-        defaultGearRatio,
-        trainerMaximumResistance,
-        difficulty);
-      if (!BTDeviceManager::writeFECBasicResistance(trainerBasicResistance)) {
-        log_e("Error writing SIM+VS FEC basic resistance");
-      }
-    }
+    return;
   }
+  
+  // SIM modes with virtual shifting (also zwiftless)
+
+  // Target Power Mode
+  if (virtualShiftingMode == VirtualShiftingMode::TARGET_POWER) {
+    uint16_t trainerTargetPower = Calculations::calculateFECTargetPowerValue(
+      (bicycleWeight + userWeight),
+      grade,
+      measuredSpeed,
+      cadence,
+      gearRatio,
+      defaultGearRatio,
+      difficulty);
+    if (!BTDeviceManager::writeFECTargetPower(trainerTargetPower)) {
+      log_e("Error writing SIM+VS FEC target power");
+    }
+    return;
+  }
+
+  // Track Resistance Mode
+  if (virtualShiftingMode == VirtualShiftingMode::TRACK_RESISTANCE) {
+    uint16_t trainerTrackResistanceGrade = Calculations::calculateFECTrackResistanceGrade(
+      (bicycleWeight + userWeight),
+      grade,
+      measuredSpeed,
+      cadence,
+      gearRatio,
+      defaultGearRatio,
+      difficulty);
+    if (!BTDeviceManager::writeFECTrackResistance(trainerTrackResistanceGrade, crr)) {
+      log_e("Error writing SIM+VS FEC track resistance");
+    }
+    return;
+  }
+  
+  // Basic Resistance Mode
+  uint8_t trainerBasicResistance = Calculations::calculateFECBasicResistancePercentageValue(
+    (bicycleWeight + userWeight),
+    grade,
+    measuredSpeed,
+    cadence,
+    gearRatio,
+    defaultGearRatio,
+    maximumResistance,
+    difficulty);
+  if (!BTDeviceManager::writeFECBasicResistance(trainerBasicResistance)) {
+    log_e("Error writing SIM+VS FEC basic resistance");
+  }
+}
+
+void DirConManager::updateZwiftSIMModeResistance() {
+
+  updateSIMModeParameters(zwiftTrainerMode, 
+                          zwiftlessShiftingEnabled, 
+                          (zwiftBicycleWeight / 100.0), 
+                          (zwiftUserWeight / 100.0), 
+                          ((SettingsManager::isGradeSmoothingEnabled() ? smoothedZwiftGrade : zwiftGrade) / 100.0),
+                          (uint8_t)(Calculations::rollingResistanceCoefficient / 0.00005), 
+                          (trainerInstantaneousSpeed / 1000.0), 
+                          trainerCadence, 
+                          (zwiftGearRatio / 10000.0), 
+                          defaultGearRatio, 
+                          difficulty, 
+                          trainerMaximumResistance);
+
 }
 
 void DirConManager::notifyDirConCharacteristic(const NimBLEUUID &characteristicUUID, uint8_t *pData, size_t length) {
@@ -794,6 +848,12 @@ TrainerMode DirConManager::getZwiftTrainerMode() {
   return zwiftTrainerMode;
 }
 
+void DirConManager::initializeSIMModeUserConfiguration() {
+  if (!BTDeviceManager::writeFECUserConfiguration((uint16_t)(zwiftBicycleWeight / 5), zwiftUserWeight, (uint8_t)(Calculations::wheelDiameter / 0.01), (uint8_t)round(defaultGearRatio / 0.03))) {
+    log_e("Error writing FEC user configuration");
+  }
+}
+
 std::vector<uint8_t> DirConManager::processFTMSReadRequest(Service* service, Characteristic* characteristic, std::vector<uint8_t>* requestData) {
   std::vector<uint8_t> returnData;
   if (characteristic->UUID.equals(NimBLEUUID(FITNESS_MACHINE_FEATURE_CHARACTERISTIC_UUID))) {
@@ -831,14 +891,16 @@ std::vector<uint8_t> DirConManager::processFTMSWriteRequest(Service* service, Ch
       // request control
       case 0x00:
         zwiftTrainerMode = TrainerMode::SIM_MODE;
-        log_i("SIM mode requested");
+        //log_i("SIM mode requested");
+        initializeSIMModeUserConfiguration();
+        doTrainerModeChangeCallbacks(zwiftTrainerMode);
         success = true;
         break;
 
       // reset
       case 0x01:
         zwiftTrainerMode = TrainerMode::SIM_MODE;
-        log_i("SIM mode requested");
+        //log_i("SIM mode requested");
         ftmsPower = 0;
         ftmsWindSpeed = 0;
         ftmsGrade = 0;
@@ -852,7 +914,8 @@ std::vector<uint8_t> DirConManager::processFTMSWriteRequest(Service* service, Ch
         if (parameter.size() == 2) {
           if (zwiftTrainerMode != TrainerMode::ERG_MODE) {
             zwiftTrainerMode = TrainerMode::ERG_MODE;
-            log_i("ERG mode requested");
+            //log_i("ERG mode requested");
+            doTrainerModeChangeCallbacks(zwiftTrainerMode);
           }
           // target power in 1W 
           ftmsPower = (parameter.at(1) << 8) | parameter.at(0);
@@ -860,7 +923,8 @@ std::vector<uint8_t> DirConManager::processFTMSWriteRequest(Service* service, Ch
             log_e("FTMS target power is negative, setting to 0");
             ftmsPower = 0;
           }
-          if (!BTDeviceManager::writeFECTargetPower(ftmsPower * 4)) {
+          
+          if (!BTDeviceManager::writeFECTargetPower(((uint16_t)ftmsPower * 4))) {
             log_e("Error writing ERG FEC target power");
           }
           success = true;
@@ -886,9 +950,9 @@ std::vector<uint8_t> DirConManager::processFTMSWriteRequest(Service* service, Ch
         if (parameter.size() == 6) {
           if (zwiftTrainerMode != TrainerMode::SIM_MODE) {
             zwiftTrainerMode = TrainerMode::SIM_MODE;
-            log_i("SIM mode requested");
+            //log_i("SIM mode requested");
+            doTrainerModeChangeCallbacks(zwiftTrainerMode);
           }
-          zwiftTrainerMode = TrainerMode::SIM_MODE;
           // wind speed in 0.001 m/s
           ftmsWindSpeed = (parameter.at(1) << 8) | parameter.at(0);
           // grade in 0.01%
@@ -897,9 +961,18 @@ std::vector<uint8_t> DirConManager::processFTMSWriteRequest(Service* service, Ch
           ftmsCrr = parameter.at(4);
           // cw in 0.01
           ftmsCw = parameter.at(5);
-          if (!BTDeviceManager::writeFECTrackResistance((uint16_t)(0x4E20 + ftmsGrade), ftmsCrr)) {
-            log_e("Error writing SIM FEC track resistance");
-          }
+          updateSIMModeParameters(zwiftTrainerMode, 
+                                  zwiftlessShiftingEnabled, 
+                                  (zwiftBicycleWeight / 100.0), 
+                                  (zwiftUserWeight / 100.0), 
+                                  (ftmsGrade / 100.0),
+                                  ftmsCrr, 
+                                  (trainerInstantaneousSpeed / 1000.0), 
+                                  trainerCadence, 
+                                  getCurrentGearRatio(), 
+                                  defaultGearRatio, 
+                                  difficulty, 
+                                  trainerMaximumResistance);
           success = true;
         } else {
           success = false;
@@ -956,20 +1029,12 @@ std::vector<uint8_t> DirConManager::generateIndoorBikeDataNotificationData(uint1
 
 void DirConManager::shiftGearUp() {
   currentGear++;
-  if (currentGear > MANUAL_GEAR_MAX) {
-    currentGear = MANUAL_GEAR_MAX;
-  }
-  doGearChangeCallbacks(currentGear);
-  log_i("Gear %d selected", currentGear);
+  setGearByNumber(currentGear);
 }
 
 void DirConManager::shiftGearDown() {
   currentGear--;
-  if (currentGear < MANUAL_GEAR_MIN) {
-    currentGear = MANUAL_GEAR_MIN;
-  }
-  log_i("Gear %d selected", currentGear);
-  doGearChangeCallbacks(currentGear);
+  setGearByNumber(currentGear);
 }
 
 uint8_t DirConManager::getCurrentGear() {
@@ -977,7 +1042,30 @@ uint8_t DirConManager::getCurrentGear() {
 }
 
 double DirConManager::getCurrentGearRatio() {
-  return manualGears[currentGear];
+  return currentGearRatio;
 }
 
+void DirConManager::setGearByNumber(uint8_t gearNumber) {
+  currentGear = gearNumber;
+  if (currentGear > MANUAL_GEAR_MAX) {
+    currentGear = MANUAL_GEAR_MAX;
+  }
+  if (currentGear < MANUAL_GEAR_MIN) {
+    currentGear = MANUAL_GEAR_MIN;
+  }
+  currentGearRatio = manualGears[currentGear - 1];
+  doGearChangeCallbacks(currentGear, currentGearRatio);
+}
+
+void DirConManager::setGearByRatio(double gearRatio) {
+  currentGearRatio = std::ceil(gearRatio * 100.0) / 100.0;
+  currentGear = MANUAL_GEAR_MAX;
+  for (uint8_t gear = MANUAL_GEAR_MIN; gear <= MANUAL_GEAR_MAX; gear++) {
+    if (manualGears[gear - 1] <= currentGearRatio) {
+      currentGear = gear;
+    }
+  }
+  doGearChangeCallbacks(currentGear, currentGearRatio);
+}
+  
   

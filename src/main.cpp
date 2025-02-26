@@ -31,7 +31,10 @@ void notifyWebSocketClients();
 void handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length);
 
 class DirConCallbacks : public DirConManagerCallbacks {
-  void onGearChanged(uint8_t currentGear) {
+  void onGearChanged(uint8_t currentGear, double currentGearRatio) {
+    notifyWebSocketClients();
+  };
+  void onTrainerModeChanged(TrainerMode trainerMode) {
     notifyWebSocketClients();
   };
 };
@@ -345,6 +348,14 @@ void handleWebServerSettings() {
   } else {
     json += "false";
   }
+  json += ",";
+
+  json += "\"zwiftless_virtual_shifting\": ";
+  if (SettingsManager::isZwiftlessVirtualShiftingEnabled()) {
+    json += "true";
+  } else {
+    json += "false";
+  }
   json += "";
 
   json += "}";
@@ -359,6 +370,7 @@ void handleWebServerSettingsPost() {
     }
     if (webServer.hasArg("virtual_shifting")) {
       SettingsManager::setVirtualShiftingEnabled(true);
+      SettingsManager::setFTMSEnabled(false);
     } else {
       SettingsManager::setVirtualShiftingEnabled(false);
     }
@@ -384,6 +396,12 @@ void handleWebServerSettingsPost() {
       SettingsManager::setVirtualShiftingEnabled(false);
     } else {
       SettingsManager::setFTMSEnabled(false);
+    }
+    if (webServer.hasArg("zwiftless_virtual_shifting")) {
+      SettingsManager::setZwiftlessVirtualShiftingEnabled(true);
+      SettingsManager::setVirtualShiftingEnabled(false);
+    } else {
+      SettingsManager::setZwiftlessVirtualShiftingEnabled(false);
     }
     iotWebConf.saveConfig();
     delay(500);
@@ -469,6 +487,9 @@ void handleWebServerStatus() {
   if (SettingsManager::isVirtualShiftingEnabled()) {
     json += " + virtual shifting";
   }
+  if (SettingsManager::isZwiftlessVirtualShiftingEnabled()) {
+    json += " + zwiftless shifting";
+  }
   json += "\",";
 
   json += "\"free_heap\": ";
@@ -533,11 +554,13 @@ void setupWiredShifting() {
 void loopWiredShifting() {
   gearUpDebouncer.update();
   gearDownDebouncer.update();
-  if (gearUpDebouncer.fell()) {
-    DirConManager::shiftGearUp();
-  }
-  if (gearDownDebouncer.fell()) {
-    DirConManager::shiftGearDown();
+  if (SettingsManager::isZwiftlessVirtualShiftingEnabled()) {
+    if (gearUpDebouncer.fell()) {
+      DirConManager::shiftGearUp();
+    }
+    if (gearDownDebouncer.fell()) {
+      DirConManager::shiftGearDown();
+    }
   }
 }
 
@@ -551,6 +574,28 @@ void notifyWebSocketClients() {
   json += "\"version\": \"";
   json += VERSION;
   json += "\",";
+
+  json += "\"trainer_mode\": \"";
+  switch (DirConManager::getZwiftTrainerMode()) {
+    case TrainerMode::SIM_MODE:
+      json += "SIM";
+      break;
+    case TrainerMode::SIM_MODE_VIRTUAL_SHIFTING:
+      json += "SIM+VS";
+      break;
+    default:
+      json += "ERG";
+      break;
+  }
+  json += "\",";
+
+  json += "\"zwiftless_virtual_shifting\": ";
+  if (SettingsManager::isZwiftlessVirtualShiftingEnabled()) {
+    json += "true";
+  } else {
+    json += "false";
+  }
+  json += ",";
 
   json += "\"current_gear\": ";
   json += DirConManager::getCurrentGear();

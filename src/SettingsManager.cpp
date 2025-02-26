@@ -10,6 +10,7 @@ char SettingsManager::iotWebConfTrainerDeviceParameterValue[128];
 char SettingsManager::iotWebConfGradeSmoothingParameterValue[16];
 char SettingsManager::iotWebConfDifficultyParameterValue[16];
 char SettingsManager::iotWebConfFTMSParameterValue[16];
+char SettingsManager::iotWebConfZwiftlessVirtualShiftingParameterValue[16];
 
 char SettingsManager::iotWebConfVirtualShiftingModeValues[][24] = { "basic_resistance", "target_power", "track_resistance" };
 char SettingsManager::iotWebConfVirtualShiftingModeNames[][24] = { "Basic Resistance", "Target Power", "Track Resistance" };
@@ -23,6 +24,7 @@ IotWebConfTextParameter SettingsManager::iotWebConfTrainerDeviceParameter = IotW
 IotWebConfCheckboxParameter SettingsManager::iotWebConfGradeSmoothingParameter = IotWebConfCheckboxParameter("Grade smoothing", "grade_smoothing", SettingsManager::iotWebConfGradeSmoothingParameterValue, sizeof(iotWebConfGradeSmoothingParameterValue), true);
 IotWebConfNumberParameter SettingsManager::iotWebConfDifficultyParameter("Difficulty", "difficulty", SettingsManager::iotWebConfDifficultyParameterValue, sizeof(iotWebConfDifficultyParameterValue), "100", "1..200", "min='1' max='200' step='1'");
 IotWebConfCheckboxParameter SettingsManager::iotWebConfFTMSParameter = IotWebConfCheckboxParameter("FTMS Emulation", "ftms_emulation", SettingsManager::iotWebConfFTMSParameterValue, sizeof(iotWebConfFTMSParameterValue), false);
+IotWebConfCheckboxParameter SettingsManager::iotWebConfZwiftlessVirtualShiftingParameter = IotWebConfCheckboxParameter("Zwiftless virtual shifting", "zwiftless_virtual_shifting", SettingsManager::iotWebConfZwiftlessVirtualShiftingParameterValue, sizeof(iotWebConfZwiftlessVirtualShiftingParameterValue), false);
 
 IotWebConf* SettingsManager::iotWebConf;
 
@@ -36,6 +38,7 @@ void SettingsManager::initialize(IotWebConf* iotWebConf) {
   iotWebConfSettingsGroup.addItem(&iotWebConfGradeSmoothingParameter);
   iotWebConfSettingsGroup.addItem(&iotWebConfDifficultyParameter);
   iotWebConfSettingsGroup.addItem(&iotWebConfFTMSParameter);
+  iotWebConfSettingsGroup.addItem(&iotWebConfZwiftlessVirtualShiftingParameter);
 }
 
 VirtualShiftingMode SettingsManager::getVirtualShiftingMode() {
@@ -161,4 +164,16 @@ void SettingsManager::setFTMSEnabled(bool enabled) {
     fTMSEnabled = "selected";
   }
   strncpy(iotWebConfFTMSParameterValue, fTMSEnabled.c_str(), sizeof(iotWebConfFTMSParameterValue));
+}
+
+bool SettingsManager::isZwiftlessVirtualShiftingEnabled() {
+  return (strncmp(iotWebConfZwiftlessVirtualShiftingParameterValue, "selected", sizeof(iotWebConfZwiftlessVirtualShiftingParameterValue)) == 0);
+}
+
+void SettingsManager::setZwiftlessVirtualShiftingEnabled(bool enabled) {
+  String zwiftlessVirtualShiftingEnabled = "";
+  if (enabled) {
+    zwiftlessVirtualShiftingEnabled = "selected";
+  }
+  strncpy(iotWebConfZwiftlessVirtualShiftingParameterValue, zwiftlessVirtualShiftingEnabled.c_str(), sizeof(iotWebConfZwiftlessVirtualShiftingParameterValue));
 }
