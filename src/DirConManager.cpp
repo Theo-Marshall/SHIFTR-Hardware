@@ -283,6 +283,7 @@ void DirConManager::removeSubscriptions(AsyncClient *client) {
         if (characteristic->UUID.equals(NimBLEUUID(TACX_FEC_READ_CHARACTERISTIC_UUID))) {
           if (characteristic->getSubscriptions().size() == 0) {
             // if no client is connected anymore set default SIM mode on trainer
+            // todo: handle default correct
             BTDeviceManager::writeFECTrackResistance(0x4E20);
           }
         }
@@ -688,7 +689,6 @@ void DirConManager::updateSIMModeParameters(TrainerMode trainerMode, bool zwiftl
 }
 
 void DirConManager::updateZwiftSIMModeResistance() {
-
   updateSIMModeParameters(zwiftTrainerMode, 
                           zwiftlessShiftingEnabled, 
                           (zwiftBicycleWeight / 100.0), 
@@ -701,7 +701,21 @@ void DirConManager::updateZwiftSIMModeResistance() {
                           defaultGearRatio, 
                           difficulty, 
                           trainerMaximumResistance);
+}
 
+void DirConManager::updateZwiftlessSIMModeResistance() {
+  updateSIMModeParameters(zwiftTrainerMode, 
+                          zwiftlessShiftingEnabled, 
+                          (zwiftBicycleWeight / 100.0), 
+                          (zwiftUserWeight / 100.0), 
+                          (ftmsGrade / 100.0),
+                          ftmsCrr, 
+                          (trainerInstantaneousSpeed / 1000.0), 
+                          trainerCadence, 
+                          getCurrentGearRatio(), 
+                          defaultGearRatio, 
+                          difficulty, 
+                          trainerMaximumResistance);
 }
 
 void DirConManager::notifyDirConCharacteristic(const NimBLEUUID &characteristicUUID, uint8_t *pData, size_t length) {
@@ -727,6 +741,7 @@ void DirConManager::notifyDirConCharacteristic(Characteristic *characteristic, u
           //page 54 - 0x36 - FE Capabilities
           case 0x36:
             trainerMaximumResistance = (pData[10] << 8) | pData[9];
+            log_i("FE-C maximum resistance: %d", trainerMaximumResistance);
             break;
           default:
             //log_i("FEC DATA: %s", Utils::getHexString(pData, length).c_str());
@@ -961,18 +976,7 @@ std::vector<uint8_t> DirConManager::processFTMSWriteRequest(Service* service, Ch
           ftmsCrr = parameter.at(4);
           // cw in 0.01
           ftmsCw = parameter.at(5);
-          updateSIMModeParameters(zwiftTrainerMode, 
-                                  zwiftlessShiftingEnabled, 
-                                  (zwiftBicycleWeight / 100.0), 
-                                  (zwiftUserWeight / 100.0), 
-                                  (ftmsGrade / 100.0),
-                                  ftmsCrr, 
-                                  (trainerInstantaneousSpeed / 1000.0), 
-                                  trainerCadence, 
-                                  getCurrentGearRatio(), 
-                                  defaultGearRatio, 
-                                  difficulty, 
-                                  trainerMaximumResistance);
+          updateZwiftlessSIMModeResistance();
           success = true;
         } else {
           success = false;
@@ -1030,11 +1034,13 @@ std::vector<uint8_t> DirConManager::generateIndoorBikeDataNotificationData(uint1
 void DirConManager::shiftGearUp() {
   currentGear++;
   setGearByNumber(currentGear);
+  updateZwiftlessSIMModeResistance();
 }
 
 void DirConManager::shiftGearDown() {
   currentGear--;
   setGearByNumber(currentGear);
+  updateZwiftlessSIMModeResistance();
 }
 
 uint8_t DirConManager::getCurrentGear() {

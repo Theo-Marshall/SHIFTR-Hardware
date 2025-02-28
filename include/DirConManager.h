@@ -52,6 +52,7 @@ class DirConManager {
   static void updateStatusMessage();
   static void resetValues();
   static void updateZwiftSIMModeResistance();
+  static void updateZwiftlessSIMModeResistance();
   static std::vector<uint8_t> processFTMSReadRequest(Service* service, Characteristic* characteristic, std::vector<uint8_t>* requestData); 
   static std::vector<uint8_t> processFTMSWriteRequest(Service* service, Characteristic* characteristic, std::vector<uint8_t>* requestData);
   static std::vector<uint8_t> generateIndoorBikeDataNotificationData(uint16_t instantaneousSpeed, uint16_t instantaneousCadence, int16_t instantaneousPower);
