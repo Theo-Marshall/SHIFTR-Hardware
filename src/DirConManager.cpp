@@ -214,10 +214,6 @@ void DirConManager::handleNewClient(void *arg, AsyncClient *client) {
           indoorBikeDataCharacteristic->addSubscription(clientIndex);
         }
       }
-      // send the FE-C request to receive the capabilities
-      if (!BTDeviceManager::writeFECCapabilitiesRequest()) {
-        log_e("Error writing FEC capabilities request");
-      }
       break;
     }
   }
@@ -741,7 +737,7 @@ void DirConManager::notifyDirConCharacteristic(Characteristic *characteristic, u
           //page 54 - 0x36 - FE Capabilities
           case 0x36:
             trainerMaximumResistance = (pData[10] << 8) | pData[9];
-            log_i("FE-C maximum resistance: %d", trainerMaximumResistance);
+            log_i("FE-C maximum resistance (secondary): %d", trainerMaximumResistance);
             break;
           default:
             //log_i("FEC DATA: %s", Utils::getHexString(pData, length).c_str());

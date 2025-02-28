@@ -27,6 +27,7 @@ class BTDeviceManager {
   static bool writeFECCapabilitiesRequest();
   static std::vector<NimBLEAdvertisedDevice>* getScannedDevices();
   static String getStatusMessage();
+  static uint16_t getFECMaximumResistance();
 
  private:
   friend class BTAdvertisedDeviceCallbacks;
@@ -55,6 +56,7 @@ class BTDeviceManager {
   static bool changeBLENotify(Characteristic* characteristic, bool remove);
   static uint8_t getFECChecksum(std::vector<uint8_t>* fecData);
   static String statusMessage;
+  static uint16_t fecMaximumResistance;
 };
 
 #endif

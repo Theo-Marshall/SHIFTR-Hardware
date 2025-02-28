@@ -5,6 +5,7 @@
 #include <DirConManager.h>
 #include <Utils.h>
 #include <arduino-timer.h>
+#include <Calculations.h>
 
 std::vector<NimBLEUUID> BTDeviceManager::remoteDeviceFilterUUIDs{};
 std::vector<NimBLEAdvertisedDevice> BTDeviceManager::scannedDevices{};
@@ -18,6 +19,7 @@ bool BTDeviceManager::started = false;
 Timer<> BTDeviceManager::scanTimer = timer_create_default();
 Timer<> BTDeviceManager::connectTimer = timer_create_default();
 String BTDeviceManager::statusMessage = "";
+uint16_t BTDeviceManager::fecMaximumResistance = 0;
 
 class BTDeviceServiceManagerCallbacks : public ServiceManagerCallbacks {
   void onCharacteristicSubscriptionChanged(Characteristic* characteristic, bool removed) {
@@ -34,7 +36,23 @@ class BTDeviceServiceManagerCallbacks : public ServiceManagerCallbacks {
 };
 
 void BTDeviceManager::onBLENotify(BLERemoteCharacteristic* pBLERemoteCharacteristic, uint8_t* pData, size_t length, bool isNotify) {
+  if (pBLERemoteCharacteristic != nullptr) {
+    // Fetch FE-C information
+    if (pBLERemoteCharacteristic->getUUID().equals(NimBLEUUID(TACX_FEC_READ_CHARACTERISTIC_UUID))) {
+      if (length == 13) {
+        // page 54 - 0x36 - FE Capabilities
+        if (pData[4] == 0x36) {
+          fecMaximumResistance = (pData[10] << 8) | pData[9];
+          log_i("FE-C maximum resistance: %d", fecMaximumResistance);
+        }
+      }
+    }
+  }
   DirConManager::notifyDirConCharacteristic(pBLERemoteCharacteristic->getUUID(), pData, length);
+}
+
+uint16_t BTDeviceManager::getFECMaximumResistance() {
+  return fecMaximumResistance;
 }
 
 std::vector<NimBLEAdvertisedDevice>* BTDeviceManager::getScannedDevices() {
@@ -177,6 +195,11 @@ bool BTDeviceManager::connectRemoteDevice(NimBLEAdvertisedDevice* remoteDevice) 
           if (characteristic == nullptr) {
             characteristic = new Characteristic((*remoteCharacterisic)->getUUID(), getProperties((*remoteCharacterisic)));
             service->addCharacteristic(characteristic);
+            if ((*remoteCharacterisic)->getUUID().equals(NimBLEUUID(TACX_FEC_READ_CHARACTERISTIC_UUID))) {
+              if ((*remoteCharacterisic)->canNotify() || (*remoteCharacterisic)->canIndicate()) {
+                (*remoteCharacterisic)->subscribe(true, onBLENotify);
+              }      
+            }
           }
           characteristic->setProperties(getProperties((*remoteCharacterisic)));
         }
@@ -188,6 +211,16 @@ bool BTDeviceManager::connectRemoteDevice(NimBLEAdvertisedDevice* remoteDevice) 
     connectedDeviceName = "";
     return false;
   }
+  // send the FE-C request to receive the capabilities (especially for the maximum resistance)
+  if (!BTDeviceManager::writeFECCapabilitiesRequest()) {
+    log_e("Error writing FEC capabilities request");
+  }
+
+  // send the user configuration default
+  if (!BTDeviceManager::writeFECUserConfiguration(200, 7500, (uint8_t)(Calculations::wheelDiameter / 0.01), (uint8_t)round(((double)SettingsManager::getChainringTeeth() / (double)SettingsManager::getSprocketTeeth()) / 0.03))) {
+    log_e("Error writing FEC user configuration");
+  }
+
   return true;
 }
 
