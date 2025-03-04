@@ -5,6 +5,623 @@
 	(uuid "3bfa63c6-9d72-4aec-ae9c-b2577824d50b")
 	(paper "A4")
 	(lib_symbols
+		(symbol "symbol_library:PJ-002AH"
+			(pin_names
+				(offset 1.016)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(property "Reference" "J"
+				(at -7.6272 5.0848 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left bottom)
+				)
+			)
+			(property "Value" "PJ-002AH"
+				(at -7.6313 -5.0875 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left bottom)
+				)
+			)
+			(property "Footprint" "footprint_library:PJ-002AH"
+				(at 3.048 -12.446 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify bottom)
+					(hide yes)
+				)
+			)
+			(property "Datasheet" "https://www.sameskydevices.com/product/resource/pj-002ah.pdf"
+				(at 3.81 8.89 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Description" "BARREL JACK 2.1 X 5.5"
+				(at 1.524 11.176 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "MANUFACTURER" "CUI INC"
+				(at 3.048 -8.89 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify bottom)
+					(hide yes)
+				)
+			)
+			(property "STANDARD" "Manufacturer recommendations"
+				(at 2.54 -10.414 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify bottom)
+					(hide yes)
+				)
+			)
+			(symbol "PJ-002AH_0_0"
+				(polyline
+					(pts
+						(xy -5.715 3.81) (xy -1.27 3.81)
+					)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(arc
+					(start -5.715 1.27)
+					(mid -6.9794 2.54)
+					(end -5.715 3.81)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -3.81 -1.27) (xy -4.445 -2.54)
+					)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -3.175 -2.54) (xy -3.81 -1.27)
+					)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -1.27 4.445) (xy -1.27 3.81)
+					)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -1.27 3.81) (xy -1.27 1.27)
+					)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -1.27 1.27) (xy -5.715 1.27)
+					)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -1.27 1.27) (xy -1.27 0.635)
+					)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -1.27 0.635) (xy 0 0.635)
+					)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 4.445) (xy -1.27 4.445)
+					)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 0.635) (xy 0 4.445)
+					)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 0) (xy 0 -2.54)
+					)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 -2.54) (xy -3.175 -2.54)
+					)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 -2.54) (xy -0.508 -1.27) (xy 0.508 -1.27) (xy 0 -2.54)
+					)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type outline)
+					)
+				)
+				(pin passive line
+					(at 5.08 2.54 180)
+					(length 5.08)
+					(name "~"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 5.08 0 180)
+					(length 5.08)
+					(name "~"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "3"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 5.08 -2.54 180)
+					(length 5.08)
+					(name "~"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "symbol_library:SJ1-3523N"
+			(pin_names
+				(offset 1.016)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(property "Reference" "J"
+				(at -7.62 8.382 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left bottom)
+				)
+			)
+			(property "Value" "SJ1-3523N"
+				(at -7.62 -10.16 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left bottom)
+				)
+			)
+			(property "Footprint" "footprint_library:CUI_SJ1-3523N"
+				(at 5.334 -13.716 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify bottom)
+					(hide yes)
+				)
+			)
+			(property "Datasheet" "https://www.sameskydevices.com/product/resource/sj1-352xn.pdf"
+				(at -0.508 -22.098 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Description" "AUDIO JACK 3.5MM 3P"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "PARTREV" "1.05"
+				(at 0.508 -18.288 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify bottom)
+					(hide yes)
+				)
+			)
+			(property "STANDARD" "Manufacturer Recommendations"
+				(at 0.762 -11.938 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify bottom)
+					(hide yes)
+				)
+			)
+			(property "MAXIMUM_PACKAGE_HEIGHT" "6.25 mm"
+				(at 0.762 -20.574 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify bottom)
+					(hide yes)
+				)
+			)
+			(property "MANUFACTURER" "CUI Devices"
+				(at 0.254 -16.764 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify bottom)
+					(hide yes)
+				)
+			)
+			(symbol "SJ1-3523N_0_0"
+				(rectangle
+					(start -7.62 -7.62)
+					(end 7.62 7.62)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type background)
+					)
+				)
+				(polyline
+					(pts
+						(xy -4.445 0.889) (xy -3.81 0.889)
+					)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -4.445 -3.556) (xy -4.445 0.889)
+					)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -3.81 5.08) (xy -3.81 0.889)
+					)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -3.81 0.889) (xy -3.175 0.889)
+					)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -3.175 0.889) (xy -3.175 -3.556)
+					)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -3.175 -3.556) (xy -4.445 -3.556)
+					)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -1.143 1.27) (xy -2.413 2.54)
+					)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0.127 2.54) (xy -1.143 1.27)
+					)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0.127 -3.81) (xy -1.143 -5.08)
+					)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 1.397 -5.08) (xy 0.127 -3.81)
+					)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 7.62 5.08) (xy -3.81 5.08)
+					)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 7.62 2.54) (xy 0.127 2.54)
+					)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 7.62 -5.08) (xy 1.397 -5.08)
+					)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(pin passive line
+					(at 12.7 5.08 180)
+					(length 5.08)
+					(name "~"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 12.7 2.54 180)
+					(length 5.08)
+					(name "~"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "3"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 12.7 -5.08 180)
+					(length 5.08)
+					(name "~"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
 		(symbol "symbol_library:WT32-ETH01"
 			(exclude_from_sim no)
 			(in_bom yes)
@@ -43,7 +660,7 @@
 					(hide yes)
 				)
 			)
-			(property "Description" ""
+			(property "Description" "ARDUINO"
 				(at 0 0 0)
 				(effects
 					(font
@@ -10966,17 +11583,221 @@
 		)
 	)
 	(symbol
-		(lib_id "symbol_library:WT32-ETH01")
-		(at 46.99 59.69 0)
+		(lib_id "symbol_library:PJ-002AH")
+		(at 69.85 45.72 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
 		(fields_autoplaced yes)
-		(uuid "8669c681-0a80-4af1-82a5-8e1a2292ab76")
+		(uuid "7023371f-89f6-48fc-bdc0-6fbfb9528106")
+		(property "Reference" "J1"
+			(at 66.6143 36.83 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "PJ-002AH"
+			(at 66.6143 39.37 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "footprint_library:PJ-002AH"
+			(at 72.898 58.166 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "https://www.sameskydevices.com/product/resource/pj-002ah.pdf"
+			(at 73.66 36.83 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "BARREL JACK 2.1 X 5.5"
+			(at 71.374 34.544 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MANUFACTURER" "CUI INC"
+			(at 72.898 54.61 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "STANDARD" "Manufacturer recommendations"
+			(at 72.39 56.134 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "935ff435-bf3d-44d4-8660-6ad7604b03f8")
+		)
+		(pin "2"
+			(uuid "b384c927-84cf-4d1e-bfc5-f57ab1d94a1c")
+		)
+		(pin "3"
+			(uuid "881e3120-93fc-4e1b-b82e-5b831ae24aec")
+		)
+		(instances
+			(project ""
+				(path "/3bfa63c6-9d72-4aec-ae9c-b2577824d50b"
+					(reference "J1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "symbol_library:SJ1-3523N")
+		(at 96.52 45.72 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "70e13646-7a4d-41de-a597-f225e925aeae")
+		(property "Reference" "J2"
+			(at 96.52 33.02 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "SJ1-3523N"
+			(at 96.52 35.56 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "footprint_library:CUI_SJ1-3523N"
+			(at 101.854 59.436 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "https://www.sameskydevices.com/product/resource/sj1-352xn.pdf"
+			(at 96.012 67.818 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "AUDIO JACK 3.5MM 3P"
+			(at 96.52 45.72 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "PARTREV" "1.05"
+			(at 97.028 64.008 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "STANDARD" "Manufacturer Recommendations"
+			(at 97.282 57.658 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "MAXIMUM_PACKAGE_HEIGHT" "6.25 mm"
+			(at 97.282 66.294 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "MANUFACTURER" "CUI Devices"
+			(at 96.774 62.484 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "85cc2c16-4fdd-49fb-957e-e12ab6a3eae8")
+		)
+		(pin "3"
+			(uuid "7e46915c-2f82-4b11-b1b7-9c6abddffce7")
+		)
+		(pin "2"
+			(uuid "2af1ba52-9892-4921-b80a-a1025d78ddd6")
+		)
+		(instances
+			(project ""
+				(path "/3bfa63c6-9d72-4aec-ae9c-b2577824d50b"
+					(reference "J2")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "symbol_library:WT32-ETH01")
+		(at 69.85 96.52 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "b6e86f65-e1ce-4628-81eb-20dc77e39b1c")
 		(property "Reference" "SOC1"
-			(at 46.99 27.94 0)
+			(at 69.85 64.77 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -10984,7 +11805,7 @@
 			)
 		)
 		(property "Value" "~"
-			(at 46.99 30.48 0)
+			(at 69.85 67.31 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -10992,7 +11813,7 @@
 			)
 		)
 		(property "Footprint" "footprint_library:WT32-ETH01"
-			(at 46.99 59.69 0)
+			(at 69.85 96.52 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11001,7 +11822,7 @@
 			)
 		)
 		(property "Datasheet" "kicad-embed://WT32-ETH01_datasheet_V1.1- en.pdf"
-			(at 46.99 59.69 0)
+			(at 69.85 96.52 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11009,92 +11830,92 @@
 				(hide yes)
 			)
 		)
-		(property "Description" ""
-			(at 46.99 59.69 0)
+		(property "Description" "ARDUINO"
+			(at 69.85 96.52 0)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(hide yes)
 			)
-		)
-		(pin "22"
-			(uuid "8d5db999-a556-482b-a711-6c117f3c1e38")
-		)
-		(pin "19"
-			(uuid "cf102e7f-66e9-47c8-b0f4-2c77f47ef2c3")
 		)
 		(pin "21"
-			(uuid "aef69086-be71-4081-a38d-cf89c66d23c2")
-		)
-		(pin "26"
-			(uuid "847bb746-7f60-4165-a281-aedb6992c230")
-		)
-		(pin "23"
-			(uuid "fdc685b8-e21f-46d2-a90b-8a257bf0b461")
-		)
-		(pin "2"
-			(uuid "6a0a40c1-faa6-4c15-8da5-d9274639f96e")
-		)
-		(pin "7"
-			(uuid "a6c69948-ece3-40f5-b4f3-be05dd5856cd")
-		)
-		(pin "10"
-			(uuid "2f27a937-3e5a-43ae-bcd2-20ffef8e614c")
-		)
-		(pin "9"
-			(uuid "3567dae4-b271-4b21-9dc1-7107a3a40119")
-		)
-		(pin "16"
-			(uuid "87b130fe-f525-4231-ba6d-b802befb4b60")
-		)
-		(pin "11"
-			(uuid "7c9076ab-4d93-4022-adee-ce17f97deb48")
-		)
-		(pin "24"
-			(uuid "79d168dd-afbc-4354-9a7a-4b9976df5d67")
-		)
-		(pin "3"
-			(uuid "cbe32876-7c5b-4379-87b7-ecfdb1f48ff9")
-		)
-		(pin "12"
-			(uuid "f405e201-b474-4469-bbe5-fed0460c9b2f")
-		)
-		(pin "18"
-			(uuid "f8cd6801-91a6-4872-ae77-916f550f03b5")
-		)
-		(pin "5"
-			(uuid "915cd50e-a632-481c-a98d-e6774dd3b8d4")
-		)
-		(pin "14"
-			(uuid "c748f228-e81c-43ed-844b-c80e7050471a")
-		)
-		(pin "20"
-			(uuid "f746213a-9f87-4237-b3cf-005207aa600f")
-		)
-		(pin "6"
-			(uuid "2074d730-56dc-48a5-9ef4-7dad70d860dc")
-		)
-		(pin "25"
-			(uuid "803acd4b-b901-4269-959b-b99f0db3bac2")
-		)
-		(pin "4"
-			(uuid "49eb52ee-8e0d-4b2c-9f86-01b4dab0c9fe")
-		)
-		(pin "17"
-			(uuid "90c5b25c-c35a-4f7f-9876-bc2202ad8f40")
+			(uuid "af67d158-a994-4b16-87e8-d57229978669")
 		)
 		(pin "1"
-			(uuid "a7f267f7-86a3-4441-be68-30b8026803dd")
+			(uuid "d28da671-739d-4268-8be1-6c40d1881ae4")
 		)
-		(pin "15"
-			(uuid "844242f5-4490-4498-b4a5-4806b14ddc01")
+		(pin "3"
+			(uuid "8ff99501-2be5-4747-9fb3-5c18206812bd")
 		)
-		(pin "8"
-			(uuid "ff4c5f31-a70e-4289-abbc-e8be03d79233")
+		(pin "2"
+			(uuid "e32cbf7e-25a2-47ac-9bd4-998f57efaaa4")
+		)
+		(pin "10"
+			(uuid "78df301b-7ea7-40f2-b4ab-9f8fdfafa422")
 		)
 		(pin "13"
-			(uuid "2bf754ec-572a-4498-9234-9260d6095431")
+			(uuid "83e3a2c4-4952-4801-9847-4fdd7ed09c3a")
+		)
+		(pin "25"
+			(uuid "6eaa3bb0-3c72-4580-bbab-0931f3d5b54b")
+		)
+		(pin "23"
+			(uuid "4a200635-cc39-42f0-b857-d4924c14a6f9")
+		)
+		(pin "11"
+			(uuid "9f5cc1a2-f858-4398-9370-5c3908116493")
+		)
+		(pin "9"
+			(uuid "2467e2cd-5a5b-4660-ae3f-04968ee2a082")
+		)
+		(pin "24"
+			(uuid "afdd3592-0ab6-47d1-843a-c8a22e23fdc8")
+		)
+		(pin "22"
+			(uuid "33908a7f-4479-4457-a19d-f4fae5c6fc49")
+		)
+		(pin "4"
+			(uuid "81b562f3-693c-483d-a1c0-aedd6a4c3d2f")
+		)
+		(pin "6"
+			(uuid "9e294031-4243-48ad-b2ab-9e9cc446d6bd")
+		)
+		(pin "7"
+			(uuid "61b8b160-e2a0-46e7-913b-cc27a9e656b9")
+		)
+		(pin "5"
+			(uuid "f7066b91-f90e-4d3c-94f8-e58e09d68fd7")
+		)
+		(pin "8"
+			(uuid "44880e42-b6e5-4e34-ab55-b706e371fd21")
+		)
+		(pin "12"
+			(uuid "2a667a9f-2233-4763-b640-387916507bd8")
+		)
+		(pin "26"
+			(uuid "c55e66c3-09e9-4935-bc37-cfdd662115c7")
+		)
+		(pin "19"
+			(uuid "14afb178-1937-4803-af24-e1d2bd3de6ed")
+		)
+		(pin "17"
+			(uuid "20056fac-26aa-413f-896c-44d098008f76")
+		)
+		(pin "18"
+			(uuid "47085aef-689e-4ece-9c30-742d2b0cffcc")
+		)
+		(pin "16"
+			(uuid "a19b6c10-9537-4c5d-896f-59afdbeddef6")
+		)
+		(pin "15"
+			(uuid "20a803f4-ec52-4d93-8390-2359f4633e32")
+		)
+		(pin "20"
+			(uuid "962a2049-4dd0-499c-853d-735842ce0ae9")
+		)
+		(pin "14"
+			(uuid "6512b4b7-dbf3-45c5-a70e-81b8375cc162")
 		)
 		(instances
 			(project ""
