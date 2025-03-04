@@ -464,19 +464,6 @@
 			(justify left)
 		)
 	)
-	(fp_text user "https://github.com/egnor/wt32-eth01"
-		(at 15.24 10.16 90)
-		(unlocked yes)
-		(layer "Cmts.User")
-		(uuid "a15564d9-cb46-4b8b-8073-ce95dc3b2b79")
-		(effects
-			(font
-				(size 1 1)
-				(thickness 0.15)
-			)
-			(justify left bottom)
-		)
-	)
 	(pad "1" thru_hole circle
 		(at -11.43 -18.61)
 		(size 1.7 1.7)

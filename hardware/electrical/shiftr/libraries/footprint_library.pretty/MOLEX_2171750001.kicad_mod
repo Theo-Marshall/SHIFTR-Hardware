@@ -252,17 +252,6 @@
 		(layer "F.Fab")
 		(uuid "26832af2-a820-4c0c-bfcc-8a73c2b221eb")
 	)
-	(fp_text user "PTH Slot 1.2 +/- 0.05 X 0.6 +/- 0.05"
-		(at 0.5 -12 0)
-		(layer "Dwgs.User")
-		(uuid "9cfcc2ec-fcff-4755-a426-1bf6ef6de56b")
-		(effects
-			(font
-				(size 0.393701 0.393701)
-				(thickness 0.15)
-			)
-		)
-	)
 	(fp_text user "PCB Edge"
 		(at 5.3 -0.2 0)
 		(layer "F.Fab")
