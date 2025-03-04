@@ -5,6 +5,319 @@
 	(uuid "3bfa63c6-9d72-4aec-ae9c-b2577824d50b")
 	(paper "A4")
 	(lib_symbols
+		(symbol "symbol_library:2171750001"
+			(pin_names
+				(offset 1.016)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(property "Reference" "J"
+				(at -12.7 13.2842 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left bottom)
+				)
+			)
+			(property "Value" "2171750001"
+				(at -12.7 -15.24 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left bottom)
+					(hide yes)
+				)
+			)
+			(property "Footprint" "footprint_library:MOLEX_2171750001"
+				(at 0.762 -17.272 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify bottom)
+					(hide yes)
+				)
+			)
+			(property "Datasheet" "https://www.molex.com/en-us/products/part-detail-pdf/2171750001?display=pdf"
+				(at -3.556 -31.496 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Description" "USB C CONNECTOR 6P"
+				(at 0.254 -35.306 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "PARTREV" "A1"
+				(at -0.254 -26.67 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify bottom)
+					(hide yes)
+				)
+			)
+			(property "STANDARD" "Manufacturer Recommendations"
+				(at 0 -23.876 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify bottom)
+					(hide yes)
+				)
+			)
+			(property "OPTION" "MOLEX_CONFIG"
+				(at 0.508 -22.098 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify bottom)
+					(hide yes)
+				)
+			)
+			(property "MAXIMUM_PACKAGE_HEIGHT" "3.26mm"
+				(at 0.508 -19.304 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify bottom)
+					(hide yes)
+				)
+			)
+			(property "MANUFACTURER" "Molex"
+				(at 0 -29.21 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify bottom)
+					(hide yes)
+				)
+			)
+			(symbol "2171750001_0_0"
+				(rectangle
+					(start -12.7 -12.7)
+					(end 12.7 12.7)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type background)
+					)
+				)
+				(pin bidirectional line
+					(at -17.78 10.16 0)
+					(length 5.08)
+					(name "CC1"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "A5"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at -17.78 5.08 0)
+					(length 5.08)
+					(name "VBUS1"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "A9"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at -17.78 2.54 0)
+					(length 5.08)
+					(name "VBUS2"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "B9"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+				(pin bidirectional line
+					(at 17.78 10.16 180)
+					(length 5.08)
+					(name "CC2"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "B5"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at 17.78 5.08 180)
+					(length 5.08)
+					(name "GND1"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "A12"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at 17.78 2.54 180)
+					(length 5.08)
+					(name "GND2"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "B12"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 17.78 -2.54 180)
+					(length 5.08)
+					(name "SHIELD1"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "SH1"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 17.78 -5.08 180)
+					(length 5.08)
+					(name "SHIELD2"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "SH2"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 17.78 -7.62 180)
+					(length 5.08)
+					(name "SHIELD3"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "SH3"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 17.78 -10.16 180)
+					(length 5.08)
+					(name "SHIELD4"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "SH4"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+			)
+			(symbol "2171750001_1_1"
+				(text "2171750001"
+					(at 0 10.668 0)
+					(effects
+						(font
+							(size 1.27 1.27)
+							(thickness 0.254)
+							(bold yes)
+							(italic yes)
+							(color 19 0 147 1)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
 		(symbol "symbol_library:PJ-002AH"
 			(pin_names
 				(offset 1.016)
@@ -28,6 +341,7 @@
 						(size 1.27 1.27)
 					)
 					(justify left bottom)
+					(hide yes)
 				)
 			)
 			(property "Footprint" "footprint_library:PJ-002AH"
@@ -302,6 +616,20 @@
 					)
 				)
 			)
+			(symbol "PJ-002AH_1_1"
+				(text "PJ-002AH"
+					(at 0.508 -6.096 0)
+					(effects
+						(font
+							(size 1.27 1.27)
+							(thickness 0.254)
+							(bold yes)
+							(italic yes)
+							(color 19 0 147 1)
+						)
+					)
+				)
+			)
 			(embedded_fonts no)
 		)
 		(symbol "symbol_library:SJ1-3523N"
@@ -327,6 +655,7 @@
 						(size 1.27 1.27)
 					)
 					(justify left bottom)
+					(hide yes)
 				)
 			)
 			(property "Footprint" "footprint_library:CUI_SJ1-3523N"
@@ -620,6 +949,20 @@
 					)
 				)
 			)
+			(symbol "SJ1-3523N_1_1"
+				(text "SJ1-3523N"
+					(at -0.508 6.35 0)
+					(effects
+						(font
+							(size 1.27 1.27)
+							(thickness 0.254)
+							(bold yes)
+							(italic yes)
+							(color 19 0 147 1)
+						)
+					)
+				)
+			)
 			(embedded_fonts no)
 		)
 		(symbol "symbol_library:WT32-ETH01"
@@ -669,22 +1012,19 @@
 					(hide yes)
 				)
 			)
-			(symbol "WT32-ETH01_0_1"
+			(symbol "WT32-ETH01_1_1"
 				(rectangle
 					(start -12.7 27.94)
 					(end 12.7 -11.43)
 					(stroke
 						(width 0)
-						(type default)
+						(type solid)
 						(color 180 9 0 1)
 					)
 					(fill
-						(type color)
-						(color 255 240 189 1)
+						(type background)
 					)
 				)
-			)
-			(symbol "WT32-ETH01_1_1"
 				(text "WT32-ETH01"
 					(at -0.254 25.4 0)
 					(effects
@@ -11584,16 +11924,16 @@
 	)
 	(symbol
 		(lib_id "symbol_library:PJ-002AH")
-		(at 69.85 45.72 0)
+		(at 100.33 45.72 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
 		(fields_autoplaced yes)
-		(uuid "7023371f-89f6-48fc-bdc0-6fbfb9528106")
-		(property "Reference" "J1"
-			(at 66.6143 36.83 0)
+		(uuid "340ed39a-b3dc-47ba-a973-94defe5af65f")
+		(property "Reference" "J2"
+			(at 99.6873 39.37 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11601,15 +11941,17 @@
 			)
 		)
 		(property "Value" "PJ-002AH"
-			(at 66.6143 39.37 0)
+			(at 92.6987 50.8075 0)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
+				(justify left bottom)
+				(hide yes)
 			)
 		)
 		(property "Footprint" "footprint_library:PJ-002AH"
-			(at 72.898 58.166 0)
+			(at 103.378 58.166 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11619,7 +11961,7 @@
 			)
 		)
 		(property "Datasheet" "https://www.sameskydevices.com/product/resource/pj-002ah.pdf"
-			(at 73.66 36.83 0)
+			(at 104.14 36.83 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11628,7 +11970,7 @@
 			)
 		)
 		(property "Description" "BARREL JACK 2.1 X 5.5"
-			(at 71.374 34.544 0)
+			(at 101.854 34.544 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11637,7 +11979,7 @@
 			)
 		)
 		(property "MANUFACTURER" "CUI INC"
-			(at 72.898 54.61 0)
+			(at 103.378 54.61 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11647,7 +11989,7 @@
 			)
 		)
 		(property "STANDARD" "Manufacturer recommendations"
-			(at 72.39 56.134 0)
+			(at 102.87 56.134 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11657,125 +11999,13 @@
 			)
 		)
 		(pin "1"
-			(uuid "935ff435-bf3d-44d4-8660-6ad7604b03f8")
-		)
-		(pin "2"
-			(uuid "b384c927-84cf-4d1e-bfc5-f57ab1d94a1c")
+			(uuid "2bda3673-4628-4536-a74d-799f803df473")
 		)
 		(pin "3"
-			(uuid "881e3120-93fc-4e1b-b82e-5b831ae24aec")
-		)
-		(instances
-			(project ""
-				(path "/3bfa63c6-9d72-4aec-ae9c-b2577824d50b"
-					(reference "J1")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "symbol_library:SJ1-3523N")
-		(at 96.52 45.72 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "70e13646-7a4d-41de-a597-f225e925aeae")
-		(property "Reference" "J2"
-			(at 96.52 33.02 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "SJ1-3523N"
-			(at 96.52 35.56 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "footprint_library:CUI_SJ1-3523N"
-			(at 101.854 59.436 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify bottom)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" "https://www.sameskydevices.com/product/resource/sj1-352xn.pdf"
-			(at 96.012 67.818 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" "AUDIO JACK 3.5MM 3P"
-			(at 96.52 45.72 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "PARTREV" "1.05"
-			(at 97.028 64.008 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify bottom)
-				(hide yes)
-			)
-		)
-		(property "STANDARD" "Manufacturer Recommendations"
-			(at 97.282 57.658 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify bottom)
-				(hide yes)
-			)
-		)
-		(property "MAXIMUM_PACKAGE_HEIGHT" "6.25 mm"
-			(at 97.282 66.294 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify bottom)
-				(hide yes)
-			)
-		)
-		(property "MANUFACTURER" "CUI Devices"
-			(at 96.774 62.484 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify bottom)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "85cc2c16-4fdd-49fb-957e-e12ab6a3eae8")
-		)
-		(pin "3"
-			(uuid "7e46915c-2f82-4b11-b1b7-9c6abddffce7")
+			(uuid "6fed367a-d9d8-44f5-af7e-00fe9c22c757")
 		)
 		(pin "2"
-			(uuid "2af1ba52-9892-4921-b80a-a1025d78ddd6")
+			(uuid "8c964cc6-edba-4eba-b8e4-30a97d651233")
 		)
 		(instances
 			(project ""
@@ -11787,17 +12017,276 @@
 		)
 	)
 	(symbol
-		(lib_id "symbol_library:WT32-ETH01")
-		(at 69.85 96.52 0)
+		(lib_id "symbol_library:SJ1-3523N")
+		(at 109.22 69.85 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
 		(fields_autoplaced yes)
-		(uuid "b6e86f65-e1ce-4628-81eb-20dc77e39b1c")
+		(uuid "72880f96-dc67-4581-b144-a4da5774d4cb")
+		(property "Reference" "J3"
+			(at 109.22 59.69 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "SJ1-3523N"
+			(at 101.6 80.01 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+				(hide yes)
+			)
+		)
+		(property "Footprint" "footprint_library:CUI_SJ1-3523N"
+			(at 114.554 83.566 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "https://www.sameskydevices.com/product/resource/sj1-352xn.pdf"
+			(at 108.712 91.948 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "AUDIO JACK 3.5MM 3P"
+			(at 109.22 69.85 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "PARTREV" "1.05"
+			(at 109.728 88.138 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "STANDARD" "Manufacturer Recommendations"
+			(at 109.982 81.788 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "MAXIMUM_PACKAGE_HEIGHT" "6.25 mm"
+			(at 109.982 90.424 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "MANUFACTURER" "CUI Devices"
+			(at 109.474 86.614 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "3f7aea60-00ec-4a1e-87e7-c7d03ff12ea7")
+		)
+		(pin "2"
+			(uuid "c1831fe3-388e-47bc-ae5e-6c443193fd4e")
+		)
+		(pin "3"
+			(uuid "1679b3b4-d3ef-4ad6-8f8d-30b387f8d7ae")
+		)
+		(instances
+			(project ""
+				(path "/3bfa63c6-9d72-4aec-ae9c-b2577824d50b"
+					(reference "J3")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "symbol_library:2171750001")
+		(at 66.04 52.07 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "a1e896ee-5046-43e7-a359-688bff19b1f6")
+		(property "Reference" "J1"
+			(at 66.04 36.83 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "2171750001"
+			(at 53.34 67.31 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+				(hide yes)
+			)
+		)
+		(property "Footprint" "footprint_library:MOLEX_2171750001"
+			(at 66.802 69.342 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "https://www.molex.com/en-us/products/part-detail-pdf/2171750001?display=pdf"
+			(at 62.484 83.566 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "USB C CONNECTOR 6P"
+			(at 66.294 87.376 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "PARTREV" "A1"
+			(at 65.786 78.74 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "STANDARD" "Manufacturer Recommendations"
+			(at 66.04 75.946 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "OPTION" "MOLEX_CONFIG"
+			(at 66.548 74.168 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "MAXIMUM_PACKAGE_HEIGHT" "3.26mm"
+			(at 66.548 71.374 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "MANUFACTURER" "Molex"
+			(at 66.04 81.28 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(pin "SH1"
+			(uuid "c6f9da47-55a6-40e7-954a-5db4a43926e6")
+		)
+		(pin "SH2"
+			(uuid "cf255647-e76f-4481-abce-36878b3a906e")
+		)
+		(pin "SH4"
+			(uuid "0724c63c-65f4-4a16-b90a-8ce2df034de2")
+		)
+		(pin "B9"
+			(uuid "76930b77-4bd4-48ac-af5a-fe1f9283485e")
+		)
+		(pin "SH3"
+			(uuid "940b98af-5c7d-40ba-978b-dd3ba245072c")
+		)
+		(pin "A12"
+			(uuid "5e8ea439-d633-4eb2-a9c4-e4f3ce897a4e")
+		)
+		(pin "A9"
+			(uuid "40b02cb0-9b07-445a-b821-1c17f544281b")
+		)
+		(pin "B5"
+			(uuid "9f3367fa-26d9-401d-b596-4fb1d380280f")
+		)
+		(pin "A5"
+			(uuid "bcdae653-6185-46ec-b4d7-ab9c4a0a9c0b")
+		)
+		(pin "B12"
+			(uuid "dd497986-7b91-47f8-83a2-4d95a9eeed38")
+		)
+		(instances
+			(project ""
+				(path "/3bfa63c6-9d72-4aec-ae9c-b2577824d50b"
+					(reference "J1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "symbol_library:WT32-ETH01")
+		(at 67.31 102.87 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "cc1d89c6-cb4c-4d62-b0ee-341c485cb075")
 		(property "Reference" "SOC1"
-			(at 69.85 64.77 0)
+			(at 67.31 71.12 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11805,7 +12294,7 @@
 			)
 		)
 		(property "Value" "~"
-			(at 69.85 67.31 0)
+			(at 67.31 73.66 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11813,7 +12302,7 @@
 			)
 		)
 		(property "Footprint" "footprint_library:WT32-ETH01"
-			(at 69.85 96.52 0)
+			(at 67.31 102.87 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11822,7 +12311,7 @@
 			)
 		)
 		(property "Datasheet" "kicad-embed://WT32-ETH01_datasheet_V1.1- en.pdf"
-			(at 69.85 96.52 0)
+			(at 67.31 102.87 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11831,7 +12320,7 @@
 			)
 		)
 		(property "Description" "ARDUINO"
-			(at 69.85 96.52 0)
+			(at 67.31 102.87 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11839,83 +12328,83 @@
 				(hide yes)
 			)
 		)
-		(pin "21"
-			(uuid "af67d158-a994-4b16-87e8-d57229978669")
-		)
-		(pin "1"
-			(uuid "d28da671-739d-4268-8be1-6c40d1881ae4")
-		)
-		(pin "3"
-			(uuid "8ff99501-2be5-4747-9fb3-5c18206812bd")
-		)
-		(pin "2"
-			(uuid "e32cbf7e-25a2-47ac-9bd4-998f57efaaa4")
-		)
-		(pin "10"
-			(uuid "78df301b-7ea7-40f2-b4ab-9f8fdfafa422")
+		(pin "7"
+			(uuid "34ecd7d2-b8c8-4392-be0a-de058013965f")
 		)
 		(pin "13"
-			(uuid "83e3a2c4-4952-4801-9847-4fdd7ed09c3a")
-		)
-		(pin "25"
-			(uuid "6eaa3bb0-3c72-4580-bbab-0931f3d5b54b")
-		)
-		(pin "23"
-			(uuid "4a200635-cc39-42f0-b857-d4924c14a6f9")
-		)
-		(pin "11"
-			(uuid "9f5cc1a2-f858-4398-9370-5c3908116493")
-		)
-		(pin "9"
-			(uuid "2467e2cd-5a5b-4660-ae3f-04968ee2a082")
-		)
-		(pin "24"
-			(uuid "afdd3592-0ab6-47d1-843a-c8a22e23fdc8")
-		)
-		(pin "22"
-			(uuid "33908a7f-4479-4457-a19d-f4fae5c6fc49")
-		)
-		(pin "4"
-			(uuid "81b562f3-693c-483d-a1c0-aedd6a4c3d2f")
-		)
-		(pin "6"
-			(uuid "9e294031-4243-48ad-b2ab-9e9cc446d6bd")
-		)
-		(pin "7"
-			(uuid "61b8b160-e2a0-46e7-913b-cc27a9e656b9")
-		)
-		(pin "5"
-			(uuid "f7066b91-f90e-4d3c-94f8-e58e09d68fd7")
-		)
-		(pin "8"
-			(uuid "44880e42-b6e5-4e34-ab55-b706e371fd21")
+			(uuid "ee0b7d2d-efa3-4888-ac5e-a4c860e7242c")
 		)
 		(pin "12"
-			(uuid "2a667a9f-2233-4763-b640-387916507bd8")
-		)
-		(pin "26"
-			(uuid "c55e66c3-09e9-4935-bc37-cfdd662115c7")
-		)
-		(pin "19"
-			(uuid "14afb178-1937-4803-af24-e1d2bd3de6ed")
-		)
-		(pin "17"
-			(uuid "20056fac-26aa-413f-896c-44d098008f76")
-		)
-		(pin "18"
-			(uuid "47085aef-689e-4ece-9c30-742d2b0cffcc")
-		)
-		(pin "16"
-			(uuid "a19b6c10-9537-4c5d-896f-59afdbeddef6")
+			(uuid "8707cf1c-a37e-43d8-86c5-54485bd8603d")
 		)
 		(pin "15"
-			(uuid "20a803f4-ec52-4d93-8390-2359f4633e32")
+			(uuid "49316340-85bb-4fda-8193-f40556a739ab")
 		)
-		(pin "20"
-			(uuid "962a2049-4dd0-499c-853d-735842ce0ae9")
+		(pin "9"
+			(uuid "2baccbf6-0b61-4931-b59b-535908718552")
+		)
+		(pin "10"
+			(uuid "bca5627e-e820-4bfc-a1dc-6f239b5814e3")
+		)
+		(pin "25"
+			(uuid "3ab6d39a-ebe5-4ce9-b666-e7f1a3710a44")
+		)
+		(pin "3"
+			(uuid "0c3470e6-c6ec-4ef8-817a-6a95135c9d55")
+		)
+		(pin "26"
+			(uuid "5f39e24c-0d0c-4b9d-b5f0-76bf683820c6")
+		)
+		(pin "24"
+			(uuid "81a83aa6-5b6e-4c7b-bf20-ee8c4becc1f3")
+		)
+		(pin "23"
+			(uuid "3ef1d2c8-3db5-4141-95bf-9ecc9298ec54")
+		)
+		(pin "2"
+			(uuid "48b9115e-dea6-4fbb-911b-36ca70d2928c")
+		)
+		(pin "16"
+			(uuid "a9f2432c-3142-4145-83bf-57ac5bebbe3d")
+		)
+		(pin "19"
+			(uuid "0a7ea439-25f1-4d1e-99db-4484bff235c2")
+		)
+		(pin "17"
+			(uuid "d7ef6a17-26b5-4877-bbb2-eb3e2bb3fbdb")
+		)
+		(pin "5"
+			(uuid "3c71bf1f-dcb1-4968-b007-c5e7bded9e6e")
+		)
+		(pin "18"
+			(uuid "5bb72228-83ae-41a1-ba05-1781238af300")
 		)
 		(pin "14"
-			(uuid "6512b4b7-dbf3-45c5-a70e-81b8375cc162")
+			(uuid "c1bbc5b2-c492-45a3-b05e-4b4abc4f97c7")
+		)
+		(pin "8"
+			(uuid "00f887af-13a2-4286-904a-917b3117710f")
+		)
+		(pin "22"
+			(uuid "669b80b9-6259-46c4-a5bb-d71b3c64819f")
+		)
+		(pin "1"
+			(uuid "4adc9f2c-0729-4ef8-9ae7-1de82442e19b")
+		)
+		(pin "20"
+			(uuid "9f3cf30a-4925-4c88-8040-21f182be44bd")
+		)
+		(pin "4"
+			(uuid "588d7a29-7b2a-40a1-9acf-5d1f76db83f6")
+		)
+		(pin "21"
+			(uuid "efbced51-d66e-432e-b452-9a4fe30737f5")
+		)
+		(pin "6"
+			(uuid "e189224e-5581-4dbd-a340-2d1d7e8dea87")
+		)
+		(pin "11"
+			(uuid "3aaa2aaa-dc49-4945-be26-1ea1698bc03b")
 		)
 		(instances
 			(project ""
