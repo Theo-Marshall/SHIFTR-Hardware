@@ -1,4 +1,4 @@
-24744311565890133
+24747795404519788
 Audio_Module
 Reverb_BTDR-1H
 Digital Reverberation Unit, http://www.belton.co.kr/inc/downfile.php?seq=17&file=pdf (footprint from http://www.uk-electronic.de/PDF/BTDR-1.pdf)
@@ -99519,6 +99519,13 @@ CUI_SJ1-3523N
 3
 3
 footprint_library
+Hole-3mm
+
+
+0
+0
+0
+footprint_library
 MOLEX_2171750001
 
 
@@ -99532,6 +99539,13 @@ PJ-002AH
 0
 3
 3
+footprint_library
+SW_SDA01H1SBD
+
+
+0
+2
+2
 footprint_library
 TPSM365R6V5RDNR
 
