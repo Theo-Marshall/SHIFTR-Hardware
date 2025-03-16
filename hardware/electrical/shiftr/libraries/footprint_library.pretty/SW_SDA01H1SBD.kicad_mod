@@ -318,7 +318,7 @@
 		(uuid "a5ee2619-ae45-4d3b-937d-160c69abc93b")
 	)
 	(embedded_fonts no)
-	(model "${KIPRJMOD}/libraries/downloaded/SDA01H1SBD.step"
+	(model "${KIPRJMOD}/libraries/3d_models/SDA01H1SBD.step"
 		(offset
 			(xyz 0 0 0)
 		)
