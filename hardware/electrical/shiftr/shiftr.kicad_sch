@@ -14598,7 +14598,7 @@
 		(uuid "1a47294f-666c-41cd-ad71-45e0fb4e7a7d")
 	)
 	(label "GND"
-		(at 91.44 92.71 0)
+		(at 113.03 81.28 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -14648,7 +14648,7 @@
 		(uuid "40f18e46-00ca-497f-ba1c-e8bcbfc02f50")
 	)
 	(label "3V3"
-		(at 91.44 95.25 0)
+		(at 113.03 83.82 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -14658,7 +14658,7 @@
 		(uuid "4c0a1196-0a8d-4884-9d6b-fdb4e68ad17f")
 	)
 	(label "RXD"
-		(at 91.44 100.33 0)
+		(at 113.03 88.9 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -14678,7 +14678,7 @@
 		(uuid "add5e12f-69e9-41d5-abd7-11d7aefb7d1b")
 	)
 	(label "TXD"
-		(at 91.44 97.79 0)
+		(at 113.03 86.36 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -14718,7 +14718,7 @@
 		(uuid "deee090e-4b8f-4afa-b25e-f2887c511643")
 	)
 	(label "EN"
-		(at 91.44 102.87 0)
+		(at 113.03 91.44 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -14739,7 +14739,7 @@
 	)
 	(symbol
 		(lib_id "Connector:Conn_01x05_Pin")
-		(at 86.36 97.79 0)
+		(at 107.95 86.36 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -14748,7 +14748,7 @@
 		(fields_autoplaced yes)
 		(uuid "02ca4ab4-ae75-472e-b958-b628d0f8c708")
 		(property "Reference" "J4"
-			(at 86.995 87.63 0)
+			(at 108.585 76.2 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -14756,7 +14756,7 @@
 			)
 		)
 		(property "Value" "Conn_01x05_Pin"
-			(at 86.995 90.17 0)
+			(at 108.585 78.74 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -14764,7 +14764,7 @@
 			)
 		)
 		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical"
-			(at 86.36 97.79 0)
+			(at 107.95 86.36 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -14773,7 +14773,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 86.36 97.79 0)
+			(at 107.95 86.36 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -14782,7 +14782,7 @@
 			)
 		)
 		(property "Description" "Generic connector, single row, 01x05, script generated"
-			(at 86.36 97.79 0)
+			(at 107.95 86.36 0)
 			(effects
 				(font
 					(size 1.27 1.27)
